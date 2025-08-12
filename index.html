@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>프로급 랜덤 추첨기</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    text-align: center;
+    margin: 20px;
+    background: #f9f9f9;
+  }
+  h1 { color: #333; }
+  textarea, input {
+    width: 90%;
+    margin: 5px 0;
+    padding: 8px;
+    font-size: 14px;
+  }
+  button {
+    padding: 10px 20px;
+    margin: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+  }
+  button:hover {
+    background: #45a049;
+  }
+  #result, #history {
+    margin-top: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+    min-width: 300px;
+    display: inline-block;
+    text-align: left;
+    white-space: pre-line;
+  }
+  .highlight {
+    font-size: 24px;
+    font-weight: bold;
+    color: #d9534f;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎯 프로급 랜덤 추첨기</h1>
+
+<h3>카테고리 이름</h3>
+<input type="text" id="category" value="1등 당첨자">
+
+<h3>참가자 목록 (줄바꿈으로 구분)</h3>
+<textarea id="participants" rows="6">홍길동
+김철수
+이영희
+박민수
+최영수
+정다혜
+오수민
+강호준
+한지민</textarea>
+
+<h3>뽑을 인원 수</h3>
+<input type="number" id="count" value="1" min="1">
+
+<div>
+  <button onclick="draw()">추첨하기</button>
+  <button onclick="resetDraw()">리셋</button>
+</div>
+
+<div id="result">결과가 여기에 표시됩니다.</div>
+
+<h3>📜 당첨자 기록</h3>
+<div id="history">기록 없음</div>
+
+<script>
+  let remaining = [];
+  let history = [];
+
+  function draw() {
+    const category = document.getElementById("category").value.trim();
+    const count = parseInt(document.getElementById("count").value);
+
+    // 첫 실행 시 참가자 목록 로드
+    if (remaining.length === 0) {
+      remaining = document.getElementById("participants").value.trim().split("\n").map(s => s.trim()).filter(s => s);
+    }
+
+    if (remaining.length === 0) {
+      document.getElementById("result").textContent = "모든 참가자가 소진되었습니다! 🎉";
+      return;
+    }
+
+    let winners = [];
+    let animationCount = 10;
+    let animationInterval = setInterval(() => {
+      const tempWinners = [];
+      for (let i = 0; i < count && remaining.length > 0; i++) {
+        const randomIndex = Math.floor(Math.random() * remaining.length);
+        tempWinners.push(remaining[randomIndex]);
+      }
+      document.getElementById("result").innerHTML = `<span class="highlight">${tempWinners.join(", ")}</span>`;
+      if (--animationCount === 0) {
+        clearInterval(animationInterval);
+        // 최종 당첨자 선정
+        for (let i = 0; i < count && remaining.length > 0; i++) {
+          const randomIndex = Math.floor(Math.random() * remaining.length);
+          winners.push(remaining.splice(randomIndex, 1)[0]);
+        }
+        document.getElementById("result").innerHTML = `<strong>${category}</strong>: <span class="highlight">${winners.join(", ")}</span>`;
+        history.push(`${category}: ${winners.join(", ")}`);
+        document.getElementById("history").textContent = history.join("\n");
+      }
+    }, 100);
+  }
+
+  function resetDraw() {
+    remaining = [];
+    history = [];
+    document.getElementById("result").textContent = "리셋되었습니다. 다시 추첨하세요.";
+    document.getElementById("history").textContent = "기록 없음";
+  }
+</script>
+
+</body>
+</html>
