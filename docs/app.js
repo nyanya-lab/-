@@ -1,5 +1,5 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261009e";
-import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009e";
+import { firebaseConfig } from "./firebase-config.js?v=20261009f";
+import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009f";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -394,12 +394,6 @@ function todayTasks() {
 }
 
 // ---------- 렌더 ----------
-function goalOptions(sel) {
-  const cur = sel.value;
-  const gs = rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  sel.innerHTML = '<option value="">목표 없음</option>' + gs.map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
-  if (cur && S.goals.has(cur)) sel.value = cur;
-}
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
 function taskItem(x, day, upcoming) {
   const done = isDone(x, day), g = x.goalId ? S.goals.get(x.goalId) : null, meta = [];
@@ -413,8 +407,9 @@ function taskItem(x, day, upcoming) {
     `<div class="actions">${gcalLink(x.title, x.repeat === "daily" ? (x.start || day) : x.date, x.repeat === "daily")}` +
     `<button class="icon-btn" type="button" data-act="del" data-col="tasks" data-id="${esc(x.id)}">삭제</button></div></div>`;
 }
-function statTile(label, value, sub, cls) {
-  return `<div class="stat ${cls || ""}"><span>${label}</span><b>${value}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+function statTile(label, value, sub, cls, act) {
+  const tag = act ? "button" : "div", attrs = act ? ` type="button" data-act="${act}"` : "";
+  return `<${tag} class="stat ${cls || ""}"${attrs}><span>${label}</span><b>${value}</b>${sub ? `<small>${sub}</small>` : ""}</${tag}>`;
 }
 
 function renderHeader() {
@@ -491,30 +486,24 @@ function renderDaySide() {
   $("dayMoney").innerHTML = ms.map((x) => `<div class="item"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : "minus"}">${x.kind === "income" ? "+" : "-"}${won(x.amount)}</span></div>`).join("");
 }
 
+const STAT_ICON = {
+  task: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12.5l3 3 5-6"/></svg>',
+  clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/></svg>',
+  week: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 14h2M12 14h2M16 14h2"/></svg>',
+  fire: '<svg viewBox="0 0 24 24"><path d="M12 21c-3.9 0-6.5-2.6-6.5-6 0-3.7 3.2-5.6 3.6-9.5 2.4 1.5 3.6 3.6 3.4 6 1.1-.6 1.8-1.8 1.9-3.2 2.4 1.9 4.1 4.2 4.1 6.9 0 3.3-2.6 5.8-6.5 5.8z"/></svg>'
+};
 function renderToday() {
+  // 달력 위 요약 4칸 + 달력 아래 다가오는 할 일
   const t = today(), wk = mondayOf(t), list = todayTasks(), days = practiceMinutes();
   const dn = list.filter((x) => isDone(x, t)).length;
-  $("todayTitle").textContent = prettyDate(t);
-  $("todaySub").textContent = list.length && dn === list.length ? "오늘 할 일 다 끝냈어요. 잘했어요!" : "오늘 할 일부터 하나씩.";
   $("todayStats").innerHTML =
-    statTile("오늘 할 일", `${dn}/${list.length}`, list.length ? Math.round(dn / list.length * 100) + "% 완료" : "아직 없음") +
-    statTile("오늘 실천", fmtMin(logMinutes(t, t))) +
-    statTile("이번 주 실천", fmtMin(logMinutes(wk, addDays(wk, 6)))) +
-    statTile("연속 실천", streak(days) + "일", "기록이나 완료가 있는 날");
-
-  list.sort((a, b) => (isDone(a, t) - isDone(b, t)) || ((a.createdAt || 0) - (b.createdAt || 0)));
-  $("todayCount").textContent = list.length ? `${list.length}개` : "";
-  $("todayList").innerHTML = !S.loaded ? '<div class="empty">불러오는 중…</div>'
-    : list.length ? list.map((x) => taskItem(x, t)).join("")
-    : '<div class="empty">오늘 할 일이 없어요. 오른쪽 <b>할 일 추가</b>에서 작은 것 하나부터 넣거나, <a href="#certs">자격증 찾기</a>에서 꾸러미로 한 번에 채워 보세요.</div>';
-
+    statTile(STAT_ICON.task + "오늘 할 일", `${dn}/${list.length}`, list.length ? (dn === list.length ? "다 끝냈어요!" : "누르면 체크하러 가요") : "아직 없음", "click", "openToday") +
+    statTile(STAT_ICON.clock + "오늘 실천", fmtMin(logMinutes(t, t))) +
+    statTile(STAT_ICON.week + "이번 주 실천", fmtMin(logMinutes(wk, addDays(wk, 6)))) +
+    statTile(STAT_ICON.fire + "연속 실천", streak(days) + "일", "기록이나 완료가 있는 날");
   const end = addDays(t, 14);
   const up = rows(S.tasks).filter((x) => x.repeat !== "daily" && x.date > t && x.date <= end && !x.done).sort((a, b) => a.date.localeCompare(b.date));
   $("upcomingList").innerHTML = up.length ? up.map((x) => taskItem(x, t, true)).join("") : '<div class="empty">앞으로 2주 안에 잡힌 할 일이 없어요.</div>';
-
-  goalOptions($("taskGoal")); goalOptions($("logGoal"));
-  if (!$("taskDate").value) $("taskDate").value = t;
-  if (!$("logDate").value) $("logDate").value = t;
 }
 
 function renderGoals() {
@@ -582,7 +571,7 @@ function renderLog() {
       `<div class="body"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div>` +
       `<div class="meta">${l.minutes ? `<span class="tag mono">${fmtMin(Number(l.minutes))}</span>` : ""}${g ? `<span class="tag">${esc(g.title)}</span>` : ""}</div></div>` +
       `<div class="actions"><button class="icon-btn" type="button" data-act="del" data-col="logs" data-id="${esc(l.id)}">삭제</button></div></div>`;
-  }).join("") : '<div class="empty">아직 기록이 없어요. <a href="#today">오늘</a>에서 실천 기록을 남기면 첫 타일이 붙어요.</div>';
+  }).join("") : '<div class="empty">아직 기록이 없어요. <a href="#calendar">달력</a>에서 날짜를 누르고 실천 기록을 남기면 첫 타일이 붙어요.</div>';
 }
 
 function monthTotals(m) {
@@ -708,7 +697,7 @@ function render() {
 }
 
 // ---------- 동작 ----------
-const PAGES = ["calendar", "today", "goals", "log", "money", "certs"];
+const PAGES = ["calendar", "goals", "log", "money", "certs"];
 function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; renderHeader(); window.scrollTo(0, 0); }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
@@ -732,7 +721,7 @@ document.addEventListener("click", (ev) => {
   if (a === "calToday") { ui.calMonth = today().slice(0, 7); ui.selDay = today(); renderCalendar(); return; }
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return; }
   if (a === "kind") { ui.kind = el.dataset.k; renderMoney(); return; }
-  if (a === "quickMin") { $("logMin").value = el.dataset.m; return; }
+  if (a === "openToday") { ui.calMonth = today().slice(0, 7); ui.selDay = today(); renderCalendar(); openDlg($("dayDlg")); return; }
   if (a === "certTag") { ui.certTag = el.dataset.t; renderCerts(); return; }
 
   if (a === "toggle") {
@@ -777,7 +766,7 @@ document.addEventListener("click", (ev) => {
           else Object.assign(doc, { repeat: "none", date: addDays(t, z.day || 0), done: false, doneDate: null });
           await backend.add("tasks", doc);
         }
-        toast(`'${c.name}'을(를) 목표에 넣었어요. 할 일도 오늘 화면에 들어갔어요.`);
+        toast(`'${c.name}'을(를) 목표에 넣었어요. 할 일도 달력에 들어갔어요.`);
       }).catch(() => {}).finally(() => { el.disabled = false; });
   }
 });
@@ -789,26 +778,6 @@ document.addEventListener("change", (ev) => {
     if (!ready()) return;
     act(backend.update("goals", el.dataset.id, { due: el.value || null }), "목표일을 바꿨어요.").catch(() => {});
   }
-});
-
-$("taskForm").addEventListener("submit", (ev) => {
-  ev.preventDefault();
-  if (!ready()) return;
-  const title = $("taskTitle").value.trim(); if (!title) return;
-  const daily = $("taskDaily").checked, date = $("taskDate").value || today();
-  const doc = { title, goalId: $("taskGoal").value || null, createdAt: Date.now() };
-  if (daily) Object.assign(doc, { repeat: "daily", start: date, doneDates: {} });
-  else Object.assign(doc, { repeat: "none", date, done: false, doneDate: null });
-  act(backend.add("tasks", doc), "할 일을 추가했어요.").then(() => { $("taskTitle").value = ""; $("taskDaily").checked = false; }).catch(() => {});
-});
-
-$("logForm").addEventListener("submit", (ev) => {
-  ev.preventDefault();
-  if (!ready()) return;
-  const min = parseInt($("logMin").value, 10) || 0, text = $("logText").value.trim();
-  if (!min && !text) { toast("시간이나 메모 중 하나는 적어 주세요."); return; }
-  const doc = { date: $("logDate").value || today(), minutes: min, text, goalId: $("logGoal").value || null, createdAt: Date.now() };
-  act(backend.add("logs", doc), "기록했어요. 타일 한 장 붙었어요.").then(() => { $("logMin").value = ""; $("logText").value = ""; $("logDate").value = today(); }).catch(() => {});
 });
 
 $("goalForm").addEventListener("submit", (ev) => {
@@ -854,7 +823,6 @@ $("dayLogForm").addEventListener("submit", (ev) => {
 $("certSearch").addEventListener("submit", (ev) => { ev.preventDefault(); ui.certQ = $("certQ").value; ui.certTag = "전체"; renderCerts(); });
 $("certQ").addEventListener("input", () => { ui.certQ = $("certQ").value; renderCerts(); });
 
-$("minQuick").innerHTML = [30, 60, 90, 120].map((m) => `<button class="chip" type="button" data-act="quickMin" data-m="${m}">${fmtMin(m)}</button>`).join("");
 
 // ---------- 시작 ----------
 initGcal({
@@ -879,4 +847,4 @@ if (firebaseConfig && firebaseConfig.databaseURL) {
 
 // 자정이 지나면 날짜 갱신
 let lastDay = today();
-setInterval(() => { if (today() !== lastDay) { lastDay = today(); $("taskDate").value = lastDay; $("logDate").value = lastDay; $("mDate").value = lastDay; render(); } }, 60000);
+setInterval(() => { if (today() !== lastDay) { lastDay = today(); $("mDate").value = lastDay; render(); } }, 60000);

@@ -151,6 +151,10 @@ body { padding-left: 232px; }
 /* ---------- stats ---------- */
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 2px; min-width: 0; box-shadow: var(--shadow); }
+.stat span { display: flex; align-items: center; gap: 6px; }
+.stat span svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+button.stat { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+button.stat:hover { filter: brightness(0.97); }
 .stats .stat:nth-child(1) { background: var(--blue-soft); border-color: transparent; } .stats .stat:nth-child(1) b { color: var(--blue); }
 .stats .stat:nth-child(2) { background: var(--coral-soft); border-color: transparent; } .stats .stat:nth-child(2) b { color: var(--coral); }
 .stats .stat:nth-child(3) { background: var(--sun-soft); border-color: transparent; } .stats .stat:nth-child(3) b { color: var(--sun); }
