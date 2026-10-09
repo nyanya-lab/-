@@ -28,7 +28,7 @@ Firebase 설정 전에는 그 브라우저에만 저장돼요.
    ```bash
    npm i -g firebase-tools
    firebase login
-   firebase use 기존-프로젝트-ID          # .firebaserc에 저장됨
+   firebase use ukjin-207a3
    firebase hosting:sites:create ukjin-board
    firebase deploy --only hosting
    ```
