@@ -1,7 +1,7 @@
 // 구글 캘린더 연결 (욱진이 구글 캘린더 하나)
 // ① 구글 일정을 보드 달력에 보여 주기  ② 보드 할 일·시험일을 구글 캘린더에 넣기
 // 연결(토큰)은 기기마다 따로. 보드가 처음 연결된 구글 계정을 기억해 두고, 다른 계정이면 ②를 막아 중복을 막는다.
-import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009j";
+import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009k";
 
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const API = "https://www.googleapis.com/calendar/v3/calendars/primary";
@@ -236,6 +236,35 @@ export async function gcalSyncNow() {
   return (await runPush()) || { added: 0, updated: 0, deleted: 0, error: "" };
 }
 export const gcalLastSync = () => st.last || null;
+
+// 예전 '캘린더' 버튼(구글 일정 추가 화면)으로 직접 넣은 일정 찾기.
+// 그 일정들은 설명에 "○○ 실천 보드"가 들어가 있고, 자동 동기화 표시(ukjinApp)는 없음. 반복 일정은 묶음째로.
+export async function gcalFindManual() {
+  const s = gcalStatus();
+  if (s.state !== "ok") return { error: s.state === "expired" ? "연결이 풀렸어요. 다시 연결한 뒤 눌러 주세요" : "구글 캘린더가 연결돼 있지 않아요" };
+  const today = new Date(), out = [];
+  let pageToken = "";
+  do {
+    const r = await api("GET", "/events", null, {
+      q: "실천 보드", singleEvents: "false", maxResults: "250",
+      timeMin: new Date(today.getFullYear() - 1, today.getMonth(), 1).toISOString(),
+      timeMax: new Date(today.getFullYear() + 2, today.getMonth(), 1).toISOString(),
+      ...(pageToken ? { pageToken } : {})
+    });
+    for (const e of r.items || []) {
+      const tagged = e.extendedProperties && e.extendedProperties.private && e.extendedProperties.private.ukjinApp === "1";
+      if (tagged || e.status === "cancelled" || !(e.description || "").includes("실천 보드")) continue;
+      out.push({ id: e.id, title: e.summary || "(제목 없음)", date: (e.start && (e.start.date || (e.start.dateTime || "").slice(0, 10))) || "", repeat: !!(e.recurrence && e.recurrence.length) });
+    }
+    pageToken = r.nextPageToken || "";
+  } while (pageToken && out.length < 500);
+  return { items: out.sort((a, b) => a.date.localeCompare(b.date)) };
+}
+export async function gcalDeleteEvents(ids) {
+  let n = 0;
+  for (const id of ids) { try { await api("DELETE", "/events/" + encodeURIComponent(id)); n++; } catch (e) { if (e.status === 401) break; } }
+  return n;
+}
 
 // 창을 닫거나 다른 앱으로 넘어갈 때, 기다리던 동기화가 있으면 바로 보냄
 document.addEventListener("visibilitychange", () => {
