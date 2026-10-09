@@ -1,5 +1,5 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261009c";
-import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009c";
+import { firebaseConfig } from "./firebase-config.js?v=20261009d";
+import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -323,7 +323,7 @@ function renderGcalBox() {
     html += `<p class="small muted">욱진이 구글 계정으로 연결하면 보드 할 일·시험일이 구글 캘린더에 자동으로 들어가고, 구글 일정도 달력에 같이 보여요.${linked ? ` 이 보드는 <b>${esc(linked)}</b> 캘린더에 연결돼 있어요.` : ""}</p>` +
       '<div><button class="btn small" type="button" data-act="gConnect">구글 캘린더 연결</button></div>';
   } else {
-    html += `<p class="sync-line"><span class="sync-dot" data-state="${s.state === "ok" ? "ok" : "wait"}"></span><span>${esc(s.email || "연결됨")}${s.state === "expired" ? " · 다시 연결 필요 (구글 보안상 1시간마다)" : ""}</span></p>`;
+    html += `<p class="sync-line"><span class="sync-dot" data-state="${s.state === "ok" ? "ok" : "wait"}"></span><span>${esc(s.email || "연결됨")}${s.state === "expired" ? " · 잠깐 풀림 (화면을 누르면 알아서 다시 연결돼요)" : ""}</span></p>`;
     if (s.other) html += `<p class="small" style="color:var(--danger)">보드는 ${esc(linked)} 캘린더에 연결돼 있어서, 이 계정으로는 일정만 보여 줘요.</p>`;
     html += `<label class="inline-check"><input type="checkbox" id="gShow" ${pr.show ? "checked" : ""}> 구글 일정을 보드 달력에 보여 주기</label>` +
       `<label class="inline-check"><input type="checkbox" id="gPush" ${pr.push ? "checked" : ""} ${s.other ? "disabled" : ""}> 보드 할 일·시험일을 구글 캘린더에 넣기</label>` +
