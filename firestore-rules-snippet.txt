@@ -1,0 +1,7 @@
+// 기존 Firestore 규칙을 지우지 말고, "match /databases/{database}/documents {" 안쪽에 아래 블록만 추가하세요.
+// 이메일 두 줄은 실제로 로그인할 구글 계정으로 바꾸세요. (욱진이 계정, 같이 볼 사람 계정)
+
+    match /boards/ukjin/{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in ['욱진이구글계정@gmail.com', '내구글계정@gmail.com'];
+    }

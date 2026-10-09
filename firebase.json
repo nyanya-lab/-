@@ -1,0 +1,10 @@
+{
+  "hosting": {
+    "site": "ukjin-board",
+    "public": "site",
+    "ignore": ["**/.*"],
+    "headers": [
+      { "source": "**/*.@(js|css|html)", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+    ]
+  }
+}
