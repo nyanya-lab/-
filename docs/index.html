@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261009f">
+<link rel="stylesheet" href="style.css?v=20261009h">
 </head>
 <body>
 
@@ -52,6 +52,7 @@
     <!-- 달력 -->
     <section class="page" data-page="calendar">
       <div class="cal-wrap">
+        <div class="note orphan" data-orphans hidden></div>
         <div class="stats" id="todayStats"></div>
         <div class="cal">
           <div class="cal-head">
@@ -68,7 +69,7 @@
           <div class="cal-legend">
             <span><i style="background:var(--coral)"></i>시험·목표일</span>
             <span><i style="background:var(--blue)"></i>할 일</span>
-            <span><i style="background:var(--grape)"></i>매일 하는 일</span>
+            <span><i style="background:var(--grape)"></i>반복하는 일 (한 것/그날 할 것)</span>
             <span><i style="background:var(--mint)"></i>날짜 옆 초록 네모 = 그날 공부·연습함 (오래 할수록 진함)</span>
             <span><i style="background:var(--mint-soft);border:1px solid var(--mint)"></i>월급·수입</span>
             <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
@@ -86,6 +87,7 @@
       <div class="page-head">
         <div><h2>목표</h2><p>시험일을 넣으면 D-day가 떠요. 자격증은 <a href="#certs">자격증 찾기</a>에서 바로 목표로 넣을 수 있어요.</p></div>
       </div>
+      <div class="note orphan" data-orphans hidden></div>
       <div class="goals" id="goalList"></div>
       <form class="panel form" id="goalForm" autocomplete="off" style="max-width:720px">
         <h3>목표 직접 추가</h3>
@@ -220,7 +222,39 @@
   <div class="dlg-sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
 </dialog>
 
+<dialog class="dlg dlg-day" id="goalDlg" aria-labelledby="gTitle">
+  <div class="dlg-head goal-band" id="gDlgHead"><div><h3 id="gTitle"></h3><span class="muted small" id="gSub"></span></div><button class="icon-round" type="button" data-act="closeGoal" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec" id="gTemplate" hidden style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"></div>
+  <div class="dlg-sec"><h4>반복하는 일</h4><div class="list" id="gRepeats"></div></div>
+  <div class="dlg-sec"><h4>할 일</h4><div class="list" id="gTasks"></div></div>
+  <form class="dlg-sec" id="goalTaskForm" autocomplete="off">
+    <h4>할 일 추가</h4>
+    <input type="text" id="gtTitle" maxlength="120" placeholder="예: 필기 기출 20문제, CAD 평면도 연습" aria-label="할 일">
+    <div class="seg" id="gtRepSeg">
+      <button type="button" data-act="gtRep" data-k="none">한 번</button>
+      <button type="button" data-act="gtRep" data-k="daily">매일</button>
+      <button type="button" data-act="gtRep" data-k="weekly">매주 요일</button>
+    </div>
+    <div class="chips" id="gtDays" hidden></div>
+    <div class="row" style="align-items:end">
+      <label class="f" id="gtDateLabel">날짜<input type="date" id="gtDate"></label>
+      <label class="inline-check" id="gtUntilWrap" hidden><input type="checkbox" id="gtUntil" checked> <span id="gtUntilText"></span></label>
+    </div>
+    <div><button class="btn small" type="submit">추가</button></div>
+  </form>
+  <form class="dlg-sec" id="goalEditForm" autocomplete="off">
+    <h4>목표 정보</h4>
+    <input type="text" id="geTitle" maxlength="80" aria-label="목표 이름">
+    <div class="row">
+      <label class="f">분류<select id="geCat"></select></label>
+      <label class="f">목표일 / 시험일<input type="date" id="geDue"></label>
+    </div>
+    <div class="row" style="align-items:center;flex:0 0 auto"><button class="btn small" type="submit">저장</button><span id="geCal"></span></div>
+  </form>
+  <div class="dlg-foot"><button class="icon-btn" type="button" id="gDelBtn" data-act="del" data-col="goals">목표 삭제</button><span class="small muted">목표와 그 할 일이 같이 지워져요. 구글 캘린더에 들어간 일정도 지워져요.</span></div>
+</dialog>
+
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261009f"></script>
+<script type="module" src="app.js?v=20261009h"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // 구글 캘린더 연결 (욱진이 구글 캘린더 하나)
 // ① 구글 일정을 보드 달력에 보여 주기  ② 보드 할 일·시험일을 구글 캘린더에 넣기
 // 연결(토큰)은 기기마다 따로. 보드가 처음 연결된 구글 계정을 기억해 두고, 다른 계정이면 ②를 막아 중복을 막는다.
-import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009f";
+import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009h";
 
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const API = "https://www.googleapis.com/calendar/v3/calendars/primary";
@@ -159,7 +159,7 @@ export function schedulePush() {
 function boardItems() {
   const out = [];
   ctx.tasks().forEach((t) => {
-    if (t.repeat === "daily" || !t.date) return;     // 매일 하는 일은 넣지 않음 (캘린더가 너무 복잡해짐)
+    if (t.repeat === "daily" || t.repeat === "weekly" || !t.date) return;   // 반복하는 일은 넣지 않음 (캘린더가 너무 복잡해짐)
     const summary = (t.done ? "✓ " : "") + t.title;
     out.push({ col: "tasks", id: t.id, ref: "task:" + t.id, summary, date: t.date, gcal: t.gcal, sig: t.date + "|" + summary });
   });

@@ -1,5 +1,5 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261009f";
-import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009f";
+import { firebaseConfig } from "./firebase-config.js?v=20261009h";
+import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009h";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -103,7 +103,27 @@ function shortDate(s) { const d = parseYmd(s); return `${d.getMonth() + 1}/${d.g
 function rows(map) { return [...map].map(([id, v]) => ({ id, ...v })); }
 function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
-function isDone(t, day) { return t.repeat === "daily" ? !!(t.doneDates && t.doneDates[day]) : !!t.done; }
+// 반복: "daily"(매일) / "weekly"(매주 고른 요일, days = [0(일)..6(토)]), start~end 사이에만
+const isRep = (x) => x.repeat === "daily" || x.repeat === "weekly";
+function activeOn(x, d) {
+  if (!isRep(x)) return x.date === d;
+  if ((x.start && d < x.start) || (x.end && d > x.end)) return false;
+  return x.repeat === "daily" || (x.days || []).includes(parseYmd(d).getDay());
+}
+const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+function repeatLabel(x) {
+  let l = x.repeat === "daily" ? "매일" : "매주 " + [1, 2, 3, 4, 5, 6, 0].filter((n) => (x.days || []).includes(n)).map((n) => DOW[n]).join("·");
+  if (x.end) l += ` ~${shortDate(x.end).replace(/\(.\)/, "")}`;
+  return l;
+}
+function rrule(x) {
+  if (!isRep(x)) return "";
+  const BY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+  let r = x.repeat === "daily" ? "RRULE:FREQ=DAILY" : "RRULE:FREQ=WEEKLY;BYDAY=" + (x.days || []).map((n) => BY[n]).join(",");
+  if (x.end) r += ";UNTIL=" + x.end.replace(/-/g, "");
+  return r;
+}
+function isDone(t, day) { return isRep(t) ? !!(t.doneDates && t.doneDates[day]) : !!t.done; }
 function fmtMin(m) { if (!m) return "0분"; if (m < 60) return m + "분"; const h = Math.floor(m / 60), r = m % 60; return h + "시간" + (r ? " " + r + "분" : ""); }
 function won(n) { return Math.round(Number(n) || 0).toLocaleString("ko-KR") + "원"; }
 function monthLabel(m) { return m.replace("-", "."); }
@@ -348,22 +368,22 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
 // ---------- 구글 캘린더 ----------
-function gcalUrl(title, date, daily) {
+function gcalUrl(title, date, rule) {
   let u = "https://calendar.google.com/calendar/render?action=TEMPLATE" +
     "&text=" + encodeURIComponent(title) +
     "&dates=" + date.replace(/-/g, "") + "/" + addDays(date, 1).replace(/-/g, "") +
     "&details=" + encodeURIComponent(me() + " 실천 보드");
-  if (daily) u += "&recur=" + encodeURIComponent("RRULE:FREQ=DAILY");
+  if (rule) u += "&recur=" + encodeURIComponent(rule);
   return u;
 }
-function gcalLink(title, date, daily, label) {
+function gcalLink(title, date, rule, label) {
   if (gcalPushing()) return ""; // 구글 캘린더에 자동으로 들어가는 중이면 버튼 필요 없음
-  return `<a class="icon-btn" href="${esc(gcalUrl(title, date, daily))}" target="_blank" rel="noopener" title="구글 캘린더에 추가">${label || "캘린더"}</a>`;
+  return `<a class="icon-btn" href="${esc(gcalUrl(title, date, rule))}" target="_blank" rel="noopener" title="구글 캘린더에 추가">${label || "캘린더"}</a>`;
 }
 
 // ---------- 계산 ----------
@@ -373,7 +393,7 @@ function practiceMinutes() {
   const add = (d, v) => { m[d] = (m[d] || 0) + v; };
   S.logs.forEach((l) => { if (l.date) add(l.date, Math.max(Number(l.minutes) || 0, 1)); });
   S.tasks.forEach((t) => {
-    if (t.repeat === "daily") Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v) add(d, 15); });
+    if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v) add(d, 15); });
     else if (t.done && t.doneDate) add(t.doneDate, 15);
   });
   return m;
@@ -387,7 +407,7 @@ function logMinutes(from, to) { let m = 0; S.logs.forEach((l) => { if (l.date >=
 function todayTasks() {
   const t = today();
   return rows(S.tasks).filter((x) => {
-    if (x.repeat === "daily") return !x.start || x.start <= t;
+    if (isRep(x)) return activeOn(x, t);
     if (!x.date || x.date > t) return false;
     return !x.done || x.doneDate === t;
   });
@@ -397,14 +417,16 @@ function todayTasks() {
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
 function taskItem(x, day, upcoming) {
   const done = isDone(x, day), g = x.goalId ? S.goals.get(x.goalId) : null, meta = [];
-  if (x.repeat === "daily") meta.push('<span class="tag daily">매일</span>');
+  if (isRep(x)) meta.push(`<span class="tag daily">${esc(repeatLabel(x))}</span>`);
   if (g) meta.push(`<span class="tag cat ${catCls(x.goalId)}">${esc(g.title)}</span>`);
   if (upcoming) meta.push(`<span class="mono">${shortDate(x.date)}</span>`);
-  else if (x.repeat !== "daily" && x.date < day && !done) meta.push(`<span class="tag late">${diffDays(day, x.date)}일 밀림</span>`);
+  else if (!isRep(x) && x.date < day && !done) meta.push(`<span class="tag late">${diffDays(day, x.date)}일 밀림</span>`);
   return `<div class="item${done ? " done" : ""}">` +
-    `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" data-day="${day}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>` +
+    (isRep(x) && !activeOn(x, day)
+      ? `<button class="check" type="button" disabled title="이 날은 쉬는 날" aria-label="쉬는 날" style="opacity:.35">${CHECK}</button>`
+      : `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" data-day="${day}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>`) +
     `<div class="body"><div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
-    `<div class="actions">${gcalLink(x.title, x.repeat === "daily" ? (x.start || day) : x.date, x.repeat === "daily")}` +
+    `<div class="actions">${gcalLink(x.title, isRep(x) ? (x.start || day) : x.date, rrule(x))}` +
     `<button class="icon-btn" type="button" data-act="del" data-col="tasks" data-id="${esc(x.id)}">삭제</button></div></div>`;
 }
 function statTile(label, value, sub, cls, act) {
@@ -428,8 +450,8 @@ function moneyShort(n) {
   return v >= 10000 ? (Math.round(v / 1000) / 10).toLocaleString("ko-KR") + "만" : v.toLocaleString("ko-KR");
 }
 function tasksOn(d) {
-  return rows(S.tasks).filter((x) => x.repeat === "daily" ? (!x.start || x.start <= d) : x.date === d)
-    .sort((a, b) => (a.repeat === "daily") - (b.repeat === "daily") || (a.createdAt || 0) - (b.createdAt || 0));
+  return rows(S.tasks).filter((x) => activeOn(x, d))
+    .sort((a, b) => isRep(a) - isRep(b) || (a.createdAt || 0) - (b.createdAt || 0));
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
@@ -441,21 +463,21 @@ function renderCalendar() {
   const prac = practiceMinutes();
   const exams = {}; S.goals.forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
   const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
-  const habits = rows(S.tasks).filter((x) => x.repeat === "daily");
+  const habits = rows(S.tasks).filter(isRep);
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" title="${esc(g.title)}">D-DAY ${esc(g.title)}</div>`));
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
     gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
-    rows(S.tasks).filter((x) => x.repeat !== "daily" && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => {
+    rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => {
       const g = x.goalId ? S.goals.get(x.goalId) : null;
       evs.push(`<div class="ev ${g ? catCls(x.goalId) : "c-blue"}${x.done ? " done" : ""}" title="${esc(x.title)}">${esc(x.title)}</div>`);
     });
-    const hs = d <= t ? habits.filter((h) => !h.start || h.start <= d) : [];
+    const hs = d <= t ? habits.filter((h) => activeOn(h, d)) : [];
     const shown = evs.slice(0, 3), more = evs.length - shown.length;
     if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
-    if (hs.length) shown.push(`<div class="ev habit">매일 ${hs.filter((h) => h.doneDates && h.doneDates[d]).length}/${hs.length}</div>`);
+    if (hs.length) shown.push(`<div class="ev habit">반복 ${hs.filter((h) => h.doneDates && h.doneDates[d]).length}/${hs.length}</div>`);
     const mm = prac[d] || 0, lv = mm >= 120 ? 4 : mm >= 60 ? 3 : mm >= 30 ? 2 : mm > 0 ? 1 : 0;
     const cls = ["day", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
     html += `<button type="button" class="${cls}" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
@@ -471,7 +493,7 @@ function renderDaySide() {
   $("dayTitle").textContent = prettyDate(d);
   $("daySub").textContent = n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`;
   const exams = rows(S.goals).filter((g) => g.due === d);
-  const ts = tasksOn(d).filter((x) => x.repeat !== "daily" || d <= t);
+  const ts = tasksOn(d).filter((x) => !isRep(x) || d <= t);
   $("dayTasks").innerHTML = exams.map((g) => `<div class="item"><span class="tag cat c-coral">D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div><div class="actions">${gcalLink("[D-DAY] " + g.title, g.due, false)}</div></div>`).join("") +
     (ts.length ? ts.map((x) => taskItem(x, d)).join("") : (exams.length ? "" : '<div class="empty">이 날 할 일이 없어요.</div>'));
   const ls = rows(S.logs).filter((l) => l.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -502,7 +524,7 @@ function renderToday() {
     statTile(STAT_ICON.week + "이번 주 실천", fmtMin(logMinutes(wk, addDays(wk, 6)))) +
     statTile(STAT_ICON.fire + "연속 실천", streak(days) + "일", "기록이나 완료가 있는 날");
   const end = addDays(t, 14);
-  const up = rows(S.tasks).filter((x) => x.repeat !== "daily" && x.date > t && x.date <= end && !x.done).sort((a, b) => a.date.localeCompare(b.date));
+  const up = rows(S.tasks).filter((x) => !isRep(x) && x.date > t && x.date <= end && !x.done).sort((a, b) => a.date.localeCompare(b.date));
   $("upcomingList").innerHTML = up.length ? up.map((x) => taskItem(x, t, true)).join("") : '<div class="empty">앞으로 2주 안에 잡힌 할 일이 없어요.</div>';
 }
 
@@ -517,8 +539,8 @@ function renderGoals() {
     : !gs.length ? '<div class="panel muted">아직 목표가 없어요. <a href="#certs">자격증 찾기</a>에서 하나 골라 보세요.</div>'
     : gs.map((g) => {
       const ts = allTasks.filter((x) => x.goalId === g.id);
-      const once = ts.filter((x) => x.repeat !== "daily"), onceDone = once.filter((x) => x.done).length;
-      const habits = ts.filter((x) => x.repeat === "daily");
+      const once = ts.filter((x) => !isRep(x)), onceDone = once.filter((x) => x.done).length;
+      const habits = ts.filter(isRep);
       let hits = 0; habits.forEach((h) => Object.entries(h.doneDates || {}).forEach(([d, v]) => { if (v && d >= weekAgo && d <= t) hits++; }));
       let mins = 0; S.logs.forEach((l) => { if (l.goalId === g.id) mins += Number(l.minutes) || 0; });
       const pct = once.length ? Math.round(onceDone / once.length * 100) : 0;
@@ -527,18 +549,64 @@ function renderGoals() {
         const n = diffDays(g.due, t);
         dd = `<div class="dday${n >= 0 && n <= 14 ? " soon" : ""}">${n > 0 ? "D-" + n : n === 0 ? "D-DAY" : "D+" + (-n)}<small>${shortDate(g.due)}</small></div>`;
       } else dd = '<div class="dday muted" style="font-size:13px">날짜 미정</div>';
-      return `<article class="goal ${catCls(g)}"><div class="goal-head"><div style="display:grid;gap:6px;min-width:0">` +
+      return `<article class="goal ${catCls(g)}" data-act="openGoal" data-id="${esc(g.id)}" role="button" tabindex="0" aria-label="${esc(g.title)} 자세히"><div class="goal-head"><div style="display:grid;gap:6px;min-width:0">` +
         `<div><span class="tag">${esc(g.cat || "기타")}</span></div><div class="goal-title">${esc(g.title)}</div></div>${dd}</div>` +
         `<div style="display:grid;gap:4px"><div class="bar"><i style="width:${pct}%"></i></div>` +
         `<div class="small muted">할 일 <span class="mono">${onceDone}/${once.length}</span> 완료` +
-        (habits.length ? ` · 매일 하는 일 ${habits.length}개, 최근 7일 <span class="mono">${hits}</span>회` : "") +
+        (habits.length ? ` · 반복하는 일 ${habits.length}개, 최근 7일 <span class="mono">${hits}</span>회` : "") +
         ` · 누적 <span class="mono">${fmtMin(mins)}</span></div></div>` +
-        `<div class="goal-foot"><label style="display:flex;align-items:center;gap:6px">목표일 <input type="date" data-act="due" data-id="${esc(g.id)}" value="${esc(g.due || "")}"></label>` +
-        `<span class="actions">${g.due ? gcalLink("[D-DAY] " + g.title, g.due, false, "캘린더에 추가") : ""}` +
-        `<button class="icon-btn" type="button" data-act="del" data-col="goals" data-id="${esc(g.id)}">목표 삭제</button></span></div></article>`;
+        `<div class="goal-foot"><span>누르면 할 일·반복 설정</span><span aria-hidden="true">›</span></div></article>`;
     }).join("");
   const gc = $("goalCat"), v = gc.value || "자격증";
   gc.innerHTML = GOAL_CATS.map((c) => `<option>${c}</option>`).join(""); gc.value = v;
+}
+
+// 지운 목표에 딸려 있던 할 일 (예전 버전은 목표를 지워도 할 일이 남았음)
+function orphanTasks() { return rows(S.tasks).filter((x) => x.goalId && !S.goals.has(x.goalId)); }
+function renderOrphanNote() {
+  const n = S.loaded ? orphanTasks().length : 0;
+  document.querySelectorAll("[data-orphans]").forEach((box) => {
+    box.hidden = !n;
+    if (n) box.innerHTML = `<span>지운 목표에 딸려 있던 할 일이 <b>${n}개</b> 남아 있어요.</span><button class="btn small" type="button" data-act="cleanOrphans">모두 지우기</button>`;
+  });
+}
+
+// ---------- 목표 작은 창 ----------
+const gt = { rep: "none", days: new Set([1, 3, 5]) };   // 할 일 추가 폼 상태
+function openGoal(id) {
+  ui.goalId = id;
+  const g = S.goals.get(id); if (!g) return;
+  $("geTitle").value = g.title || ""; $("geDue").value = g.due || "";
+  $("geCat").innerHTML = GOAL_CATS.map((c) => `<option>${c}</option>`).join(""); $("geCat").value = g.cat || "기타";
+  $("gtTitle").value = ""; $("gtDate").value = today();
+  renderGoalDlg(); openDlg($("goalDlg"));
+}
+function renderGoalDlg() {
+  const d = $("goalDlg"); if (!d.open && !ui.goalId) return;
+  const g = ui.goalId && S.goals.get(ui.goalId);
+  if (!g) { closeDlg(d); ui.goalId = null; return; }
+  const t = today();
+  $("gTitle").textContent = g.title;
+  const n = g.due ? diffDays(g.due, t) : null;
+  $("gSub").textContent = (g.cat || "기타") + (g.due ? ` · ${n > 0 ? "D-" + n : n === 0 ? "D-DAY" : "D+" + (-n)} (${shortDate(g.due)})` : " · 날짜 미정");
+  $("gDlgHead").className = "dlg-head goal-band " + catCls(ui.goalId);
+  $("geCal").innerHTML = g.due ? gcalLink("[D-DAY] " + g.title, g.due, "", "구글 캘린더에 추가") : "";
+  const ts = rows(S.tasks).filter((x) => x.goalId === ui.goalId);
+  const reps = ts.filter(isRep).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const once = ts.filter((x) => !isRep(x)).sort((a, b) => (a.done - b.done) || (a.date || "").localeCompare(b.date || ""));
+  $("gRepeats").innerHTML = reps.length ? reps.map((x) => taskItem(x, t)).join("") : '<div class="empty">아직 없어요. 아래에서 "매일"이나 "매주"로 추가해요.</div>';
+  $("gTasks").innerHTML = once.length ? once.map((x) => taskItem(x, t, !x.done && x.date > t)).join("") : '<div class="empty">아직 없어요.</div>';
+  // 추가 폼
+  document.querySelectorAll("#gtRepSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === gt.rep)));
+  $("gtDays").hidden = gt.rep !== "weekly";
+  $("gtDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="gtDay" data-d="${n}" aria-pressed="${gt.days.has(n)}">${DOW[n]}</button>`).join("");
+  $("gtDateLabel").firstChild.textContent = gt.rep === "none" ? "날짜" : "시작일";
+  $("gtUntilWrap").hidden = gt.rep === "none" || !g.due;
+  $("gtUntilText").textContent = g.due ? `목표일 ${shortDate(g.due)}까지만 반복` : "";
+  $("gDelBtn").dataset.id = ui.goalId;
+  const c = g.cert && CERTS.find((z) => z.name === g.cert);
+  $("gTemplate").hidden = !(c && c.tasks);
+  if (c && c.tasks) $("gTemplate").innerHTML = `<button class="btn ghost small" type="button" data-act="addTemplate">추천 할 일 ${c.tasks.length}개 넣기</button><span class="small muted">${esc(c.tasks.map((z) => z.t).slice(0, 3).join(", "))} 등</span>`;
 }
 
 function renderLog() {
@@ -666,7 +734,7 @@ function renderCerts() {
     const has = owned.has(c.name);
     return `<article class="cert${has ? " mine" : ""}"><div class="meta"><span class="grade">${c.grade}</span><span class="tag">${c.tag}</span>${has ? '<span class="tag daily">내 목표</span>' : ""}</div>` +
       `<h3>${esc(c.name)}</h3><p>${esc(c.desc)}</p>` +
-      (c.tasks ? `<p class="small">목표로 넣으면 할 일 ${c.tasks.length}개가 같이 들어가요.</p>` : "") +
+      (c.tasks ? `<p class="small">목표로 넣은 뒤 원하면 추천 할 일 ${c.tasks.length}개를 넣을 수 있어요.</p>` : "") +
       `<div class="ext">${searchLinks(c.name).slice(0, 4).map(([l, u]) => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener">${l}</a>`).join("")}</div>` +
       `<div><button class="btn${has ? " ghost" : ""} small" type="button" data-act="addCert" data-name="${esc(c.name)}">${has ? "목표에 있어요 · 한 번 더 넣기" : "목표로 추가"}</button></div></article>`;
   }).join("") : `<div class="panel muted">목록에 "${esc(q)}"가 없어요. 위의 링크로 바로 찾아보고, <a href="#goals">목표</a>에서 직접 추가하면 돼요.</div>`;
@@ -691,7 +759,7 @@ async function loadBackups() {
 }
 
 function render() {
-  refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderLog(); renderMoney(); renderCerts(); showMode(); setSync();
+  refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderLog(); renderMoney(); renderCerts(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   if ($("settingsDlg").open) renderGcalBox();
   if (backend) schedulePush();
 }
@@ -717,6 +785,10 @@ document.addEventListener("click", (ev) => {
   if (a === "lock") { if (lockAction) lockAction(); return; }
   if (a === "selDay") { ui.selDay = el.dataset.day; if (ui.selDay.slice(0, 7) !== ui.calMonth) ui.calMonth = ui.selDay.slice(0, 7); renderCalendar(); openDlg($("dayDlg")); return; }
   if (a === "closeDay") { closeDlg($("dayDlg")); return; }
+  if (a === "openGoal") { if (ev.target.closest("a, button, input, select") && ev.target.closest("[data-act]") !== el) return; openGoal(el.dataset.id); return; }
+  if (a === "closeGoal") { closeDlg($("goalDlg")); ui.goalId = null; return; }
+  if (a === "gtRep") { gt.rep = el.dataset.k; renderGoalDlg(); return; }
+  if (a === "gtDay") { const n = +el.dataset.d; if (gt.days.has(n)) gt.days.delete(n); else gt.days.add(n); renderGoalDlg(); return; }
   if (a === "calMonth") { ui.calMonth = shiftMonth(ui.calMonth, +el.dataset.d); renderCalendar(); return; }
   if (a === "calToday") { ui.calMonth = today().slice(0, 7); ui.selDay = today(); renderCalendar(); return; }
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return; }
@@ -728,7 +800,7 @@ document.addEventListener("click", (ev) => {
     if (!ready()) return;
     const x = S.tasks.get(id); if (!x) return;
     const day = el.dataset.day && el.dataset.day <= t ? el.dataset.day : t; // 지난 날짜에서 체크하면 그 날 한 걸로
-    if (x.repeat === "daily") act(backend.update("tasks", id, { doneDates: { [day]: !isDone(x, day) } })).catch(() => {});
+    if (isRep(x)) act(backend.update("tasks", id, { doneDates: { [day]: !isDone(x, day) } })).catch(() => {});
     else { const nd = !x.done; act(backend.update("tasks", id, { done: nd, doneDate: nd ? day : null })).catch(() => {}); }
     return;
   }
@@ -741,7 +813,37 @@ document.addEventListener("click", (ev) => {
       return;
     }
     armed = null; clearTimeout(armTimer);
+    if (el.dataset.col === "goals") {
+      // 목표를 지우면 그 목표의 할 일도 같이 지움 (구글 캘린더에 넣은 일정도 다음 동기화 때 지워짐)
+      const mine = rows(S.tasks).filter((x) => x.goalId === id);
+      act((async () => { for (const x of mine) await backend.remove("tasks", x.id); await backend.remove("goals", id); })(),
+        mine.length ? `목표와 할 일 ${mine.length}개를 지웠어요.` : "목표를 지웠어요.").then(() => { closeDlg($("goalDlg")); }).catch(() => {});
+      return;
+    }
     act(backend.remove(el.dataset.col, id), "삭제했어요.").catch(() => {});
+    return;
+  }
+  if (a === "cleanOrphans") {
+    if (!ready()) return;
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 지울까요?"; return; }
+    const orphans = orphanTasks(); el.disabled = true;
+    act((async () => { for (const x of orphans) await backend.remove("tasks", x.id); })(), `할 일 ${orphans.length}개를 지웠어요.`).catch(() => {});
+    return;
+  }
+  if (a === "addTemplate") {
+    if (!ready() || !ui.goalId) return;
+    const g = S.goals.get(ui.goalId); const c = g && CERTS.find((z) => z.name === g.cert); if (!c || !c.tasks) return;
+    const now = Date.now(); el.disabled = true;
+    act((async () => {
+      let i = 0;
+      for (const z of c.tasks) {
+        i++;
+        const doc = { title: z.t, goalId: ui.goalId, createdAt: now + i };
+        if (z.daily) Object.assign(doc, { repeat: "daily", start: t, doneDates: {} });
+        else Object.assign(doc, { repeat: "none", date: addDays(t, z.day || 0), done: false, doneDate: null });
+        await backend.add("tasks", doc);
+      }
+    })(), `추천 할 일 ${c.tasks.length}개를 넣었어요.`).catch(() => {}).finally(() => { el.disabled = false; });
     return;
   }
   if (a === "loadBak") { loadBackups(); return; }
@@ -756,18 +858,10 @@ document.addEventListener("click", (ev) => {
     if (!ready()) return;
     const c = CERTS.find((z) => z.name === el.dataset.name); if (!c) return;
     const now = Date.now(); el.disabled = true;
+    // 목표만 넣고, 할 일은 목표 창에서 직접 정하거나 '추천 할 일 넣기'로
     act(backend.add("goals", { title: c.name, cert: c.name, cat: "자격증", due: null, createdAt: now }))
-      .then(async (gid) => {
-        let i = 0;
-        for (const z of c.tasks || [{ t: "Q-Net에서 시험 일정·응시자격 확인하고 목표일 정하기", day: 0 }]) {
-          i++;
-          const doc = { title: z.t, goalId: gid, createdAt: now + i };
-          if (z.daily) Object.assign(doc, { repeat: "daily", start: t, doneDates: {} });
-          else Object.assign(doc, { repeat: "none", date: addDays(t, z.day || 0), done: false, doneDate: null });
-          await backend.add("tasks", doc);
-        }
-        toast(`'${c.name}'을(를) 목표에 넣었어요. 할 일도 달력에 들어갔어요.`);
-      }).catch(() => {}).finally(() => { el.disabled = false; });
+      .then((gid) => { toast(`'${c.name}'을(를) 목표에 넣었어요. 목표를 눌러 할 일을 정해요.`); location.hash = "#goals"; setTimeout(() => openGoal(gid), 50); })
+      .catch(() => {}).finally(() => { el.disabled = false; });
   }
 });
 
@@ -804,6 +898,29 @@ $("budgetForm").addEventListener("submit", (ev) => {
   act(backend.saveSettings({ budget: parseInt($("budgetIn").value, 10) || 0 }), "예산을 저장했어요.").catch(() => {});
 });
 
+$("goalEditForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  if (!ready() || !ui.goalId) return;
+  const title = $("geTitle").value.trim(); if (!title) { toast("목표 이름을 적어 주세요."); return; }
+  act(backend.update("goals", ui.goalId, { title, cat: $("geCat").value, due: $("geDue").value || null }), "목표를 저장했어요.").catch(() => {});
+});
+$("goalTaskForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  if (!ready() || !ui.goalId) return;
+  const g = S.goals.get(ui.goalId); if (!g) return;
+  const title = $("gtTitle").value.trim(); if (!title) { toast("할 일을 적어 주세요."); return; }
+  const date = $("gtDate").value || today();
+  const doc = { title, goalId: ui.goalId, createdAt: Date.now() };
+  if (gt.rep === "none") Object.assign(doc, { repeat: "none", date, done: false, doneDate: null });
+  else {
+    if (gt.rep === "weekly" && !gt.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
+    Object.assign(doc, { repeat: gt.rep, start: date, doneDates: {} });
+    if (gt.rep === "weekly") doc.days = [...gt.days].sort();
+    if (g.due && $("gtUntil").checked) doc.end = g.due;
+  }
+  act(backend.add("tasks", doc), gt.rep === "none" ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.").then(() => { $("gtTitle").value = ""; }).catch(() => {});
+});
+
 $("dayTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
@@ -819,6 +936,12 @@ $("dayLogForm").addEventListener("submit", (ev) => {
   act(backend.add("logs", { date: ui.selDay, minutes: min, text, goalId: null, createdAt: Date.now() }), "기록했어요.")
     .then(() => { $("dayLogMin").value = ""; $("dayLogText").value = ""; }).catch(() => {});
 });
+
+document.addEventListener("keydown", (ev) => {
+  const el = ev.target;
+  if ((ev.key === "Enter" || ev.key === " ") && el.dataset && el.dataset.act === "openGoal") { ev.preventDefault(); openGoal(el.dataset.id); }
+});
+$("goalDlg").addEventListener("close", () => { ui.goalId = null; });
 
 $("certSearch").addEventListener("submit", (ev) => { ev.preventDefault(); ui.certQ = $("certQ").value; ui.certTag = "전체"; renderCerts(); });
 $("certQ").addEventListener("input", () => { ui.certQ = $("certQ").value; renderCerts(); });
