@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261009h">
+<link rel="stylesheet" href="style.css?v=20261009j">
 </head>
 <body>
 
@@ -212,14 +212,40 @@
 
 <dialog class="dlg dlg-day" id="dayDlg" aria-labelledby="dayTitle">
   <div class="dlg-head"><div><h3 id="dayTitle"></h3><span class="muted small" id="daySub"></span></div><button class="icon-round" type="button" data-act="closeDay" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-  <div class="dlg-sec"><h4>할 일</h4><div class="list" id="dayTasks"></div>
-    <form class="mini-row" id="dayTaskForm" autocomplete="off"><input type="text" id="dayTaskTitle" maxlength="120" placeholder="이 날 할 일 추가" aria-label="이 날 할 일"><button class="btn small" type="submit">추가</button></form>
+  <div class="dlg-sec" style="padding-top:4px;border-top:0">
+    <div class="seg day-tabs" style="grid-template-columns:1fr 1fr">
+      <button type="button" data-act="dayTab" data-k="tasks" id="dayTabBtnTasks">할 일</button>
+      <button type="button" data-act="dayTab" data-k="logs" id="dayTabBtnLogs">실천한 일</button>
+    </div>
   </div>
-  <div class="dlg-sec"><h4>실천 기록</h4><div class="list" id="dayLogs"></div>
-    <form class="mini-row" id="dayLogForm" autocomplete="off"><input type="number" id="dayLogMin" min="0" step="5" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="한 줄 메모" aria-label="메모"><button class="btn small" type="submit">기록</button></form>
+  <div id="dayPaneTasks">
+    <div class="dlg-sec"><div class="list" id="dayTasks"></div></div>
+    <form class="dlg-sec" id="dayTaskForm" autocomplete="off">
+      <h4>할 일 추가</h4>
+      <input type="text" id="dayTaskTitle" maxlength="120" placeholder="예: 필기 기출 20문제, 주방 상판 실측" aria-label="할 일">
+      <div class="seg" id="dtRepSeg">
+        <button type="button" data-act="dtRep" data-k="none">이 날 한 번</button>
+        <button type="button" data-act="dtRep" data-k="daily">매일</button>
+        <button type="button" data-act="dtRep" data-k="weekly">매주 요일</button>
+      </div>
+      <div class="chips" id="dtDays" hidden></div>
+      <p class="small muted" id="dtHint"></p>
+      <div class="row" style="align-items:end">
+        <label class="f">목표 (선택)<select id="dtGoal"></select></label>
+        <div style="flex:0 0 auto"><button class="btn small" type="submit">추가</button></div>
+      </div>
+    </form>
+    <div class="dlg-sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
+    <div class="dlg-sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
   </div>
-  <div class="dlg-sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
-  <div class="dlg-sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
+  <div id="dayPaneLogs" hidden>
+    <div class="dlg-sec"><div class="list" id="dayLogs"></div></div>
+    <form class="dlg-sec" id="dayLogForm" autocomplete="off">
+      <h4>실천한 일 기록</h4>
+      <div class="mini-row"><input type="number" id="dayLogMin" min="0" step="5" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="예: CAD 벽체 연습, 현장에서 줄눈 맞추는 법 배움" aria-label="메모"><button class="btn small" type="submit">기록</button></div>
+      <div class="chips" id="dayMinQuick"></div>
+    </form>
+  </div>
 </dialog>
 
 <dialog class="dlg dlg-day" id="goalDlg" aria-labelledby="gTitle">
@@ -255,6 +281,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261009h"></script>
+<script type="module" src="app.js?v=20261009j"></script>
 </body>
 </html>
