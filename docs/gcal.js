@@ -1,7 +1,7 @@
 // 구글 캘린더 연결 (욱진이 구글 캘린더 하나)
 // ① 구글 일정을 보드 달력에 보여 주기  ② 보드 할 일·시험일을 구글 캘린더에 넣기
 // 연결(토큰)은 기기마다 따로. 보드가 처음 연결된 구글 계정을 기억해 두고, 다른 계정이면 ②를 막아 중복을 막는다.
-import { GOOGLE_CLIENT_ID } from "./firebase-config.js";
+import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009c";
 
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const API = "https://www.googleapis.com/calendar/v3/calendars/primary";

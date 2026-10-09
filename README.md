@@ -41,6 +41,8 @@ Firebase 설정 전에는 그 브라우저에만 저장돼요.
 
 Firebase 연결값은 `docs/firebase-config.js`에 있어요 (공개돼도 되는 값).
 
+파일을 고치면 `docs/index.html`·`app.js`·`gcal.js`의 `?v=` 값을 같이 바꿔야 브라우저가 새 파일을 받아요.
+
 로컬에서 미리 보기: `cd docs && python3 -m http.server` 후 `http://localhost:8000`
 
 ## 구글 캘린더 연결
