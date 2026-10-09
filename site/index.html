@@ -210,6 +210,11 @@
           <p class="small" id="modeInfo"></p>
           <p class="small muted">할 일·목표 옆 <b>캘린더</b>를 누르면 구글 캘린더 일정 추가 화면이 열려요. 매일 하는 일은 매일 반복 일정으로 들어가요.</p>
         </div>
+        <div class="panel span-12" id="bakPanel" hidden>
+          <div class="panel-head"><h3>백업</h3><button class="btn ghost small" type="button" data-act="loadBak">백업 확인</button></div>
+          <p class="small muted">서버에 1시간·하루 단위로 자동 백업돼요. 실수로 지웠을 때 어느 기기에서든 여기서 되돌릴 수 있어요.</p>
+          <div class="list" id="bakList"></div>
+        </div>
       </div>
     </section>
   </main>

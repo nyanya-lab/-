@@ -1,6 +1,0 @@
-// 기존 Firestore 규칙은 지우지 말고, "match /databases/{database}/documents {" 바로 아래에 이 블록만 추가하세요.
-// 비밀번호(의 해시, 64자)를 아는 사람만 그 보드를 읽고 쓸 수 있어요. 보드 목록을 훑어보는 건 막혀 있어요.
-
-    match /boards/{room}/{col}/{docId} {
-      allow read, write: if room.size() == 64;
-    }

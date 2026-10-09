@@ -131,49 +131,88 @@ async function roomOf(pw) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// RTDB update()는 중첩 객체를 통째로 바꾸므로 "doneDates/2026-10-09" 같은 경로로 펼쳐서 합친다
+function flattenPaths(obj, prefix = "", out = {}) {
+  for (const [k, v] of Object.entries(obj)) {
+    const key = prefix ? prefix + "/" + k : k;
+    if (v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length) flattenPaths(v, key, out);
+    else out[key] = v;
+  }
+  return out;
+}
+
 async function firebaseStart() {
   const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
-  const [{ initializeApp }, fs] = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-firestore.js")]);
-  const db = fs.getFirestore(initializeApp(firebaseConfig));
+  const [{ initializeApp }, rt] = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-database.js")]);
+  const db = rt.getDatabase(initializeApp(firebaseConfig));
   let unsubs = [], pendingPw = null;
+  const path = (room, ...p) => rt.ref(db, ["ukjin", room, ...p].join("/"));
+  const isDenied = (e) => e && (e.code === "PERMISSION_DENIED" || /permission/i.test(e.message || ""));
 
   const lockScreen = (msg) => {
-    unsubs.forEach((u) => u()); unsubs = [];
+    unsubs.forEach((u) => u()); unsubs = []; clearInterval(bakTimer);
     backend = null; S.loaded = false;
     $("loginView").hidden = false; $("mainView").hidden = true; $("account").innerHTML = "";
     $("newBoard").hidden = true; $("loginMsg").textContent = msg || "";
     $("loginPw").focus();
   };
-  const denied = () => "Firestore 규칙이 아직 안 들어갔어요. README의 규칙을 Firebase 콘솔에 추가해 주세요.";
+  const denied = () => "Realtime Database 규칙이 아직 안 들어갔어요. README의 규칙을 Firebase 콘솔에 넣어 주세요.";
+
+  const BAK_KINDS = { prev: 60 * 60 * 1000, daily: 24 * 60 * 60 * 1000 };
+  let bakTimer = null;
+  async function rotateBackups(room) {
+    try {
+      const all = (await rt.get(path(room))).val() || {};
+      const bak = all._backup || {}; delete all._backup;
+      if (!COLS.some((c) => all[c] && Object.keys(all[c]).length)) return; // 빈 보드는 백업으로 덮지 않음
+      const now = Date.now();
+      for (const [kind, ms] of Object.entries(BAK_KINDS)) {
+        if (bak[kind] && now - (bak[kind].savedAt || 0) < ms) continue;    // 아직 주기가 안 됨
+        await rt.set(path(room, "_backup", kind), { ...all, savedAt: now });
+      }
+    } catch (e) { /* 백업 실패가 사용을 막지는 않음 */ }
+  }
 
   function open(room) {
-    const col = (c) => fs.collection(db, "boards", room, c);
-    const settingsRef = fs.doc(db, "boards", room, "meta", "settings");
     backend = {
       mode: "firebase",
-      add: (c, obj) => fs.addDoc(col(c), obj).then((r) => r.id),
-      update: (c, id, patch) => fs.setDoc(fs.doc(col(c), id), patch, { merge: true }), // 중첩 필드는 합쳐짐
-      remove: (c, id) => fs.deleteDoc(fs.doc(col(c), id)),
-      saveSettings: (st) => fs.setDoc(settingsRef, st)
+      async add(c, obj) { const r = rt.push(path(room, c)); await rt.set(r, obj); return r.key; },
+      update: (c, id, patch) => rt.update(path(room, c, id), flattenPaths(patch)),
+      remove: (c, id) => rt.remove(path(room, c, id)),
+      saveSettings: (st) => rt.set(path(room, "settings"), st),
+      // 서버 백업 (watch-log 방식): 1시간짜리 prev, 하루짜리 daily. 실수로 지운 걸 어느 기기에서든 되돌릴 수 있게
+      async backups() { return (await rt.get(path(room, "_backup"))).val() || {}; },
+      async restore(kind) {
+        const all = (await rt.get(path(room))).val() || {};
+        const bak = (all._backup || {})[kind]; if (!bak) throw new Error("no backup");
+        delete all._backup;
+        await rt.set(path(room, "_backup", "undo"), { ...all, savedAt: Date.now() }); // 되돌리기 직전 상태도 남겨 둠
+        const patch = {};
+        COLS.forEach((c) => { patch[c] = bak[c] || null; });
+        patch.settings = bak.settings || null;
+        await rt.update(path(room), patch);
+      }
     };
-    const onErr = (e) => showNote(e && e.code === "permission-denied" ? denied() : "데이터를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.", true);
+    rotateBackups(room);
+    clearInterval(bakTimer); bakTimer = setInterval(() => rotateBackups(room), 10 * 60 * 1000);
+    const onErr = (e) => showNote(isDenied(e) ? denied() : "데이터를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.", true);
     $("loginView").hidden = true; $("mainView").hidden = false;
     $("account").innerHTML = '<button class="btn ghost small" type="button" id="lockBtn">잠그기</button>';
     $("lockBtn").onclick = () => { try { localStorage.removeItem(LS_PW); } catch (e) { /* 무시 */ } lockScreen("잠갔어요. 다시 열려면 비밀번호를 넣어 주세요."); };
     const got = {};
     COLS.forEach((c) => {
-      unsubs.push(fs.onSnapshot(col(c), (snap) => {
-        const m = new Map(); snap.forEach((d) => m.set(d.id, d.data()));
-        S[c] = m; got[c] = true; S.loaded = COLS.every((k) => got[k]); render();
+      unsubs.push(rt.onValue(path(room, c), (snap) => {
+        S[c] = new Map(Object.entries(snap.val() || {})); got[c] = true;
+        S.loaded = COLS.every((k) => got[k]); render();
       }, onErr));
     });
-    unsubs.push(fs.onSnapshot(settingsRef, (d) => { S.settings = { ...DEFAULTS, ...(d.exists() ? d.data() : {}) }; render(); }, onErr));
+    unsubs.push(rt.onValue(path(room, "settings"), (snap) => { S.settings = { ...DEFAULTS, ...(snap.val() || {}) }; render(); }, onErr));
     render();
   }
 
   async function tryPassword(pw, remember) {
     const room = await roomOf(pw);
-    const snap = await fs.getDoc(fs.doc(db, "boards", room, "meta", "settings"));
+    const snap = await rt.get(path(room, "settings"));
     if (!snap.exists()) return { room, exists: false };
     if (remember) { try { localStorage.setItem(LS_PW, pw); } catch (e) { /* 무시 */ } }
     open(room);
@@ -190,19 +229,19 @@ async function firebaseStart() {
       if (r.exists) { $("loginPw").value = ""; return; }
       pendingPw = pw; $("newBoard").hidden = false; // 오타로 빈 보드가 생기지 않게 한 번 더 확인
     } catch (e) {
-      $("loginMsg").textContent = e && e.code === "permission-denied" ? denied() : "열지 못했어요. 인터넷 연결을 확인해 주세요.";
+      $("loginMsg").textContent = isDenied(e) ? denied() : "열지 못했어요. 인터넷 연결을 확인해 주세요.";
     }
   };
   $("newBoardYes").onclick = async () => {
     if (!pendingPw) return;
     try {
       const room = await roomOf(pendingPw);
-      await fs.setDoc(fs.doc(db, "boards", room, "meta", "settings"), { ...DEFAULTS, createdAt: Date.now() });
+      await rt.set(path(room, "settings"), { ...DEFAULTS, createdAt: Date.now() });
       try { localStorage.setItem(LS_PW, pendingPw); } catch (e) { /* 무시 */ }
       pendingPw = null; $("loginPw").value = "";
       open(room); toast("새 보드를 만들었어요. 다른 기기에서도 같은 비밀번호로 열면 돼요.");
     } catch (e) {
-      $("loginMsg").textContent = e && e.code === "permission-denied" ? denied() : "만들지 못했어요. 인터넷 연결을 확인해 주세요.";
+      $("loginMsg").textContent = isDenied(e) ? denied() : "만들지 못했어요. 인터넷 연결을 확인해 주세요.";
     }
   };
   $("newBoardNo").onclick = () => { pendingPw = null; lockScreen(""); };
@@ -214,13 +253,13 @@ async function firebaseStart() {
     const r = await tryPassword(saved, false);
     if (!r.exists) lockScreen("저장된 비밀번호로 보드를 찾지 못했어요. 다시 넣어 주세요.");
   } catch (e) {
-    lockScreen(e && e.code === "permission-denied" ? denied() : "연결하지 못했어요. 인터넷 연결을 확인해 주세요.");
+    lockScreen(isDenied(e) ? denied() : "연결하지 못했어요. 인터넷 연결을 확인해 주세요.");
   }
 }
 
 function act(promise, okMsg) {
   return Promise.resolve(promise).then((r) => { if (okMsg) toast(okMsg); return r; }, (e) => {
-    toast(e && e.code === "permission-denied" ? "저장 권한이 없어요. Firestore 규칙을 확인해 주세요." : "저장하지 못했어요. 잠시 뒤 다시 해 주세요.");
+    toast(e && (e.code === "PERMISSION_DENIED" || /permission/i.test(e.message || "")) ? "저장 권한이 없어요. Realtime Database 규칙을 확인해 주세요." : "저장하지 못했어요. 잠시 뒤 다시 해 주세요.");
     throw e;
   });
 }
@@ -230,7 +269,7 @@ function showNote(msg, warn) { const n = $("modeNote"); n.hidden = !msg; n.textC
 function showMode() {
   if (!backend) return;
   if (backend.mode === "local") {
-    showNote("지금은 이 브라우저에만 저장돼요. firebase-config.js에 Firebase 설정을 넣으면 폰·PC 어디서든 같은 데이터를 써요.");
+    showNote("지금은 이 브라우저에만 저장돼요. firebase-config.js에 Realtime Database 주소(databaseURL)를 넣으면 폰·PC 어디서든 같은 데이터를 써요.");
     $("modeInfo").textContent = "이 브라우저 (Firebase 연결 전)";
   } else {
     $("modeInfo").textContent = "Firebase — 같은 비밀번호로 열면 폰·PC 어디서든 같은 데이터. 비밀번호를 바꾸면 다른(빈) 보드가 열려요.";
@@ -504,7 +543,26 @@ function renderCerts() {
   }).join("") : `<div class="panel muted">목록에 "${esc(q)}"가 없어요. 위의 링크로 바로 찾아보고, <a href="#goals">목표</a>에서 직접 추가하면 돼요.</div>`;
 }
 
+const BAK_LABEL = { prev: "1시간 단위 백업", daily: "하루 단위 백업", undo: "되돌리기 직전 상태" };
+function fmtTime(ms) { const d = new Date(ms); return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+async function loadBackups() {
+  const box = $("bakList");
+  if (!backend || !backend.backups) return;
+  box.innerHTML = '<div class="empty">불러오는 중…</div>';
+  try {
+    const b = await backend.backups();
+    const kinds = ["prev", "daily", "undo"].filter((k) => b[k]);
+    box.innerHTML = kinds.length ? kinds.map((k) => {
+      const x = b[k], n = (c) => Object.keys(x[c] || {}).length;
+      return `<div class="item"><span class="mono small muted" style="padding-top:2px">${fmtTime(x.savedAt)}</span>` +
+        `<div class="body"><div class="title">${BAK_LABEL[k]}</div><div class="meta">목표 ${n("goals")} · 할 일 ${n("tasks")} · 기록 ${n("logs")} · 돈 ${n("money")}</div></div>` +
+        `<div class="actions"><button class="icon-btn" type="button" data-act="restore" data-k="${k}">이걸로 되돌리기</button></div></div>`;
+    }).join("") : '<div class="empty">아직 백업이 없어요. 기록이 생기면 1시간·하루마다 자동으로 만들어져요.</div>';
+  } catch (e) { box.innerHTML = '<div class="empty">백업을 불러오지 못했어요.</div>'; }
+}
+
 function renderSettings() {
+  $("bakPanel").hidden = !(backend && backend.backups);
   if (document.activeElement !== $("nameMe")) $("nameMe").value = me();
   if (document.activeElement !== $("namePartner")) $("namePartner").value = partner();
 }
@@ -546,6 +604,14 @@ document.addEventListener("click", (ev) => {
     }
     armed = null; clearTimeout(armTimer);
     act(backend.remove(el.dataset.col, id), "삭제했어요.").catch(() => {});
+    return;
+  }
+  if (a === "loadBak") { loadBackups(); return; }
+  if (a === "restore") {
+    if (!ready() || !backend.restore) return;
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 되돌릴까요?"; return; }
+    el.disabled = true;
+    act(backend.restore(el.dataset.k), "되돌렸어요. 바로 전 상태는 '되돌리기 직전 상태'로 남겨 뒀어요.").then(loadBackups).catch(() => {});
     return;
   }
   if (a === "addCert") {
@@ -633,7 +699,7 @@ $("minQuick").innerHTML = [30, 60, 90, 120].map((m) => `<button class="chip" typ
 // ---------- 시작 ----------
 route();
 render();
-if (firebaseConfig) {
+if (firebaseConfig && firebaseConfig.databaseURL) {
   $("mainView").hidden = true;
   firebaseStart().catch(() => {
     showNote("Firebase에 연결하지 못했어요. 인터넷 연결과 firebase-config.js 값을 확인해 주세요.", true);
@@ -641,6 +707,7 @@ if (firebaseConfig) {
 } else {
   backend = localBackend();
   render();
+  if (firebaseConfig) showNote("firebase-config.js에 Realtime Database 주소(databaseURL)를 넣으면 비밀번호로 여는 공유 보드가 돼요. 지금은 이 브라우저에만 저장돼요.");
 }
 
 // 자정이 지나면 날짜 갱신

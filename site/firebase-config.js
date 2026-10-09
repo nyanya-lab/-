@@ -5,5 +5,7 @@ export const firebaseConfig = {
   projectId: "ukjin-207a3",
   storageBucket: "ukjin-207a3.firebasestorage.app",
   messagingSenderId: "318941907079",
-  appId: "1:318941907079:web:bd3a15eb3dcedaf5c81022"
+  appId: "1:318941907079:web:bd3a15eb3dcedaf5c81022",
+  // Realtime Database → 데이터 탭 맨 위에 보이는 주소 (https://ukjin-207a3-default-rtdb....)
+  databaseURL: ""
 };

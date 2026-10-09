@@ -16,15 +16,25 @@ Firebase 설정 전에는 그 브라우저에만 저장돼요.
 ## 비밀번호 방식 (watch-log와 같은 구조)
 
 - 로그인 기능 없이 **비밀번호 하나**로 열어요. 비밀번호가 곧 데이터 저장 위치(방 이름)라서, 비밀번호를 모르면 데이터에 닿을 수 없어요.
-- 비밀번호 원문은 서버에 안 가요. 해시(64자)로 바꿔서 Firestore `boards/{해시}/...`에 저장돼요.
+- 비밀번호 원문은 서버에 안 가요. 해시(64자)로 바꿔서 Realtime Database `ukjin/{해시}/...`에 저장돼요.
 - 처음 넣는 비밀번호면 "새 보드를 만들까요?"라고 한 번 더 물어봐요 (오타로 빈 보드가 생기지 않게).
 - 한 번 열면 그 기기에서는 **잠그기** 전까지 바로 열려요.
 - 비밀번호를 잊으면 데이터를 찾을 수 없으니 꼭 기억해 두기.
 
+## 여러 기기에서 저장할 때
+
+- watch-log는 데이터를 통째로 주고받아서 기기끼리 덮어쓰는 문제가 있었고, 그래서 3-way 합치기를 붙였어요.
+- 이 보드는 할 일·기록·돈 항목이 **각자 따로** 저장되고, 체크 하나는 그 칸 하나만 바꿔요 (Realtime Database SDK, 실시간 반영).
+  그래서 두 기기가 서로를 덮어쓰거나, 빈 기기가 서버를 지우는 일이 구조상 생기지 않아요. 같은 칸을 동시에 고치면 나중 것이 남아요.
+- **서버 백업** (watch-log 방식): 보드를 열어 둔 동안 1시간 단위(`prev`)·하루 단위(`daily`)로 `ukjin/{해시}/_backup`에 자동 저장.
+  설정 → 백업에서 되돌릴 수 있고, 되돌리기 직전 상태도 `undo`로 남아요.
+
 ## Firebase 설정 (ukjin-207a3, 한 번만)
 
-1. **Firestore 규칙 추가**: Firestore Database → 규칙 → 기존 규칙은 두고 `firestore-rules-snippet.txt`의 블록을 `match /databases/{database}/documents {` 바로 아래에 붙여넣고 게시
-2. **배포** (Firebase Hosting, 기존 사이트와 별도인 새 사이트로)
+1. **주소 넣기**: Realtime Database → 데이터 탭 맨 위 주소(`https://ukjin-207a3-default-rtdb...`)를 `site/firebase-config.js`의 `databaseURL`에 넣기
+2. **규칙 넣기**: Realtime Database → 규칙 탭의 내용을 `database.rules.json` 내용으로 바꾸고 게시
+   - 비밀번호(해시 64자)를 아는 사람만 그 보드를 읽고 쓸 수 있고, `ukjin` 아래 목록 훑어보기는 막혀 있어요.
+3. **배포** (Firebase Hosting, 기존 사이트와 별도인 새 사이트로)
    ```bash
    npm i -g firebase-tools
    firebase login
