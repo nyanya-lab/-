@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>욱진 실천 보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="#today"><h1 id="brandName">욱진 실천 보드</h1><span class="mono" id="todayMono"></span></a>
+    <nav class="nav" aria-label="메뉴">
+      <a href="#today">오늘</a>
+      <a href="#goals">목표</a>
+      <a href="#log">기록</a>
+      <a href="#money">돈 관리</a>
+      <a href="#certs">자격증 찾기</a>
+      <a href="#settings">설정</a>
+    </nav>
+    <div class="account" id="account"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="note" id="modeNote" hidden></div>
+
+  <!-- 로그인 -->
+  <section class="login panel" id="loginView" hidden>
+    <h2>비밀번호를 넣어 주세요</h2>
+    <p class="muted">한 번 열면 이 기기에서는 잠그기 전까지 바로 열려요.</p>
+    <form class="form" id="loginForm" autocomplete="on">
+      <label class="f">비밀번호<input type="password" id="loginPw" autocomplete="current-password" required></label>
+      <div><button class="btn" type="submit">열기</button></div>
+    </form>
+    <div class="note" id="newBoard" hidden style="margin:0;display:grid;gap:10px">
+      <span>이 비밀번호로 만든 보드가 아직 없어요. 오타가 아니라면 이 비밀번호로 새 보드를 만들까요?</span>
+      <span class="row" style="flex-wrap:wrap"><button class="btn small" type="button" id="newBoardYes">새 보드 만들기</button><button class="btn ghost small" type="button" id="newBoardNo">다시 입력</button></span>
+    </div>
+    <p class="small muted" id="loginMsg"></p>
+  </section>
+
+  <main id="mainView">
+    <!-- 오늘 -->
+    <section class="page" data-page="today">
+      <div class="page-head">
+        <div><h2 id="todayTitle">오늘</h2><p id="todaySub">오늘 할 일부터 하나씩.</p></div>
+      </div>
+      <div class="stats" id="todayStats"></div>
+      <div class="grid">
+        <div class="stack span-8">
+          <div class="panel">
+            <div class="panel-head"><h3>오늘 할 일</h3><span class="muted small" id="todayCount"></span></div>
+            <div class="list" id="todayList"><div class="empty">불러오는 중…</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>다가오는 할 일</h3><span class="muted small">앞으로 14일</span></div>
+            <div class="list" id="upcomingList"></div>
+          </div>
+        </div>
+        <div class="stack span-4">
+          <form class="panel form" id="logForm" autocomplete="off">
+            <h3>실천 기록 남기기</h3>
+            <div class="row">
+              <label class="f">몇 분 했어요?<input type="number" id="logMin" min="0" max="1440" step="5" placeholder="60" inputmode="numeric"></label>
+              <label class="f">날짜<input type="date" id="logDate"></label>
+            </div>
+            <div class="chips" id="minQuick"></div>
+            <label class="f">목표<select id="logGoal"></select></label>
+            <label class="f">한 줄 메모<textarea id="logText" maxlength="500" placeholder="예: CAD로 벽체 그리기 연습 / 현장에서 줄눈 간격 맞추는 법 배움"></textarea></label>
+            <div><button class="btn" type="submit">기록하기</button></div>
+          </form>
+          <form class="panel form" id="taskForm" autocomplete="off">
+            <h3>할 일 추가</h3>
+            <label class="f">무엇을 할까요?<input type="text" id="taskTitle" placeholder="예: 필기 기출 20문제, 평면도 1장 따라 그리기" required maxlength="120"></label>
+            <label class="f">목표<select id="taskGoal"></select></label>
+            <div class="row">
+              <label class="f">날짜<input type="date" id="taskDate"></label>
+              <label class="f" style="align-content:end"><span class="inline-check"><input type="checkbox" id="taskDaily"> 매일 반복</span></label>
+            </div>
+            <div><button class="btn" type="submit">추가</button></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 목표 -->
+    <section class="page" data-page="goals" hidden>
+      <div class="page-head">
+        <div><h2>목표</h2><p>시험일을 넣으면 D-day가 떠요. 자격증은 <a href="#certs">자격증 찾기</a>에서 바로 목표로 넣을 수 있어요.</p></div>
+      </div>
+      <div class="goals" id="goalList"></div>
+      <form class="panel form" id="goalForm" autocomplete="off" style="max-width:720px">
+        <h3>목표 직접 추가</h3>
+        <label class="f">목표 이름<input type="text" id="goalTitle" placeholder="예: 전산응용건축제도기능사 필기 합격" required maxlength="80"></label>
+        <div class="row">
+          <label class="f">분류<select id="goalCat"></select></label>
+          <label class="f">목표일 / 시험일<input type="date" id="goalDue"></label>
+        </div>
+        <div><button class="btn" type="submit">목표 추가</button></div>
+      </form>
+    </section>
+
+    <!-- 기록 -->
+    <section class="page" data-page="log" hidden>
+      <div class="page-head">
+        <div><h2>기록</h2><p>하루 한 장씩 타일을 붙여요. 오래 할수록 진해져요.</p></div>
+      </div>
+      <div class="stats" id="logStats"></div>
+      <div class="panel">
+        <div class="panel-head"><h3>타일 벽</h3><span class="muted small">최근 26주</span></div>
+        <div class="wall-scroll"><div class="wall-row"><div class="wall-days"><span>월</span><span></span><span>수</span><span></span><span>금</span><span></span><span>일</span></div><div class="wall" id="wall"></div></div></div>
+        <div class="legend">덜 함 <i class="tile"></i><i class="tile l1"></i><i class="tile l2"></i><i class="tile l3"></i><i class="tile l4"></i> 많이 함 <span class="muted">· 30분 / 1시간 / 2시간 기준</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>최근 기록</h3></div>
+        <div class="list" id="logList"></div>
+      </div>
+    </section>
+
+    <!-- 돈 관리 -->
+    <section class="page" data-page="money" hidden>
+      <div class="page-head">
+        <div><h2>돈 관리</h2><p>월급 → 보낸 돈 → 생활비 → 남은 돈 순서로 봐요.</p></div>
+        <div class="month-nav">
+          <button class="chip" type="button" data-act="month" data-d="-1">이전 달</button>
+          <b id="monthLabel"></b>
+          <button class="chip" type="button" data-act="month" data-d="1">다음 달</button>
+        </div>
+      </div>
+      <div class="stats" id="moneyStats"></div>
+      <div class="grid">
+        <div class="stack span-5">
+          <div class="panel">
+            <h3>돈 기록하기</h3>
+            <div class="seg" id="kindSeg">
+              <button type="button" data-act="kind" data-k="income">월급·수입</button>
+              <button type="button" data-act="kind" data-k="transfer" id="kindTransfer">보낸 돈</button>
+              <button type="button" data-act="kind" data-k="expense">생활비 지출</button>
+            </div>
+            <form class="form" id="moneyForm" autocomplete="off">
+              <div class="row">
+                <label class="f">금액 (원)<input type="number" id="mAmount" min="0" step="1000" inputmode="numeric" placeholder="0" required></label>
+                <label class="f">날짜<input type="date" id="mDate"></label>
+              </div>
+              <label class="f">분류<select id="mCat"></select></label>
+              <label class="f">메모<input type="text" id="mMemo" maxlength="80" placeholder="예: 10월 월급, 이마트 장보기, 관리비"></label>
+              <p class="muted small" id="mHint"></p>
+              <div><button class="btn" type="submit" id="mSubmit">기록</button></div>
+            </form>
+          </div>
+        </div>
+        <div class="stack span-7">
+          <div class="panel">
+            <div class="panel-head"><h3>생활비</h3><span class="muted small" id="budgetLeft"></span></div>
+            <div class="bar" id="budgetBar"><i style="width:0%"></i></div>
+            <div class="catbars" id="catBars"></div>
+            <form class="row" id="budgetForm" autocomplete="off" style="align-items:end">
+              <label class="f">한 달 생활비 예산 (원)<input type="number" id="budgetIn" min="0" step="10000" inputmode="numeric" placeholder="예: 1500000"></label>
+              <div style="flex:0 0 auto"><button class="btn ghost" type="submit">예산 저장</button></div>
+            </form>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>최근 6개월</h3></div>
+            <div class="table-scroll"><table class="t" id="monthTable"></table></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>이번 달 내역</h3><span class="muted small" id="moneyCount"></span></div>
+        <div class="table-scroll"><table class="t" id="moneyTable"></table></div>
+      </div>
+    </section>
+
+    <!-- 자격증 찾기 -->
+    <section class="page" data-page="certs" hidden>
+      <div class="page-head">
+        <div><h2>자격증 찾기</h2><p>주방·인테리어·타일 현장이랑 이어지는 자격증을 모아 뒀어요. 검색하면 Q-Net·일정·기출·강의를 한 번에 열 수 있어요.</p></div>
+      </div>
+      <div class="panel">
+        <form class="search-bar" id="certSearch" autocomplete="off" role="search">
+          <input type="search" id="certQ" placeholder="자격증 이름 (예: 타일, 도배, 전산응용, 실내건축)" aria-label="자격증 검색">
+          <button class="btn" type="submit">검색</button>
+        </form>
+        <div class="chips" id="certTags"></div>
+        <div class="ext" id="certExt"></div>
+      </div>
+      <div class="certs" id="certList"></div>
+      <p class="small muted">자격 종류·응시자격·시험일정은 해마다 바뀔 수 있어요. 접수 전에 꼭 <a href="https://www.q-net.or.kr" target="_blank" rel="noopener">Q-Net</a>에서 확인하세요.</p>
+    </section>
+
+    <!-- 설정 -->
+    <section class="page" data-page="settings" hidden>
+      <div class="page-head"><div><h2>설정</h2></div></div>
+      <div class="grid">
+        <form class="panel form span-6" id="nameForm" autocomplete="off">
+          <h3>이름</h3>
+          <div class="row">
+            <label class="f">보드 주인<input type="text" id="nameMe" maxlength="12"></label>
+            <label class="f">돈 보내는 상대<input type="text" id="namePartner" maxlength="12"></label>
+          </div>
+          <div><button class="btn" type="submit">저장</button></div>
+        </form>
+        <div class="panel span-6">
+          <h3>저장 위치</h3>
+          <p class="small" id="modeInfo"></p>
+          <p class="small muted">할 일·목표 옆 <b>캘린더</b>를 누르면 구글 캘린더 일정 추가 화면이 열려요. 매일 하는 일은 매일 반복 일정으로 들어가요.</p>
+        </div>
+        <div class="panel span-12" id="bakPanel" hidden>
+          <div class="panel-head"><h3>백업</h3><button class="btn ghost small" type="button" data-act="loadBak">백업 확인</button></div>
+          <p class="small muted">서버에 1시간·하루 단위로 자동 백업돼요. 실수로 지웠을 때 어느 기기에서든 여기서 되돌릴 수 있어요.</p>
+          <div class="list" id="bakList"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
