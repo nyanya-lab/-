@@ -57,6 +57,7 @@
           <div class="cal-head">
             <h3 id="calTitle"></h3>
             <div class="cal-nav">
+              <button class="chip gchip" type="button" id="gcalChip" hidden></button>
               <button class="chip" type="button" data-act="calMonth" data-d="-1">이전 달</button>
               <button class="chip" type="button" data-act="calToday">오늘</button>
               <button class="chip" type="button" data-act="calMonth" data-d="1">다음 달</button>
@@ -70,6 +71,7 @@
             <span><i style="background:var(--grape)"></i>매일 하는 일</span>
             <span><i style="background:var(--mint)"></i>실천한 날 (진할수록 오래)</span>
             <span><i style="background:var(--mint-soft);border:1px solid var(--mint)"></i>월급·수입</span>
+            <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
           </div>
         </div>
         <aside class="panel dayside" id="dayside">
@@ -80,6 +82,7 @@
           <div class="sec"><h4>실천 기록</h4><div class="list" id="dayLogs"></div>
             <form class="mini-row" id="dayLogForm" autocomplete="off"><input type="number" id="dayLogMin" min="0" step="5" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="한 줄 메모" aria-label="메모"><button class="btn small" type="submit">기록</button></form>
           </div>
+          <div class="sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
           <div class="sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
         </aside>
       </div>
@@ -250,7 +253,7 @@
   </div>
   <div class="dlg-sec">
     <h4>구글 캘린더</h4>
-    <p class="small muted">할 일·목표 옆 <b>캘린더</b>를 누르면 구글 캘린더에 일정 추가 화면이 열려요. 매일 하는 일은 매일 반복 일정으로 들어가요.</p>
+    <div id="gcalBox" style="display:grid;gap:8px"></div>
   </div>
   <div class="dlg-foot" id="lockRow" hidden><button class="btn ghost" type="button" data-act="lock">이 기기에서 잠그기</button><span class="small muted">다시 열 때 비밀번호를 물어봐요.</span></div>
 </dialog>

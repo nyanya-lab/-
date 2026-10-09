@@ -9,3 +9,6 @@ export const firebaseConfig = {
   // Realtime Database → 데이터 탭 맨 위에 보이는 주소 (https://ukjin-207a3-default-rtdb....)
   databaseURL: "https://ukjin-207a3-default-rtdb.firebaseio.com"
 };
+
+// 구글 캘린더 연결용 OAuth 클라이언트 ID (Google Cloud 콘솔 → 클라이언트). 공개돼도 되는 값이에요.
+export const GOOGLE_CLIENT_ID = "965328211009-i7n0ggab508j44k22csd82ljvkhklr4k.apps.googleusercontent.com";
