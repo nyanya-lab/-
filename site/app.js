@@ -1,4 +1,4 @@
-import { firebaseConfig, BOARD_ID } from "./firebase-config.js";
+import { firebaseConfig, BOARD_ID, LOGIN_EMAIL } from "./firebase-config.js";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -145,16 +145,22 @@ async function firebaseStart() {
 
   function onErr(e) {
     if (e && e.code === "permission-denied") {
-      showNote("이 구글 계정은 보드를 열 권한이 없어요. Firestore 규칙에 이메일이 들어 있는지 확인해 주세요.", true);
+      showNote("보드를 열 권한이 없어요. Firestore 규칙에 보드 전용 계정이 들어 있는지 확인해 주세요.", true);
     } else showNote("데이터를 불러오지 못했어요: " + (e && e.message ? e.message : "알 수 없는 오류"), true);
   }
 
-  $("loginBtn").onclick = () => {
+  // 비밀번호만 입력 — 이메일은 보드 전용 계정(LOGIN_EMAIL)으로 고정
+  $("loginUser").value = LOGIN_EMAIL;
+  $("loginForm").onsubmit = (ev) => {
+    ev.preventDefault();
     $("loginMsg").textContent = "";
-    au.signInWithPopup(auth, new au.GoogleAuthProvider()).catch((e) => {
-      $("loginMsg").textContent = e && e.code === "auth/unauthorized-domain"
-        ? "이 주소가 Firebase 인증 '승인된 도메인'에 없어요. 콘솔 → Authentication → 설정에서 추가해 주세요."
-        : "로그인하지 못했어요. 팝업 차단을 풀고 다시 눌러 주세요.";
+    au.signInWithEmailAndPassword(auth, LOGIN_EMAIL, $("loginPw").value).then(() => { $("loginPw").value = ""; }).catch((e) => {
+      const code = e && e.code;
+      $("loginMsg").textContent =
+        code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-login-credentials" ? "비밀번호가 달라요."
+        : code === "auth/too-many-requests" ? "여러 번 틀려서 잠시 막혔어요. 조금 뒤에 다시 해 주세요."
+        : code === "auth/operation-not-allowed" ? "Firebase 콘솔에서 '이메일/비밀번호' 로그인을 켜 주세요."
+        : "열지 못했어요. 인터넷 연결을 확인해 주세요.";
     });
   };
 
@@ -167,7 +173,7 @@ async function firebaseStart() {
       return;
     }
     $("loginView").hidden = true; $("mainView").hidden = false;
-    $("account").innerHTML = `<span class="who-mail">${esc(user.email || "")}</span><button class="btn ghost small" type="button" id="logoutBtn">로그아웃</button>`;
+    $("account").innerHTML = '<button class="btn ghost small" type="button" id="logoutBtn">로그아웃</button>';
     $("logoutBtn").onclick = () => au.signOut(auth);
     backend = fbBackend;
     const got = {};
@@ -197,7 +203,7 @@ function showMode() {
     showNote("지금은 이 브라우저에만 저장돼요. firebase-config.js에 Firebase 설정을 넣으면 폰·PC 어디서든 같은 데이터를 써요.");
     $("modeInfo").textContent = "이 브라우저 (Firebase 연결 전)";
   } else {
-    $("modeInfo").textContent = `Firebase · Firestore 'boards/${BOARD_ID}' (로그인한 계정으로 어디서든 같은 데이터)`;
+    $("modeInfo").textContent = `Firebase · Firestore 'boards/${BOARD_ID}' (비밀번호로 열면 폰·PC 어디서든 같은 데이터)`;
   }
 }
 

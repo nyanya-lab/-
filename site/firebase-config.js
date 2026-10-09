@@ -16,3 +16,8 @@ export const firebaseConfig = null;
 // Firestore 안에서 이 보드 데이터가 들어갈 위치: boards/{BOARD_ID}/...
 // 기존 프로젝트의 다른 데이터와 섞이지 않게 따로 묶어 둬요.
 export const BOARD_ID = "ukjin";
+
+// 보드 전용 로그인 계정. 화면에는 비밀번호 칸만 나오고, 이메일은 이 값으로 자동 입력돼요.
+// 실제 메일 주소가 아니어도 돼요. Firebase 콘솔 → Authentication → 사용자 → '사용자 추가'에서
+// 이 이메일 + 원하는 비밀번호로 계정을 하나 만들면, 그 비밀번호가 보드 비밀번호가 돼요.
+export const LOGIN_EMAIL = "board@ukjin.app";

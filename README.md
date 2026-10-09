@@ -18,8 +18,11 @@ Firebase 설정 전에는 그 브라우저에만 저장돼요.
 기존 데이터·규칙·사이트를 건드리지 않도록 구성돼 있어요.
 
 1. **웹 앱 설정값 넣기**: Firebase 콘솔 → 프로젝트 설정 → 내 앱(웹) → `firebaseConfig` 복사 → `site/firebase-config.js`의 `null` 자리에 붙여넣기
-2. **구글 로그인 켜기**: Authentication → 로그인 방법 → Google 사용 설정
-3. **Firestore 규칙 추가**: `firestore-rules-snippet.txt`의 블록을 기존 규칙 안에 *추가* (기존 규칙 덮어쓰지 않기). 이메일을 실제 계정으로 바꾸기
+2. **비밀번호 로그인 만들기**
+   - Authentication → 로그인 방법 → **이메일/비밀번호** 사용 설정
+   - Authentication → 사용자 → 사용자 추가: 이메일 `board@ukjin.app`(실제 메일 아니어도 됨) + 보드 비밀번호
+   - 사이트에서는 비밀번호만 넣으면 열려요. 이메일을 바꾸려면 `site/firebase-config.js`의 `LOGIN_EMAIL`도 같이 바꾸기
+3. **Firestore 규칙 추가**: `firestore-rules-snippet.txt`의 블록을 기존 규칙 안에 *추가* (기존 규칙 덮어쓰지 않기)
    - 데이터는 Firestore `boards/ukjin/...` 아래에만 저장돼요.
 4. **배포** (Firebase Hosting, 기존 사이트와 별도인 새 사이트로)
    ```bash
