@@ -1,8 +1,16 @@
-import { firebaseConfig } from "./firebase-config.js";
+import { firebaseConfig } from "./firebase-config.js?v=20261009c";
+import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
 const GOAL_CATS = ["자격증", "타일", "현장", "공부", "생활", "기타"];
+// 목표마다 색 하나씩 (만든 순서대로 돌아가며). 달력에서 어느 목표 일인지 한눈에 보이게
+const GOAL_COLORS = ["c-blue", "c-coral", "c-mint", "c-sun", "c-grape"];
+let goalColorMap = new Map();
+function refreshGoalColors() {
+  goalColorMap = new Map(rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((g, i) => [g.id, GOAL_COLORS[i % GOAL_COLORS.length]]));
+}
+const catCls = (g) => (g && goalColorMap.get(typeof g === "string" ? g : g.id)) || "c-gray"; // 목표 객체나 목표 id
 const MONEY_CATS = {
   income: ["월급", "현장 수당", "부업·알바", "기타 수입"],
   transfer: ["생활비", "용돈", "데이트 통장", "저축", "기타"],
@@ -57,8 +65,27 @@ const CERT_TAGS = ["전체", "도면·CAD", "인테리어", "타일·마감", "�
 
 // ---------- 상태 ----------
 const S = { goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), settings: { ...DEFAULTS }, loaded: false };
-const ui = { page: "today", month: today().slice(0, 7), kind: "income", certTag: "전체", certQ: "" };
+const ui = { page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "income", certTag: "전체", certQ: "" };
 let backend = null;
+
+// 저장 상태: 서버에 아직 안 올라간 쓰기 수 + 연결 여부. 옆 메뉴 점과 설정 창에 표시
+const sync = { pending: 0, connected: true };
+function setSync() {
+  let state, text;
+  if (!backend || backend.mode === "local") { state = ""; text = "이 브라우저에만 저장 중"; }
+  else if (!sync.connected) { state = "off"; text = sync.pending ? `연결 끊김 · 저장 대기 ${sync.pending}개 (연결되면 자동으로 올라가요. 창을 닫지 마세요)` : "연결 끊김 · 다시 연결되면 최신 내용으로 맞춰요"; }
+  else if (sync.pending) { state = "wait"; text = "저장 중…"; }
+  else { state = "ok"; text = "서버에 저장됨"; }
+  document.querySelectorAll("[data-sync]").forEach((d) => { d.dataset.state = state; d.title = text; });
+  const t = $("syncText"); if (t) t.textContent = text;
+}
+function tracked(fn) {
+  return (...args) => {
+    sync.pending++; setSync();
+    return Promise.resolve().then(() => fn(...args)).finally(() => { sync.pending--; setSync(); });
+  };
+}
+window.addEventListener("beforeunload", (e) => { if (sync.pending > 0) { e.preventDefault(); e.returnValue = ""; } });
 
 // ---------- 유틸 ----------
 const $ = (id) => document.getElementById(id);
@@ -82,7 +109,7 @@ function won(n) { return Math.round(Number(n) || 0).toLocaleString("ko-KR") + "�
 function monthLabel(m) { return m.replace("-", "."); }
 function shiftMonth(m, d) { const p = m.split("-"); const dt = new Date(+p[0], +p[1] - 1 + d, 1); return dt.getFullYear() + "-" + pad(dt.getMonth() + 1); }
 function me() { return S.settings.name || DEFAULTS.name; }
-function partner() { return S.settings.partner || DEFAULTS.partner; }
+function partner() { return DEFAULTS.partner; }
 function deepMerge(base, patch) {
   for (const k of Object.keys(patch)) {
     const v = patch[k];
@@ -119,7 +146,7 @@ function localBackend() {
     async add(c, obj) { const id = rid(); data[c][id] = obj; persist(); load(); return id; },
     async update(c, id, patch) { if (data[c][id]) { data[c][id] = deepMerge(clone(data[c][id]), patch); persist(); load(); } },
     async remove(c, id) { delete data[c][id]; persist(); load(); },
-    async saveSettings(s) { data.settings = s; persist(); load(); }
+    async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; persist(); load(); }
   };
 }
 
@@ -147,12 +174,13 @@ async function firebaseStart() {
   const db = rt.getDatabase(initializeApp(firebaseConfig));
   let unsubs = [], pendingPw = null;
   const path = (room, ...p) => rt.ref(db, ["ukjin", room, ...p].join("/"));
+  rt.onValue(rt.ref(db, ".info/connected"), (snap) => { sync.connected = snap.val() === true; setSync(); });
   const isDenied = (e) => e && (e.code === "PERMISSION_DENIED" || /permission/i.test(e.message || ""));
 
   const lockScreen = (msg) => {
     unsubs.forEach((u) => u()); unsubs = []; clearInterval(bakTimer);
     backend = null; S.loaded = false;
-    $("loginView").hidden = false; $("mainView").hidden = true; $("account").innerHTML = "";
+    $("loginView").hidden = false; $("mainView").hidden = true; $("lockRow").hidden = true;
     $("newBoard").hidden = true; $("loginMsg").textContent = msg || "";
     $("loginPw").focus();
   };
@@ -176,13 +204,13 @@ async function firebaseStart() {
   function open(room) {
     backend = {
       mode: "firebase",
-      async add(c, obj) { const r = rt.push(path(room, c)); await rt.set(r, obj); return r.key; },
-      update: (c, id, patch) => rt.update(path(room, c, id), flattenPaths(patch)),
-      remove: (c, id) => rt.remove(path(room, c, id)),
-      saveSettings: (st) => rt.set(path(room, "settings"), st),
+      add: tracked(async (c, obj) => { const r = rt.push(path(room, c)); await rt.set(r, obj); return r.key; }),
+      update: tracked((c, id, patch) => rt.update(path(room, c, id), flattenPaths(patch))),
+      remove: tracked((c, id) => rt.remove(path(room, c, id))),
+      saveSettings: tracked((patch) => rt.update(path(room, "settings"), patch)), // 바뀐 칸만
       // 서버 백업 (watch-log 방식): 1시간짜리 prev, 하루짜리 daily. 실수로 지운 걸 어느 기기에서든 되돌릴 수 있게
       async backups() { return (await rt.get(path(room, "_backup"))).val() || {}; },
-      async restore(kind) {
+      restore: tracked(async (kind) => {
         const all = (await rt.get(path(room))).val() || {};
         const bak = (all._backup || {})[kind]; if (!bak) throw new Error("no backup");
         delete all._backup;
@@ -191,14 +219,15 @@ async function firebaseStart() {
         COLS.forEach((c) => { patch[c] = bak[c] || null; });
         patch.settings = bak.settings || null;
         await rt.update(path(room), patch);
-      }
+      })
     };
     rotateBackups(room);
     clearInterval(bakTimer); bakTimer = setInterval(() => rotateBackups(room), 10 * 60 * 1000);
     const onErr = (e) => showNote(isDenied(e) ? denied() : "데이터를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.", true);
     $("loginView").hidden = true; $("mainView").hidden = false;
-    $("account").innerHTML = '<button class="btn ghost small" type="button" id="lockBtn">잠그기</button>';
-    $("lockBtn").onclick = () => { try { localStorage.removeItem(LS_PW); } catch (e) { /* 무시 */ } lockScreen("잠갔어요. 다시 열려면 비밀번호를 넣어 주세요."); };
+    $("lockRow").hidden = false;
+    lockAction = () => { try { localStorage.removeItem(LS_PW); } catch (e) { /* 무시 */ } closeSettings(); lockScreen("잠갔어요. 다시 열려면 비밀번호를 넣어 주세요."); };
+    setSync();
     const got = {};
     COLS.forEach((c) => {
       unsubs.push(rt.onValue(path(room, c), (snap) => {
@@ -270,11 +299,56 @@ function showMode() {
   if (!backend) return;
   if (backend.mode === "local") {
     showNote("지금은 이 브라우저에만 저장돼요. firebase-config.js에 Realtime Database 주소(databaseURL)를 넣으면 폰·PC 어디서든 같은 데이터를 써요.");
-    $("modeInfo").textContent = "이 브라우저 (Firebase 연결 전)";
+    $("modeInfo").textContent = "Firebase에 연결되지 않아 이 브라우저에만 저장돼요.";
   } else {
-    $("modeInfo").textContent = "Firebase — 같은 비밀번호로 열면 폰·PC 어디서든 같은 데이터. 비밀번호를 바꾸면 다른(빈) 보드가 열려요.";
+    $("modeInfo").textContent = "할 일·기록·돈 항목은 하나씩 따로 저장돼서 폰과 PC가 서로 덮어쓰지 않아요. 같은 비밀번호로 열면 어디서든 같은 보드예요.";
   }
 }
+
+// ---------- 구글 캘린더 표시 ----------
+function renderGcalChip() {
+  const c = $("gcalChip"), s = gcalStatus();
+  if (s.state === "none") { c.hidden = true; return; }
+  c.hidden = false;
+  c.dataset.act = s.state === "ok" ? "openSettings" : "gConnect";
+  c.textContent = s.state === "off" ? "구글 캘린더 연결" : s.state === "expired" ? "구글 캘린더 다시 연결" : "구글 캘린더 연결됨";
+  c.classList.toggle("warn", s.state === "expired");
+}
+function renderGcalBox() {
+  const box = $("gcalBox"), s = gcalStatus(), pr = gcalPrefs();
+  if (s.state === "none") { box.innerHTML = '<p class="small muted">구글 캘린더 연결이 설정되지 않았어요.</p>'; return; }
+  const linked = S.settings.gcalEmail || "";
+  let html = "";
+  if (s.state === "off") {
+    html += `<p class="small muted">욱진이 구글 계정으로 연결하면 보드 할 일·시험일이 구글 캘린더에 자동으로 들어가고, 구글 일정도 달력에 같이 보여요.${linked ? ` 이 보드는 <b>${esc(linked)}</b> 캘린더에 연결돼 있어요.` : ""}</p>` +
+      '<div><button class="btn small" type="button" data-act="gConnect">구글 캘린더 연결</button></div>';
+  } else {
+    html += `<p class="sync-line"><span class="sync-dot" data-state="${s.state === "ok" ? "ok" : "wait"}"></span><span>${esc(s.email || "연결됨")}${s.state === "expired" ? " · 다시 연결 필요 (구글 보안상 1시간마다)" : ""}</span></p>`;
+    if (s.other) html += `<p class="small" style="color:var(--danger)">보드는 ${esc(linked)} 캘린더에 연결돼 있어서, 이 계정으로는 일정만 보여 줘요.</p>`;
+    html += `<label class="inline-check"><input type="checkbox" id="gShow" ${pr.show ? "checked" : ""}> 구글 일정을 보드 달력에 보여 주기</label>` +
+      `<label class="inline-check"><input type="checkbox" id="gPush" ${pr.push ? "checked" : ""} ${s.other ? "disabled" : ""}> 보드 할 일·시험일을 구글 캘린더에 넣기</label>` +
+      '<p class="small muted">매일 하는 일은 넣지 않아요. 보드에서 고치거나 지우면 구글 캘린더에서도 바뀌어요.</p>' +
+      '<div class="row" style="flex:0 0 auto">' + (s.state === "expired" ? '<button class="btn small" type="button" data-act="gConnect">다시 연결</button>' : "") +
+      '<button class="btn ghost small" type="button" data-act="gDisconnect">이 기기에서 연결 해제</button>' +
+      (s.other ? '<button class="btn ghost small" type="button" data-act="gRelink">이 계정으로 보드 연결 바꾸기</button>' : "") + "</div>";
+  }
+  box.innerHTML = html;
+}
+
+// ---------- 설정 작은 창 ----------
+let lockAction = null;
+function openSettings() {
+  closeMenu();
+  $("bakPanel").hidden = !(backend && backend.backups);
+  setSync(); renderGcalBox();
+  const d = $("settingsDlg");
+  if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+  if (backend && backend.backups) loadBackups();
+}
+function closeSettings() { const d = $("settingsDlg"); if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
+$("settingsDlg").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeSettings(); }); // 바깥 누르면 닫힘
+function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
+function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
 // ---------- 구글 캘린더 ----------
 function gcalUrl(title, date, daily) {
@@ -286,6 +360,7 @@ function gcalUrl(title, date, daily) {
   return u;
 }
 function gcalLink(title, date, daily, label) {
+  if (gcalPushing()) return ""; // 구글 캘린더에 자동으로 들어가는 중이면 버튼 필요 없음
   return `<a class="icon-btn" href="${esc(gcalUrl(title, date, daily))}" target="_blank" rel="noopener" title="구글 캘린더에 추가">${label || "캘린더"}</a>`;
 }
 
@@ -327,11 +402,11 @@ const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
 function taskItem(x, day, upcoming) {
   const done = isDone(x, day), g = x.goalId ? S.goals.get(x.goalId) : null, meta = [];
   if (x.repeat === "daily") meta.push('<span class="tag daily">매일</span>');
-  if (g) meta.push(`<span class="tag">${esc(g.title)}</span>`);
+  if (g) meta.push(`<span class="tag cat ${catCls(x.goalId)}">${esc(g.title)}</span>`);
   if (upcoming) meta.push(`<span class="mono">${shortDate(x.date)}</span>`);
   else if (x.repeat !== "daily" && x.date < day && !done) meta.push(`<span class="tag late">${diffDays(day, x.date)}일 밀림</span>`);
   return `<div class="item${done ? " done" : ""}">` +
-    `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>` +
+    `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" data-day="${day}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>` +
     `<div class="body"><div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
     `<div class="actions">${gcalLink(x.title, x.repeat === "daily" ? (x.start || day) : x.date, x.repeat === "daily")}` +
     `<button class="icon-btn" type="button" data-act="del" data-col="tasks" data-id="${esc(x.id)}">삭제</button></div></div>`;
@@ -349,6 +424,69 @@ function renderHeader() {
     if (a.getAttribute("href") === "#" + ui.page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
   document.querySelectorAll(".page").forEach((p) => { p.hidden = p.dataset.page !== ui.page; });
+}
+
+function moneyShort(n) {
+  const v = Math.round(Number(n) || 0);
+  return v >= 10000 ? (Math.round(v / 1000) / 10).toLocaleString("ko-KR") + "만" : v.toLocaleString("ko-KR");
+}
+function tasksOn(d) {
+  return rows(S.tasks).filter((x) => x.repeat === "daily" ? (!x.start || x.start <= d) : x.date === d)
+    .sort((a, b) => (a.repeat === "daily") - (b.repeat === "daily") || (a.createdAt || 0) - (b.createdAt || 0));
+}
+function renderCalendar() {
+  const t = today(), m = ui.calMonth, p = m.split("-");
+  const first = new Date(+p[0], +p[1] - 1, 1);
+  const start = addDays(ymd(first), -first.getDay());
+  const lastDay = new Date(+p[0], +p[1], 0).getDate();
+  const weeks = Math.ceil((first.getDay() + lastDay) / 7);
+  $("calTitle").textContent = `${p[0]}년 ${+p[1]}월`;
+  const prac = practiceMinutes();
+  const exams = {}; S.goals.forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
+  const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
+  const habits = rows(S.tasks).filter((x) => x.repeat === "daily");
+  let html = "";
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = addDays(start, i), dt = parseYmd(d), evs = [];
+    (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" title="${esc(g.title)}">D-DAY ${esc(g.title)}</div>`));
+    if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
+    gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
+    rows(S.tasks).filter((x) => x.repeat !== "daily" && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => {
+      const g = x.goalId ? S.goals.get(x.goalId) : null;
+      evs.push(`<div class="ev ${g ? catCls(x.goalId) : "c-blue"}${x.done ? " done" : ""}" title="${esc(x.title)}">${esc(x.title)}</div>`);
+    });
+    const hs = d <= t ? habits.filter((h) => !h.start || h.start <= d) : [];
+    const shown = evs.slice(0, 3), more = evs.length - shown.length;
+    if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
+    if (hs.length) shown.push(`<div class="ev habit">매일 ${hs.filter((h) => h.doneDates && h.doneDates[d]).length}/${hs.length}</div>`);
+    const mm = prac[d] || 0, lv = mm >= 120 ? 4 : mm >= 60 ? 3 : mm >= 30 ? 2 : mm > 0 ? 1 : 0;
+    const cls = ["day", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
+    html += `<button type="button" class="${cls}" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
+      `<span class="top"><span class="num">${dt.getDate()}</span>${lv ? `<span class="prac l${lv}" title="실천 ${fmtMin(mm)}"></span>` : ""}</span>${shown.join("")}</button>`;
+  }
+  $("calGrid").innerHTML = html;
+  gcalEnsureRange(start, addDays(start, weeks * 7 - 1));
+  renderGcalChip();
+  renderDaySide();
+}
+function renderDaySide() {
+  const d = ui.selDay, t = today(), n = diffDays(d, t);
+  $("dayTitle").textContent = prettyDate(d);
+  $("daySub").textContent = n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`;
+  const exams = rows(S.goals).filter((g) => g.due === d);
+  const ts = tasksOn(d).filter((x) => x.repeat !== "daily" || d <= t);
+  $("dayTasks").innerHTML = exams.map((g) => `<div class="item"><span class="tag cat c-coral">D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div><div class="actions">${gcalLink("[D-DAY] " + g.title, g.due, false)}</div></div>`).join("") +
+    (ts.length ? ts.map((x) => taskItem(x, d)).join("") : (exams.length ? "" : '<div class="empty">이 날 할 일이 없어요.</div>'));
+  const ls = rows(S.logs).filter((l) => l.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  $("dayLogs").innerHTML = ls.length ? ls.map((l) => `<div class="item"><span class="tag mono">${l.minutes ? fmtMin(Number(l.minutes)) : "기록"}</span><div class="body"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div></div>` +
+    `<div class="actions"><button class="icon-btn" type="button" data-act="del" data-col="logs" data-id="${esc(l.id)}">삭제</button></div></div>`).join("") : '<div class="empty">아직 기록이 없어요.</div>';
+  const gs = gcalEventsOn(d);
+  $("dayGcalSec").hidden = !gs.length;
+  $("dayGcal").innerHTML = gs.map((g) => `<div class="item"><span class="tag mono">${g.time || "종일"}</span><div class="body"><div class="title">${esc(g.title)}</div></div>${g.link ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("");
+  const ms = rows(S.money).filter((x) => x.date === d);
+  $("dayMoneySec").hidden = !ms.length;
+  const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출" };
+  $("dayMoney").innerHTML = ms.map((x) => `<div class="item"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : "minus"}">${x.kind === "income" ? "+" : "-"}${won(x.amount)}</span></div>`).join("");
 }
 
 function renderToday() {
@@ -398,7 +536,7 @@ function renderGoals() {
         const n = diffDays(g.due, t);
         dd = `<div class="dday${n >= 0 && n <= 14 ? " soon" : ""}">${n > 0 ? "D-" + n : n === 0 ? "D-DAY" : "D+" + (-n)}<small>${shortDate(g.due)}</small></div>`;
       } else dd = '<div class="dday muted" style="font-size:13px">날짜 미정</div>';
-      return `<article class="goal"><div class="goal-head"><div style="display:grid;gap:6px;min-width:0">` +
+      return `<article class="goal ${catCls(g)}"><div class="goal-head"><div style="display:grid;gap:6px;min-width:0">` +
         `<div><span class="tag">${esc(g.cat || "기타")}</span></div><div class="goal-title">${esc(g.title)}</div></div>${dd}</div>` +
         `<div style="display:grid;gap:4px"><div class="bar"><i style="width:${pct}%"></i></div>` +
         `<div class="small muted">할 일 <span class="mono">${onceDone}/${once.length}</span> 완료` +
@@ -561,20 +699,16 @@ async function loadBackups() {
   } catch (e) { box.innerHTML = '<div class="empty">백업을 불러오지 못했어요.</div>'; }
 }
 
-function renderSettings() {
-  $("bakPanel").hidden = !(backend && backend.backups);
-  if (document.activeElement !== $("nameMe")) $("nameMe").value = me();
-  if (document.activeElement !== $("namePartner")) $("namePartner").value = partner();
-}
-
 function render() {
-  renderHeader(); renderToday(); renderGoals(); renderLog(); renderMoney(); renderCerts(); renderSettings(); showMode();
+  refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderLog(); renderMoney(); renderCerts(); showMode(); setSync();
+  if ($("settingsDlg").open) renderGcalBox();
+  if (backend) schedulePush();
 }
 
 // ---------- 동작 ----------
-const PAGES = ["today", "goals", "log", "money", "certs", "settings"];
-function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "today"; renderHeader(); window.scrollTo(0, 0); }
-window.addEventListener("hashchange", route);
+const PAGES = ["calendar", "today", "goals", "log", "money", "certs"];
+function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; renderHeader(); window.scrollTo(0, 0); }
+window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
 let armed = null, armTimer;
 document.addEventListener("click", (ev) => {
@@ -582,6 +716,17 @@ document.addEventListener("click", (ev) => {
   if (!el) return;
   const a = el.dataset.act, id = el.dataset.id, t = today();
 
+  if (a === "menu") { openMenu(); return; }
+  if (a === "menuClose") { closeMenu(); return; }
+  if (a === "openSettings") { openSettings(); return; }
+  if (a === "closeSettings") { closeSettings(); return; }
+  if (a === "gConnect") { gcalConnect(); return; }
+  if (a === "gDisconnect") { gcalDisconnect(); renderGcalBox(); return; }
+  if (a === "gRelink") { const s2 = gcalStatus(); if (ready() && s2.email) act(backend.saveSettings({ gcalEmail: s2.email }), "보드를 이 계정 캘린더에 연결했어요.").then(() => { renderGcalBox(); schedulePush(); }).catch(() => {}); return; }
+  if (a === "lock") { if (lockAction) lockAction(); return; }
+  if (a === "selDay") { ui.selDay = el.dataset.day; if (ui.selDay.slice(0, 7) !== ui.calMonth) ui.calMonth = ui.selDay.slice(0, 7); renderCalendar(); return; }
+  if (a === "calMonth") { ui.calMonth = shiftMonth(ui.calMonth, +el.dataset.d); renderCalendar(); return; }
+  if (a === "calToday") { ui.calMonth = today().slice(0, 7); ui.selDay = today(); renderCalendar(); return; }
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return; }
   if (a === "kind") { ui.kind = el.dataset.k; renderMoney(); return; }
   if (a === "quickMin") { $("logMin").value = el.dataset.m; return; }
@@ -590,8 +735,9 @@ document.addEventListener("click", (ev) => {
   if (a === "toggle") {
     if (!ready()) return;
     const x = S.tasks.get(id); if (!x) return;
-    if (x.repeat === "daily") act(backend.update("tasks", id, { doneDates: { [t]: !isDone(x, t) } })).catch(() => {});
-    else { const nd = !x.done; act(backend.update("tasks", id, { done: nd, doneDate: nd ? t : null })).catch(() => {}); }
+    const day = el.dataset.day && el.dataset.day <= t ? el.dataset.day : t; // 지난 날짜에서 체크하면 그 날 한 걸로
+    if (x.repeat === "daily") act(backend.update("tasks", id, { doneDates: { [day]: !isDone(x, day) } })).catch(() => {});
+    else { const nd = !x.done; act(backend.update("tasks", id, { done: nd, doneDate: nd ? day : null })).catch(() => {}); }
     return;
   }
   if (a === "del") {
@@ -635,6 +781,7 @@ document.addEventListener("click", (ev) => {
 
 document.addEventListener("change", (ev) => {
   const el = ev.target;
+  if (el.id === "gShow" || el.id === "gPush") { gcalSetPref(el.id === "gShow" ? "show" : "push", el.checked); renderGcalBox(); return; }
   if (el.dataset && el.dataset.act === "due") {
     if (!ready()) return;
     act(backend.update("goals", el.dataset.id, { due: el.value || null }), "목표일을 바꿨어요.").catch(() => {});
@@ -682,13 +829,23 @@ $("moneyForm").addEventListener("submit", (ev) => {
 $("budgetForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
-  act(backend.saveSettings({ ...clone(S.settings), budget: parseInt($("budgetIn").value, 10) || 0 }), "예산을 저장했어요.").catch(() => {});
+  act(backend.saveSettings({ budget: parseInt($("budgetIn").value, 10) || 0 }), "예산을 저장했어요.").catch(() => {});
 });
 
-$("nameForm").addEventListener("submit", (ev) => {
+$("dayTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
-  act(backend.saveSettings({ ...clone(S.settings), name: $("nameMe").value.trim() || DEFAULTS.name, partner: $("namePartner").value.trim() || DEFAULTS.partner }), "저장했어요.").catch(() => {});
+  const title = $("dayTaskTitle").value.trim(); if (!title) return;
+  act(backend.add("tasks", { title, goalId: null, repeat: "none", date: ui.selDay, done: false, doneDate: null, createdAt: Date.now() }), "할 일을 추가했어요.")
+    .then(() => { $("dayTaskTitle").value = ""; }).catch(() => {});
+});
+$("dayLogForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  if (!ready()) return;
+  const min = parseInt($("dayLogMin").value, 10) || 0, text = $("dayLogText").value.trim();
+  if (!min && !text) { toast("시간이나 메모 중 하나는 적어 주세요."); return; }
+  act(backend.add("logs", { date: ui.selDay, minutes: min, text, goalId: null, createdAt: Date.now() }), "기록했어요.")
+    .then(() => { $("dayLogMin").value = ""; $("dayLogText").value = ""; }).catch(() => {});
 });
 
 $("certSearch").addEventListener("submit", (ev) => { ev.preventDefault(); ui.certQ = $("certQ").value; ui.certTag = "전체"; renderCerts(); });
@@ -697,6 +854,13 @@ $("certQ").addEventListener("input", () => { ui.certQ = $("certQ").value; render
 $("minQuick").innerHTML = [30, 60, 90, 120].map((m) => `<button class="chip" type="button" data-act="quickMin" data-m="${m}">${fmtMin(m)}</button>`).join("");
 
 // ---------- 시작 ----------
+initGcal({
+  tasks: () => rows(S.tasks), goals: () => rows(S.goals),
+  linkedEmail: () => S.settings.gcalEmail || "",
+  setLinkedEmail: (email) => (backend ? backend.saveSettings({ gcalEmail: email }) : Promise.resolve()),
+  update: (c, id, patch) => (backend ? backend.update(c, id, patch) : Promise.resolve()),
+  rerender: () => render(), toast
+});
 route();
 render();
 if (firebaseConfig && firebaseConfig.databaseURL) {
