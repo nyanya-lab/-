@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261009c">
+<link rel="stylesheet" href="style.css?v=20261009h">
 </head>
 <body>
 
@@ -22,7 +22,6 @@
   <a class="brand" href="#calendar"><span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><b id="brandName">욱진 실천 보드</b><span class="mono" id="todayMono"></span></span></a>
   <nav class="nav" aria-label="메뉴">
       <a href="#calendar"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></a>
-      <a href="#today"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12.5l3 3 5-6"/></svg><span>오늘</span></a>
       <a href="#goals"><svg viewBox="0 0 24 24"><path d="M5 21V4h11l-1.8 3.8L16 12H5"/></svg><span>목표</span></a>
       <a href="#log"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg><span>기록</span></a>
       <a href="#money"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg><span>돈 관리</span></a>
@@ -53,6 +52,8 @@
     <!-- 달력 -->
     <section class="page" data-page="calendar">
       <div class="cal-wrap">
+        <div class="note orphan" data-orphans hidden></div>
+        <div class="stats" id="todayStats"></div>
         <div class="cal">
           <div class="cal-head">
             <h3 id="calTitle"></h3>
@@ -68,65 +69,15 @@
           <div class="cal-legend">
             <span><i style="background:var(--coral)"></i>시험·목표일</span>
             <span><i style="background:var(--blue)"></i>할 일</span>
-            <span><i style="background:var(--grape)"></i>매일 하는 일</span>
-            <span><i style="background:var(--mint)"></i>실천한 날 (진할수록 오래)</span>
+            <span><i style="background:var(--grape)"></i>반복하는 일 (한 것/그날 할 것)</span>
+            <span><i style="background:var(--mint)"></i>날짜 옆 초록 네모 = 그날 공부·연습함 (오래 할수록 진함)</span>
             <span><i style="background:var(--mint-soft);border:1px solid var(--mint)"></i>월급·수입</span>
             <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
           </div>
         </div>
-        <aside class="panel dayside" id="dayside">
-          <div class="panel-head"><h3 id="dayTitle"></h3><span class="muted small" id="daySub"></span></div>
-          <div class="sec"><h4>할 일</h4><div class="list" id="dayTasks"></div>
-            <form class="mini-row" id="dayTaskForm" autocomplete="off"><input type="text" id="dayTaskTitle" maxlength="120" placeholder="이 날 할 일 추가" aria-label="이 날 할 일"><button class="btn small" type="submit">추가</button></form>
-          </div>
-          <div class="sec"><h4>실천 기록</h4><div class="list" id="dayLogs"></div>
-            <form class="mini-row" id="dayLogForm" autocomplete="off"><input type="number" id="dayLogMin" min="0" step="5" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="한 줄 메모" aria-label="메모"><button class="btn small" type="submit">기록</button></form>
-          </div>
-          <div class="sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
-          <div class="sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
-        </aside>
-      </div>
-    </section>
-
-    <!-- 오늘 -->
-    <section class="page" data-page="today" hidden>
-      <div class="page-head">
-        <div><h2 id="todayTitle">오늘</h2><p id="todaySub">오늘 할 일부터 하나씩.</p></div>
-      </div>
-      <div class="stats" id="todayStats"></div>
-      <div class="grid">
-        <div class="stack span-8">
-          <div class="panel">
-            <div class="panel-head"><h3>오늘 할 일</h3><span class="muted small" id="todayCount"></span></div>
-            <div class="list" id="todayList"><div class="empty">불러오는 중…</div></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h3>다가오는 할 일</h3><span class="muted small">앞으로 14일</span></div>
-            <div class="list" id="upcomingList"></div>
-          </div>
-        </div>
-        <div class="stack span-4">
-          <form class="panel form" id="logForm" autocomplete="off">
-            <h3>실천 기록 남기기</h3>
-            <div class="row">
-              <label class="f">몇 분 했어요?<input type="number" id="logMin" min="0" max="1440" step="5" placeholder="60" inputmode="numeric"></label>
-              <label class="f">날짜<input type="date" id="logDate"></label>
-            </div>
-            <div class="chips" id="minQuick"></div>
-            <label class="f">목표<select id="logGoal"></select></label>
-            <label class="f">한 줄 메모<textarea id="logText" maxlength="500" placeholder="예: CAD로 벽체 그리기 연습 / 현장에서 줄눈 간격 맞추는 법 배움"></textarea></label>
-            <div><button class="btn" type="submit">기록하기</button></div>
-          </form>
-          <form class="panel form" id="taskForm" autocomplete="off">
-            <h3>할 일 추가</h3>
-            <label class="f">무엇을 할까요?<input type="text" id="taskTitle" placeholder="예: 필기 기출 20문제, 평면도 1장 따라 그리기" required maxlength="120"></label>
-            <label class="f">목표<select id="taskGoal"></select></label>
-            <div class="row">
-              <label class="f">날짜<input type="date" id="taskDate"></label>
-              <label class="f" style="align-content:end"><span class="inline-check"><input type="checkbox" id="taskDaily"> 매일 반복</span></label>
-            </div>
-            <div><button class="btn" type="submit">추가</button></div>
-          </form>
+        <div class="panel">
+          <div class="panel-head"><h3>다가오는 할 일</h3><span class="muted small">앞으로 14일</span></div>
+          <div class="list" id="upcomingList"></div>
         </div>
       </div>
     </section>
@@ -136,6 +87,7 @@
       <div class="page-head">
         <div><h2>목표</h2><p>시험일을 넣으면 D-day가 떠요. 자격증은 <a href="#certs">자격증 찾기</a>에서 바로 목표로 넣을 수 있어요.</p></div>
       </div>
+      <div class="note orphan" data-orphans hidden></div>
       <div class="goals" id="goalList"></div>
       <form class="panel form" id="goalForm" autocomplete="off" style="max-width:720px">
         <h3>목표 직접 추가</h3>
@@ -258,7 +210,51 @@
   <div class="dlg-foot" id="lockRow" hidden><button class="btn ghost" type="button" data-act="lock">이 기기에서 잠그기</button><span class="small muted">다시 열 때 비밀번호를 물어봐요.</span></div>
 </dialog>
 
+<dialog class="dlg dlg-day" id="dayDlg" aria-labelledby="dayTitle">
+  <div class="dlg-head"><div><h3 id="dayTitle"></h3><span class="muted small" id="daySub"></span></div><button class="icon-round" type="button" data-act="closeDay" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec"><h4>할 일</h4><div class="list" id="dayTasks"></div>
+    <form class="mini-row" id="dayTaskForm" autocomplete="off"><input type="text" id="dayTaskTitle" maxlength="120" placeholder="이 날 할 일 추가" aria-label="이 날 할 일"><button class="btn small" type="submit">추가</button></form>
+  </div>
+  <div class="dlg-sec"><h4>실천 기록</h4><div class="list" id="dayLogs"></div>
+    <form class="mini-row" id="dayLogForm" autocomplete="off"><input type="number" id="dayLogMin" min="0" step="5" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="한 줄 메모" aria-label="메모"><button class="btn small" type="submit">기록</button></form>
+  </div>
+  <div class="dlg-sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
+  <div class="dlg-sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
+</dialog>
+
+<dialog class="dlg dlg-day" id="goalDlg" aria-labelledby="gTitle">
+  <div class="dlg-head goal-band" id="gDlgHead"><div><h3 id="gTitle"></h3><span class="muted small" id="gSub"></span></div><button class="icon-round" type="button" data-act="closeGoal" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec" id="gTemplate" hidden style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"></div>
+  <div class="dlg-sec"><h4>반복하는 일</h4><div class="list" id="gRepeats"></div></div>
+  <div class="dlg-sec"><h4>할 일</h4><div class="list" id="gTasks"></div></div>
+  <form class="dlg-sec" id="goalTaskForm" autocomplete="off">
+    <h4>할 일 추가</h4>
+    <input type="text" id="gtTitle" maxlength="120" placeholder="예: 필기 기출 20문제, CAD 평면도 연습" aria-label="할 일">
+    <div class="seg" id="gtRepSeg">
+      <button type="button" data-act="gtRep" data-k="none">한 번</button>
+      <button type="button" data-act="gtRep" data-k="daily">매일</button>
+      <button type="button" data-act="gtRep" data-k="weekly">매주 요일</button>
+    </div>
+    <div class="chips" id="gtDays" hidden></div>
+    <div class="row" style="align-items:end">
+      <label class="f" id="gtDateLabel">날짜<input type="date" id="gtDate"></label>
+      <label class="inline-check" id="gtUntilWrap" hidden><input type="checkbox" id="gtUntil" checked> <span id="gtUntilText"></span></label>
+    </div>
+    <div><button class="btn small" type="submit">추가</button></div>
+  </form>
+  <form class="dlg-sec" id="goalEditForm" autocomplete="off">
+    <h4>목표 정보</h4>
+    <input type="text" id="geTitle" maxlength="80" aria-label="목표 이름">
+    <div class="row">
+      <label class="f">분류<select id="geCat"></select></label>
+      <label class="f">목표일 / 시험일<input type="date" id="geDue"></label>
+    </div>
+    <div class="row" style="align-items:center;flex:0 0 auto"><button class="btn small" type="submit">저장</button><span id="geCal"></span></div>
+  </form>
+  <div class="dlg-foot"><button class="icon-btn" type="button" id="gDelBtn" data-act="del" data-col="goals">목표 삭제</button><span class="small muted">목표와 그 할 일이 같이 지워져요. 구글 캘린더에 들어간 일정도 지워져요.</span></div>
+</dialog>
+
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261009c"></script>
+<script type="module" src="app.js?v=20261009h"></script>
 </body>
 </html>

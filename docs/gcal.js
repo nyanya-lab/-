@@ -1,7 +1,7 @@
 // 구글 캘린더 연결 (욱진이 구글 캘린더 하나)
 // ① 구글 일정을 보드 달력에 보여 주기  ② 보드 할 일·시험일을 구글 캘린더에 넣기
 // 연결(토큰)은 기기마다 따로. 보드가 처음 연결된 구글 계정을 기억해 두고, 다른 계정이면 ②를 막아 중복을 막는다.
-import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009c";
+import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009h";
 
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const API = "https://www.googleapis.com/calendar/v3/calendars/primary";
@@ -42,6 +42,7 @@ export function initGcal(c) {
       client_id: GOOGLE_CLIENT_ID, scope: SCOPE, callback: onToken,
       error_callback: (e) => { lastError = e && e.type === "popup_closed" ? "" : "구글 연결 창을 열지 못했어요. 팝업 차단을 풀어 주세요."; if (lastError) ctx.toast(lastError); }
     });
+    if (st.on && st.email) { if (tokenOk()) watchExpiry(); else armReconnect(); }
   };
   document.head.appendChild(s);
 }
@@ -58,7 +59,27 @@ async function onToken(r) {
   if (!linked && st.email) await ctx.setLinkedEmail(st.email);
   else if (linked && st.email && linked !== st.email) ctx.toast(`보드는 ${linked} 캘린더에 연결돼 있어요. 이 계정으로는 일정만 보여 줄게요.`);
   else ctx.toast("구글 캘린더에 연결했어요.");
-  monthCache.clear(); lastPushFp = ""; ctx.rerender(); schedulePush();
+  monthCache.clear(); lastPushFp = ""; ctx.rerender(); schedulePush(); watchExpiry();
+}
+
+// 구글 연결은 1시간마다 풀린다. 풀린 뒤 화면을 처음 누를 때 알아서 다시 붙인다
+// (구글 규칙상 사용자가 한 번 눌러야 창을 열 수 있어서 '아무 데나 누르기'를 기다림)
+let armed = false, expiryTimer = null;
+function watchExpiry() {
+  clearTimeout(expiryTimer);
+  expiryTimer = setTimeout(() => { ctx.rerender(); armReconnect(); }, Math.max(0, st.exp - Date.now()) + 500);
+}
+function armReconnect() {
+  if (armed || !st.on || !st.email || tokenOk()) return;
+  armed = true;
+  document.addEventListener("click", onGesture, { capture: true });
+}
+function onGesture(ev) {
+  const t = ev.target && ev.target.closest ? ev.target : null;
+  if (t && t.closest('[data-act="gConnect"], [data-act="gDisconnect"]')) return; // 그 버튼은 스스로 처리
+  document.removeEventListener("click", onGesture, { capture: true });
+  armed = false;
+  if (!tokenOk() && st.on && tokenClient) tokenClient.requestAccessToken({ prompt: "", login_hint: st.email });
 }
 
 export function gcalConnect() {
@@ -67,7 +88,9 @@ export function gcalConnect() {
 }
 export function gcalDisconnect() {
   if (st.token && window.google && window.google.accounts) { try { window.google.accounts.oauth2.revoke(st.token, () => {}); } catch (e) { /* 무시 */ } }
-  st = { ...st, on: false, token: "", exp: 0, email: "" }; save(); monthCache.clear(); ctx.rerender();
+  st = { ...st, on: false, token: "", exp: 0, email: "" }; save(); monthCache.clear(); clearTimeout(expiryTimer);
+  if (armed) { document.removeEventListener("click", onGesture, { capture: true }); armed = false; }
+  ctx.rerender();
 }
 export function gcalSetPref(k, v) { st[k] = v; save(); if (k === "push" && v) { lastPushFp = ""; schedulePush(); } ctx.rerender(); }
 
@@ -78,7 +101,7 @@ async function api(method, path, body, query) {
     method, headers: { Authorization: "Bearer " + st.token, ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined
   });
-  if (res.status === 401) { st.exp = 0; save(); ctx.rerender(); }
+  if (res.status === 401) { st.exp = 0; save(); ctx.rerender(); armReconnect(); }
   if (!res.ok) throw Object.assign(new Error("gcal " + res.status), { status: res.status });
   return res.status === 204 ? null : res.json();
 }
@@ -136,7 +159,7 @@ export function schedulePush() {
 function boardItems() {
   const out = [];
   ctx.tasks().forEach((t) => {
-    if (t.repeat === "daily" || !t.date) return;     // 매일 하는 일은 넣지 않음 (캘린더가 너무 복잡해짐)
+    if (t.repeat === "daily" || t.repeat === "weekly" || !t.date) return;   // 반복하는 일은 넣지 않음 (캘린더가 너무 복잡해짐)
     const summary = (t.done ? "✓ " : "") + t.title;
     out.push({ col: "tasks", id: t.id, ref: "task:" + t.id, summary, date: t.date, gcal: t.gcal, sig: t.date + "|" + summary });
   });

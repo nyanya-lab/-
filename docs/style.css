@@ -79,10 +79,7 @@ button { cursor: pointer; }
 }
 .side::after {
   content: ""; position: absolute; top: 0; bottom: 0; right: -7px; width: 6px;
-  background: repeating-linear-gradient(180deg,
-    var(--blue) 0 28px, var(--grout) 28px 30px, var(--coral) 30px 58px, var(--grout) 58px 60px,
-    var(--mint) 60px 88px, var(--grout) 88px 90px, var(--sun) 90px 118px, var(--grout) 118px 120px,
-    var(--grape) 120px 148px, var(--grout) 148px 150px);
+  background: repeating-linear-gradient(180deg, var(--blue) 0 28px, var(--blue-soft) 28px 30px);
 }
 .logo { width: 26px; height: 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; flex-shrink: 0; }
 .logo i { border-radius: 3px; }
@@ -129,10 +126,20 @@ body { padding-left: 232px; }
 .dlg-foot { padding: 14px 20px 18px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .sync-line { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 .dlg .list { max-height: 220px; overflow: auto; }
+.dlg-day { width: min(520px, calc(100% - 32px)); }
+.goal-band { border-top: 6px solid var(--cat, var(--blue)); border-radius: 16px 16px 0 0; }
+.goal[data-act="openGoal"] { cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; }
+.goal[data-act="openGoal"]:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(23, 32, 51, 0.10); }
+.goal-foot span[aria-hidden] { font-size: 20px; line-height: 1; color: var(--cat, var(--muted)); }
+.dlg-day .dlg-head { align-items: start; padding-bottom: 10px; }
+.dlg-day .dlg-head .muted { display: block; margin-top: 2px; }
+.dlg-day .dlg-sec { gap: 8px; }
+.dlg-day .dlg-sec:last-child { padding-bottom: 18px; }
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 24px 64px; }
 .note { background: var(--sunk); border: 1px dashed var(--line); border-radius: var(--r); padding: 10px 14px; font-size: 13px; color: var(--muted); margin-bottom: 20px; }
 .note.warn { color: var(--danger); border-color: currentColor; }
+.note.orphan { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--sun-soft); border: 1px solid var(--sun); color: var(--fg); margin: 0; font-size: 14px; }
 
 .page { display: grid; gap: 24px; }
 .page-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -149,6 +156,10 @@ body { padding-left: 232px; }
 /* ---------- stats ---------- */
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 2px; min-width: 0; box-shadow: var(--shadow); }
+.stat span { display: flex; align-items: center; gap: 6px; }
+.stat span svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+button.stat { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+button.stat:hover { filter: brightness(0.97); }
 .stats .stat:nth-child(1) { background: var(--blue-soft); border-color: transparent; } .stats .stat:nth-child(1) b { color: var(--blue); }
 .stats .stat:nth-child(2) { background: var(--coral-soft); border-color: transparent; } .stats .stat:nth-child(2) b { color: var(--coral); }
 .stats .stat:nth-child(3) { background: var(--sun-soft); border-color: transparent; } .stats .stat:nth-child(3) b { color: var(--sun); }
@@ -216,7 +227,6 @@ a.chip:hover { border-color: var(--ink); color: var(--ink); }
 .bar i { display: block; height: 100%; background: var(--cat, var(--me)); border-radius: 99px; }
 .bar.over i { background: var(--danger); }
 .goal-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted); }
-.goal-foot input[type="date"] { width: auto; padding: 4px 8px; font-size: 13px; }
 
 /* ---------- tile wall ---------- */
 .wall-scroll { overflow-x: auto; padding-bottom: 4px; }
@@ -270,7 +280,7 @@ table.t tr.cur td { background: var(--sunk); }
 .tag.cat { background: var(--cat-soft); color: var(--cat); border-color: transparent; font-weight: 600; }
 
 /* ---------- 달력 ---------- */
-.cal-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.cal-wrap { display: grid; gap: 20px; }
 .cal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; flex-wrap: wrap; }
 .cal-head h3 { font-size: 24px; }
@@ -309,10 +319,6 @@ table.t tr.cur td { background: var(--sunk); }
 .ev.more { background: transparent; border-left: 0; color: var(--muted); padding-left: 2px; }
 .cal-legend { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); align-items: center; }
 .cal-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
-.dayside { position: sticky; top: 90px; }
-.dayside h3 { font-size: 22px; }
-.dayside .sec { display: grid; gap: 6px; }
-.dayside .sec h4 { margin: 0; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; }
 .mini-row { display: flex; gap: 6px; }
 .mini-row input { flex: 1; min-width: 0; }
 
@@ -329,10 +335,6 @@ table.t tr.cur td { background: var(--sunk); }
 }
 
 /* ---------- 좁은 화면: 1칼럼 ---------- */
-@media (max-width: 1020px) {
-  .cal-wrap { grid-template-columns: minmax(0, 1fr); }
-  .dayside { position: static; }
-}
 @media (max-width: 920px) {
   .span-8, .span-4, .span-7, .span-5, .span-6 { grid-column: span 12; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -347,7 +349,6 @@ table.t tr.cur td { background: var(--sunk); }
   .topbar .brand b { font-size: 19px; }
   .side { transform: translateX(-110%); width: 260px; box-shadow: 0 0 40px rgba(10, 16, 28, 0.2); }
   .side.open { transform: none; }
-  .dayside { top: 70px; }
 }
 @media (max-width: 860px) and (prefers-reduced-motion: no-preference) {
   .side { transition: transform 0.2s ease; }
