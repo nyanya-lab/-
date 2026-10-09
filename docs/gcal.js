@@ -1,7 +1,7 @@
 // 구글 캘린더 연결 (욱진이 구글 캘린더 하나)
 // ① 구글 일정을 보드 달력에 보여 주기  ② 보드 할 일·시험일을 구글 캘린더에 넣기
 // 연결(토큰)은 기기마다 따로. 보드가 처음 연결된 구글 계정을 기억해 두고, 다른 계정이면 ②를 막아 중복을 막는다.
-import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009h";
+import { GOOGLE_CLIENT_ID } from "./firebase-config.js?v=20261009j";
 
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const API = "https://www.googleapis.com/calendar/v3/calendars/primary";
@@ -153,7 +153,7 @@ export function gcalEventsOn(day) {
 let pushTimer = null, pushing = false, again = false, lastPushFp = "";
 export function schedulePush() {
   if (!gcalPushing() || gcalStatus().state !== "ok") return;
-  clearTimeout(pushTimer); pushTimer = setTimeout(runPush, 2500);
+  clearTimeout(pushTimer); pushTimer = setTimeout(() => { pushTimer = null; runPush(); }, 2500);
 }
 
 function boardItems() {
@@ -172,14 +172,15 @@ function boardItems() {
 }
 
 async function runPush() {
-  if (pushing) { again = true; return; }
+  if (pushing) { again = true; return null; }
   const s = gcalStatus();
-  if (s.state !== "ok" || !gcalPushing()) return;
+  if (s.state !== "ok" || !gcalPushing()) return null;
   const key = keyOf(st.email);
   const items = boardItems();
   const fp = items.map((x) => x.ref + "=" + x.sig + "@" + ((x.gcal && x.gcal[key] && x.gcal[key].sig) || "")).sort().join(";");
-  if (fp === lastPushFp) return;                     // 바뀐 게 없으면 구글에 묻지도 않음
+  if (fp === lastPushFp) return null;                // 바뀐 게 없으면 구글에 묻지도 않음
   pushing = true;
+  const res = { added: 0, updated: 0, deleted: 0, error: "" };
   try {
     for (const x of items) {
       const m = x.gcal && x.gcal[key];
@@ -195,8 +196,8 @@ async function runPush() {
         id = found.items && found.items[0] && found.items[0].id;
       }
       let ev = null;
-      if (id) { try { ev = await api("PATCH", "/events/" + encodeURIComponent(id), body); } catch (e) { if (e.status !== 404 && e.status !== 410) throw e; } }
-      if (!ev) ev = await api("POST", "/events", body);
+      if (id) { try { ev = await api("PATCH", "/events/" + encodeURIComponent(id), body); res.updated++; } catch (e) { if (e.status !== 404 && e.status !== 410) throw e; } }
+      if (!ev) { ev = await api("POST", "/events", body); res.added++; }
       await ctx.update(x.col, x.id, { gcal: { [key]: { id: ev.id, sig: x.sig } } });
     }
     // 보드에서 지웠거나 날짜를 뺀 항목의 일정은 구글에서도 지움
@@ -209,13 +210,34 @@ async function runPush() {
     });
     for (const e of r.items || []) {
       const ref = e.extendedProperties && e.extendedProperties.private && e.extendedProperties.private.ukjinRef;
-      if (ref && !alive.has(ref) && e.status !== "cancelled") { try { await api("DELETE", "/events/" + encodeURIComponent(e.id)); } catch (err) { /* 이미 없음 */ } }
+      if (ref && !alive.has(ref) && e.status !== "cancelled") { try { await api("DELETE", "/events/" + encodeURIComponent(e.id)); res.deleted++; } catch (err) { /* 이미 없음 */ } }
     }
     lastPushFp = boardItems().map((x) => x.ref + "=" + x.sig + "@" + ((x.gcal && x.gcal[key] && x.gcal[key].sig) || "")).sort().join(";");
   } catch (e) {
-    if (e.status !== 401) ctx.toast("구글 캘린더에 넣다가 멈췄어요. 잠시 뒤 다시 시도해요.");
+    res.error = e.status === 401 ? "연결이 풀렸어요" : "구글 캘린더와 맞추다가 멈췄어요";
+    if (e.status !== 401) ctx.toast(res.error + ". 잠시 뒤 다시 시도해요.");
   } finally {
     pushing = false;
+    st.last = { at: Date.now(), ...res }; save();
     if (again) { again = false; schedulePush(); }
   }
+  return res;
 }
+
+// 설정 창의 '지금 구글과 맞추기' — 바뀐 게 없어 보여도 구글을 다시 확인
+export async function gcalSyncNow() {
+  const s = gcalStatus();
+  if (s.state !== "ok") return { error: s.state === "expired" ? "연결이 풀렸어요. 다시 연결한 뒤 눌러 주세요" : "구글 캘린더가 연결돼 있지 않아요" };
+  if (s.other) return { error: `이 기기는 ${s.email} 계정이라 보드 일정(${s.linked})을 넣거나 지울 수 없어요` };
+  if (!st.push) return { error: "'보드 할 일·시험일을 구글 캘린더에 넣기'가 꺼져 있어요" };
+  clearTimeout(pushTimer);
+  while (pushing) await new Promise((r) => setTimeout(r, 200));
+  lastPushFp = "";
+  return (await runPush()) || { added: 0, updated: 0, deleted: 0, error: "" };
+}
+export const gcalLastSync = () => st.last || null;
+
+// 창을 닫거나 다른 앱으로 넘어갈 때, 기다리던 동기화가 있으면 바로 보냄
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && pushTimer) { clearTimeout(pushTimer); pushTimer = null; runPush(); }
+});

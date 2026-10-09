@@ -1,5 +1,5 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261009h";
-import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009h";
+import { firebaseConfig } from "./firebase-config.js?v=20261009j";
+import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush, gcalSyncNow, gcalLastSync } from "./gcal.js?v=20261009j";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -343,12 +343,15 @@ function renderGcalBox() {
     html += `<p class="small muted">욱진이 구글 계정으로 연결하면 보드 할 일·시험일이 구글 캘린더에 자동으로 들어가고, 구글 일정도 달력에 같이 보여요.${linked ? ` 이 보드는 <b>${esc(linked)}</b> 캘린더에 연결돼 있어요.` : ""}</p>` +
       '<div><button class="btn small" type="button" data-act="gConnect">구글 캘린더 연결</button></div>';
   } else {
-    html += `<p class="sync-line"><span class="sync-dot" data-state="${s.state === "ok" ? "ok" : "wait"}"></span><span>${esc(s.email || "연결됨")}${s.state === "expired" ? " · 잠깐 풀림 (화면을 누르면 알아서 다시 연결돼요)" : ""}</span></p>`;
+    html += `<p class="sync-line"><span class="sync-dot" data-state="${s.state === "ok" ? "ok" : "wait"}"></span><span>이 기기: ${esc(s.email || "연결됨")}${s.state === "expired" ? " · 잠깐 풀림 (화면을 누르면 알아서 다시 연결돼요)" : ""}</span></p>` +
+      `<p class="small muted">보드가 일정을 넣는 계정: <b>${esc(linked || s.email || "-")}</b></p>`;
+    const ls = gcalLastSync();
+    if (ls && ls.at) html += `<p class="small muted">마지막으로 맞춘 때: ${fmtTime(ls.at)} · 추가 ${ls.added || 0} · 수정 ${ls.updated || 0} · 삭제 ${ls.deleted || 0}${ls.error ? ` · <span style="color:var(--danger)">${esc(ls.error)}</span>` : ""}</p>`;
     if (s.other) html += `<p class="small" style="color:var(--danger)">보드는 ${esc(linked)} 캘린더에 연결돼 있어서, 이 계정으로는 일정만 보여 줘요.</p>`;
     html += `<label class="inline-check"><input type="checkbox" id="gShow" ${pr.show ? "checked" : ""}> 구글 일정을 보드 달력에 보여 주기</label>` +
       `<label class="inline-check"><input type="checkbox" id="gPush" ${pr.push ? "checked" : ""} ${s.other ? "disabled" : ""}> 보드 할 일·시험일을 구글 캘린더에 넣기</label>` +
       '<p class="small muted">매일 하는 일은 넣지 않아요. 보드에서 고치거나 지우면 구글 캘린더에서도 바뀌어요.</p>' +
-      '<div class="row" style="flex:0 0 auto">' + (s.state === "expired" ? '<button class="btn small" type="button" data-act="gConnect">다시 연결</button>' : "") +
+      '<div class="row" style="flex:0 0 auto">' + (s.state === "expired" ? '<button class="btn small" type="button" data-act="gConnect">다시 연결</button>' : '<button class="btn small" type="button" data-act="gSyncNow">지금 구글과 맞추기</button>') +
       '<button class="btn ghost small" type="button" data-act="gDisconnect">이 기기에서 연결 해제</button>' +
       (s.other ? '<button class="btn ghost small" type="button" data-act="gRelink">이 계정으로 보드 연결 바꾸기</button>' : "") + "</div>";
   }
@@ -422,8 +425,8 @@ function taskItem(x, day, upcoming) {
   if (upcoming) meta.push(`<span class="mono">${shortDate(x.date)}</span>`);
   else if (!isRep(x) && x.date < day && !done) meta.push(`<span class="tag late">${diffDays(day, x.date)}일 밀림</span>`);
   return `<div class="item${done ? " done" : ""}">` +
-    (isRep(x) && !activeOn(x, day)
-      ? `<button class="check" type="button" disabled title="이 날은 쉬는 날" aria-label="쉬는 날" style="opacity:.35">${CHECK}</button>`
+    (isRep(x) && (!activeOn(x, day) || day > today())
+      ? `<button class="check" type="button" disabled title="${activeOn(x, day) ? "그 날이 되면 체크할 수 있어요" : "이 날은 쉬는 날"}" aria-label="아직 체크할 수 없음" style="opacity:.35">${CHECK}</button>`
       : `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" data-day="${day}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>`) +
     `<div class="body"><div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
     `<div class="actions">${gcalLink(x.title, isRep(x) ? (x.start || day) : x.date, rrule(x))}` +
@@ -488,12 +491,33 @@ function renderCalendar() {
   renderGcalChip();
   renderDaySide();
 }
+// 날짜 작은 창: [할 일] [실천한 일] 두 버튼, 할 일 추가는 한 번/매일/매주 요일
+const dt = { tab: "tasks", rep: "none", days: new Set() };
+function openDay(d) {
+  ui.selDay = d; if (d.slice(0, 7) !== ui.calMonth) ui.calMonth = d.slice(0, 7);
+  dt.tab = "tasks"; dt.rep = "none"; dt.days = new Set([parseYmd(d).getDay()]);
+  $("dayTaskTitle").value = ""; $("dtGoal").value = "";
+  renderCalendar(); openDlg($("dayDlg"));
+}
+function renderDayForm() {
+  $("dayPaneTasks").hidden = dt.tab !== "tasks"; $("dayPaneLogs").hidden = dt.tab !== "logs";
+  $("dayTabBtnTasks").setAttribute("aria-pressed", String(dt.tab === "tasks"));
+  $("dayTabBtnLogs").setAttribute("aria-pressed", String(dt.tab === "logs"));
+  document.querySelectorAll("#dtRepSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === dt.rep)));
+  $("dtDays").hidden = dt.rep !== "weekly";
+  $("dtDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="dtDay" data-d="${n}" aria-pressed="${dt.days.has(n)}">${DOW[n]}</button>`).join("");
+  $("dtHint").textContent = dt.rep === "none" ? "" : `${shortDate(ui.selDay)}부터 ${dt.rep === "daily" ? "매일" : "고른 요일마다"} 반복해요. 목표에 시험일이 있으면 그날까지만 반복해요.`;
+  const sel = $("dtGoal"), cur = sel.value;
+  sel.innerHTML = '<option value="">없음</option>' + rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
+  if (cur && S.goals.has(cur)) sel.value = cur;
+}
 function renderDaySide() {
+  renderDayForm();
   const d = ui.selDay, t = today(), n = diffDays(d, t);
   $("dayTitle").textContent = prettyDate(d);
   $("daySub").textContent = n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`;
   const exams = rows(S.goals).filter((g) => g.due === d);
-  const ts = tasksOn(d).filter((x) => !isRep(x) || d <= t);
+  const ts = tasksOn(d);
   $("dayTasks").innerHTML = exams.map((g) => `<div class="item"><span class="tag cat c-coral">D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div><div class="actions">${gcalLink("[D-DAY] " + g.title, g.due, false)}</div></div>`).join("") +
     (ts.length ? ts.map((x) => taskItem(x, d)).join("") : (exams.length ? "" : '<div class="empty">이 날 할 일이 없어요.</div>'));
   const ls = rows(S.logs).filter((l) => l.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -780,10 +804,22 @@ document.addEventListener("click", (ev) => {
   if (a === "openSettings") { openSettings(); return; }
   if (a === "closeSettings") { closeSettings(); return; }
   if (a === "gConnect") { gcalConnect(); return; }
+  if (a === "gSyncNow") {
+    el.disabled = true; el.textContent = "맞추는 중…";
+    gcalSyncNow().then((r) => {
+      toast(r.error ? r.error : `구글 캘린더와 맞췄어요 · 추가 ${r.added} · 수정 ${r.updated} · 삭제 ${r.deleted}`);
+      renderGcalBox();
+    });
+    return;
+  }
   if (a === "gDisconnect") { gcalDisconnect(); renderGcalBox(); return; }
   if (a === "gRelink") { const s2 = gcalStatus(); if (ready() && s2.email) act(backend.saveSettings({ gcalEmail: s2.email }), "보드를 이 계정 캘린더에 연결했어요.").then(() => { renderGcalBox(); schedulePush(); }).catch(() => {}); return; }
   if (a === "lock") { if (lockAction) lockAction(); return; }
-  if (a === "selDay") { ui.selDay = el.dataset.day; if (ui.selDay.slice(0, 7) !== ui.calMonth) ui.calMonth = ui.selDay.slice(0, 7); renderCalendar(); openDlg($("dayDlg")); return; }
+  if (a === "selDay") { openDay(el.dataset.day); return; }
+  if (a === "dayTab") { dt.tab = el.dataset.k; renderDayForm(); return; }
+  if (a === "dtRep") { dt.rep = el.dataset.k; renderDayForm(); return; }
+  if (a === "dtDay") { const n = +el.dataset.d; if (dt.days.has(n)) dt.days.delete(n); else dt.days.add(n); renderDayForm(); return; }
+  if (a === "dayMin") { $("dayLogMin").value = el.dataset.m; return; }
   if (a === "closeDay") { closeDlg($("dayDlg")); return; }
   if (a === "openGoal") { if (ev.target.closest("a, button, input, select") && ev.target.closest("[data-act]") !== el) return; openGoal(el.dataset.id); return; }
   if (a === "closeGoal") { closeDlg($("goalDlg")); ui.goalId = null; return; }
@@ -793,7 +829,7 @@ document.addEventListener("click", (ev) => {
   if (a === "calToday") { ui.calMonth = today().slice(0, 7); ui.selDay = today(); renderCalendar(); return; }
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return; }
   if (a === "kind") { ui.kind = el.dataset.k; renderMoney(); return; }
-  if (a === "openToday") { ui.calMonth = today().slice(0, 7); ui.selDay = today(); renderCalendar(); openDlg($("dayDlg")); return; }
+  if (a === "openToday") { openDay(today()); return; }
   if (a === "certTag") { ui.certTag = el.dataset.t; renderCerts(); return; }
 
   if (a === "toggle") {
@@ -924,10 +960,20 @@ $("goalTaskForm").addEventListener("submit", (ev) => {
 $("dayTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
-  const title = $("dayTaskTitle").value.trim(); if (!title) return;
-  act(backend.add("tasks", { title, goalId: null, repeat: "none", date: ui.selDay, done: false, doneDate: null, createdAt: Date.now() }), "할 일을 추가했어요.")
+  const title = $("dayTaskTitle").value.trim(); if (!title) { toast("할 일을 적어 주세요."); return; }
+  const goalId = $("dtGoal").value || null, g = goalId && S.goals.get(goalId);
+  const doc = { title, goalId, createdAt: Date.now() };
+  if (dt.rep === "none") Object.assign(doc, { repeat: "none", date: ui.selDay, done: false, doneDate: null });
+  else {
+    if (dt.rep === "weekly" && !dt.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
+    Object.assign(doc, { repeat: dt.rep, start: ui.selDay, doneDates: {} });
+    if (dt.rep === "weekly") doc.days = [...dt.days].sort();
+    if (g && g.due && g.due >= ui.selDay) doc.end = g.due;
+  }
+  act(backend.add("tasks", doc), dt.rep === "none" ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.")
     .then(() => { $("dayTaskTitle").value = ""; }).catch(() => {});
 });
+$("dayMinQuick").innerHTML = [30, 60, 90, 120].map((m) => `<button class="chip" type="button" data-act="dayMin" data-m="${m}">${fmtMin(m)}</button>`).join("");
 $("dayLogForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
