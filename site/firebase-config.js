@@ -11,7 +11,14 @@
 //   messagingSenderId: "1234567890",
 //   appId: "1:1234567890:web:abcdef"
 // };
-export const firebaseConfig = null;
+export const firebaseConfig = {
+  apiKey: "AIzaSyB0aGdOx_rFUpGCxDdT1fxe0FR8A5Oq5ow",
+  authDomain: "ukjin-207a3.firebaseapp.com",
+  projectId: "ukjin-207a3",
+  storageBucket: "ukjin-207a3.firebasestorage.app",
+  messagingSenderId: "318941907079",
+  appId: "1:318941907079:web:bd3a15eb3dcedaf5c81022"
+};
 
 // Firestore 안에서 이 보드 데이터가 들어갈 위치: boards/{BOARD_ID}/...
 // 기존 프로젝트의 다른 데이터와 섞이지 않게 따로 묶어 둬요.
