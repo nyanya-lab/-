@@ -1,5 +1,5 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261009d";
-import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009d";
+import { firebaseConfig } from "./firebase-config.js?v=20261009e";
+import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush } from "./gcal.js?v=20261009e";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -341,12 +341,14 @@ function openSettings() {
   closeMenu();
   $("bakPanel").hidden = !(backend && backend.backups);
   setSync(); renderGcalBox();
-  const d = $("settingsDlg");
-  if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+  openDlg($("settingsDlg"));
   if (backend && backend.backups) loadBackups();
 }
-function closeSettings() { const d = $("settingsDlg"); if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
-$("settingsDlg").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeSettings(); }); // 바깥 누르면 닫힘
+function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", ""); }
+function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
+function closeSettings() { closeDlg($("settingsDlg")); }
+// 바깥(어두운 부분) 누르면 닫힘
+["settingsDlg", "dayDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -724,7 +726,8 @@ document.addEventListener("click", (ev) => {
   if (a === "gDisconnect") { gcalDisconnect(); renderGcalBox(); return; }
   if (a === "gRelink") { const s2 = gcalStatus(); if (ready() && s2.email) act(backend.saveSettings({ gcalEmail: s2.email }), "보드를 이 계정 캘린더에 연결했어요.").then(() => { renderGcalBox(); schedulePush(); }).catch(() => {}); return; }
   if (a === "lock") { if (lockAction) lockAction(); return; }
-  if (a === "selDay") { ui.selDay = el.dataset.day; if (ui.selDay.slice(0, 7) !== ui.calMonth) ui.calMonth = ui.selDay.slice(0, 7); renderCalendar(); return; }
+  if (a === "selDay") { ui.selDay = el.dataset.day; if (ui.selDay.slice(0, 7) !== ui.calMonth) ui.calMonth = ui.selDay.slice(0, 7); renderCalendar(); openDlg($("dayDlg")); return; }
+  if (a === "closeDay") { closeDlg($("dayDlg")); return; }
   if (a === "calMonth") { ui.calMonth = shiftMonth(ui.calMonth, +el.dataset.d); renderCalendar(); return; }
   if (a === "calToday") { ui.calMonth = today().slice(0, 7); ui.selDay = today(); renderCalendar(); return; }
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return; }

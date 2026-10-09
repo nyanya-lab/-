@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261009d">
+<link rel="stylesheet" href="style.css?v=20261009e">
 </head>
 <body>
 
@@ -69,22 +69,11 @@
             <span><i style="background:var(--coral)"></i>시험·목표일</span>
             <span><i style="background:var(--blue)"></i>할 일</span>
             <span><i style="background:var(--grape)"></i>매일 하는 일</span>
-            <span><i style="background:var(--mint)"></i>실천한 날 (진할수록 오래)</span>
+            <span><i style="background:var(--mint)"></i>날짜 옆 초록 네모 = 그날 공부·연습함 (오래 할수록 진함)</span>
             <span><i style="background:var(--mint-soft);border:1px solid var(--mint)"></i>월급·수입</span>
             <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
           </div>
         </div>
-        <aside class="panel dayside" id="dayside">
-          <div class="panel-head"><h3 id="dayTitle"></h3><span class="muted small" id="daySub"></span></div>
-          <div class="sec"><h4>할 일</h4><div class="list" id="dayTasks"></div>
-            <form class="mini-row" id="dayTaskForm" autocomplete="off"><input type="text" id="dayTaskTitle" maxlength="120" placeholder="이 날 할 일 추가" aria-label="이 날 할 일"><button class="btn small" type="submit">추가</button></form>
-          </div>
-          <div class="sec"><h4>실천 기록</h4><div class="list" id="dayLogs"></div>
-            <form class="mini-row" id="dayLogForm" autocomplete="off"><input type="number" id="dayLogMin" min="0" step="5" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="한 줄 메모" aria-label="메모"><button class="btn small" type="submit">기록</button></form>
-          </div>
-          <div class="sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
-          <div class="sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
-        </aside>
       </div>
     </section>
 
@@ -258,7 +247,19 @@
   <div class="dlg-foot" id="lockRow" hidden><button class="btn ghost" type="button" data-act="lock">이 기기에서 잠그기</button><span class="small muted">다시 열 때 비밀번호를 물어봐요.</span></div>
 </dialog>
 
+<dialog class="dlg dlg-day" id="dayDlg" aria-labelledby="dayTitle">
+  <div class="dlg-head"><div><h3 id="dayTitle"></h3><span class="muted small" id="daySub"></span></div><button class="icon-round" type="button" data-act="closeDay" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec"><h4>할 일</h4><div class="list" id="dayTasks"></div>
+    <form class="mini-row" id="dayTaskForm" autocomplete="off"><input type="text" id="dayTaskTitle" maxlength="120" placeholder="이 날 할 일 추가" aria-label="이 날 할 일"><button class="btn small" type="submit">추가</button></form>
+  </div>
+  <div class="dlg-sec"><h4>실천 기록</h4><div class="list" id="dayLogs"></div>
+    <form class="mini-row" id="dayLogForm" autocomplete="off"><input type="number" id="dayLogMin" min="0" step="5" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="한 줄 메모" aria-label="메모"><button class="btn small" type="submit">기록</button></form>
+  </div>
+  <div class="dlg-sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
+  <div class="dlg-sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
+</dialog>
+
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261009d"></script>
+<script type="module" src="app.js?v=20261009e"></script>
 </body>
 </html>
