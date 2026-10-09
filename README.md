@@ -1,6 +1,6 @@
 # 욱진 실천 보드
 
-욱진이의 계획·실천·돈 관리 웹사이트. 파일은 `site/` 폴더에 있어요.
+욱진이의 계획·실천·돈 관리 웹사이트. 파일은 `docs/` 폴더에 있고 GitHub Pages로 열려요.
 
 | 메뉴 | 내용 |
 |---|---|
@@ -29,18 +29,13 @@ Firebase 설정 전에는 그 브라우저에만 저장돼요.
 - **서버 백업** (watch-log 방식): 보드를 열어 둔 동안 1시간 단위(`prev`)·하루 단위(`daily`)로 `ukjin/{해시}/_backup`에 자동 저장.
   설정 → 백업에서 되돌릴 수 있고, 되돌리기 직전 상태도 `undo`로 남아요.
 
-## Firebase 설정 (ukjin-207a3, 한 번만)
+## 설정 (한 번만)
 
-1. **주소 넣기**: Realtime Database → 데이터 탭 맨 위 주소(`https://ukjin-207a3-default-rtdb...`)를 `site/firebase-config.js`의 `databaseURL`에 넣기
-2. **규칙 넣기**: Realtime Database → 규칙 탭의 내용을 `database.rules.json` 내용으로 바꾸고 게시
+1. **Realtime Database 규칙**: Firebase 콘솔(ukjin-207a3) → Realtime Database → 규칙 → `database.rules.json` 내용으로 바꾸고 게시
    - 비밀번호(해시 64자)를 아는 사람만 그 보드를 읽고 쓸 수 있고, `ukjin` 아래 목록 훑어보기는 막혀 있어요.
-3. **배포** (Firebase Hosting, 기존 사이트와 별도인 새 사이트로)
-   ```bash
-   npm i -g firebase-tools
-   firebase login
-   firebase hosting:sites:create ukjin-board
-   firebase deploy --only hosting
-   ```
-   → `https://ukjin-board.web.app` 에서 열림 (이름이 이미 쓰였으면 다른 이름으로 만들고 `firebase.json`의 `site`도 같이 바꾸기)
+2. **GitHub Pages 켜기**: 저장소 Settings → Pages → Source: *Deploy from a branch* → Branch: `main` / 폴더: `/docs` → Save
+   - 몇 분 뒤 `https://nyanya-lab.github.io/-/` 에서 열려요.
 
-로컬에서 미리 보기: `cd site && python3 -m http.server` 후 `http://localhost:8000`
+Firebase 연결값은 `docs/firebase-config.js`에 있어요 (공개돼도 되는 값).
+
+로컬에서 미리 보기: `cd docs && python3 -m http.server` 후 `http://localhost:8000`
