@@ -13,25 +13,24 @@
 
 Firebase 설정 전에는 그 브라우저에만 저장돼요.
 
-## Firebase 연결 (기존 프로젝트 사용)
+## 비밀번호 방식 (watch-log와 같은 구조)
 
-기존 데이터·규칙·사이트를 건드리지 않도록 구성돼 있어요.
+- 로그인 기능 없이 **비밀번호 하나**로 열어요. 비밀번호가 곧 데이터 저장 위치(방 이름)라서, 비밀번호를 모르면 데이터에 닿을 수 없어요.
+- 비밀번호 원문은 서버에 안 가요. 해시(64자)로 바꿔서 Firestore `boards/{해시}/...`에 저장돼요.
+- 처음 넣는 비밀번호면 "새 보드를 만들까요?"라고 한 번 더 물어봐요 (오타로 빈 보드가 생기지 않게).
+- 한 번 열면 그 기기에서는 **잠그기** 전까지 바로 열려요.
+- 비밀번호를 잊으면 데이터를 찾을 수 없으니 꼭 기억해 두기.
 
-1. **웹 앱 설정값 넣기**: Firebase 콘솔 → 프로젝트 설정 → 내 앱(웹) → `firebaseConfig` 복사 → `site/firebase-config.js`의 `null` 자리에 붙여넣기
-2. **비밀번호 로그인 만들기**
-   - Authentication → 로그인 방법 → **이메일/비밀번호** 사용 설정
-   - Authentication → 사용자 → 사용자 추가: 이메일 `board@ukjin.app`(실제 메일 아니어도 됨) + 보드 비밀번호
-   - 사이트에서는 비밀번호만 넣으면 열려요. 이메일을 바꾸려면 `site/firebase-config.js`의 `LOGIN_EMAIL`도 같이 바꾸기
-3. **Firestore 규칙 추가**: `firestore-rules-snippet.txt`의 블록을 기존 규칙 안에 *추가* (기존 규칙 덮어쓰지 않기)
-   - 데이터는 Firestore `boards/ukjin/...` 아래에만 저장돼요.
-4. **배포** (Firebase Hosting, 기존 사이트와 별도인 새 사이트로)
+## Firebase 설정 (ukjin-207a3, 한 번만)
+
+1. **Firestore 규칙 추가**: Firestore Database → 규칙 → 기존 규칙은 두고 `firestore-rules-snippet.txt`의 블록을 `match /databases/{database}/documents {` 바로 아래에 붙여넣고 게시
+2. **배포** (Firebase Hosting, 기존 사이트와 별도인 새 사이트로)
    ```bash
    npm i -g firebase-tools
    firebase login
-   firebase use ukjin-207a3
    firebase hosting:sites:create ukjin-board
    firebase deploy --only hosting
    ```
-   → `https://ukjin-board.web.app` 에서 열림 (이 이름이 이미 쓰였으면 다른 이름으로 바꾸고 `firebase.json`의 `site`도 같이 바꾸기)
+   → `https://ukjin-board.web.app` 에서 열림 (이름이 이미 쓰였으면 다른 이름으로 만들고 `firebase.json`의 `site`도 같이 바꾸기)
 
 로컬에서 미리 보기: `cd site && python3 -m http.server` 후 `http://localhost:8000`

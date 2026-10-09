@@ -1,4 +1,4 @@
-import { firebaseConfig, BOARD_ID, LOGIN_EMAIL } from "./firebase-config.js";
+import { firebaseConfig } from "./firebase-config.js";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -123,59 +123,43 @@ function localBackend() {
   };
 }
 
+// 비밀번호 → 방 이름(해시). watch-log처럼 비밀번호를 모르면 데이터 위치도 모름.
+// 비밀번호 원문은 서버에 안 가고, 이 기기에만 기억해요.
+const LS_PW = "ukjin-board-pw";
+async function roomOf(pw) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ukjin-board:" + pw));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function firebaseStart() {
   const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
-  const [{ initializeApp }, fs, au] = await Promise.all([
-    import(base + "firebase-app.js"), import(base + "firebase-firestore.js"), import(base + "firebase-auth.js")
-  ]);
-  const app = initializeApp(firebaseConfig);
-  const db = fs.getFirestore(app);
-  const auth = au.getAuth(app);
-  const col = (c) => fs.collection(db, "boards", BOARD_ID, c);
-  const settingsRef = fs.doc(db, "boards", BOARD_ID, "meta", "settings");
-  let unsubs = [];
+  const [{ initializeApp }, fs] = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-firestore.js")]);
+  const db = fs.getFirestore(initializeApp(firebaseConfig));
+  let unsubs = [], pendingPw = null;
 
-  const fbBackend = {
-    mode: "firebase",
-    add: (c, obj) => fs.addDoc(col(c), obj).then((r) => r.id),
-    update: (c, id, patch) => fs.setDoc(fs.doc(col(c), id), patch, { merge: true }), // 중첩 필드는 합쳐짐
-    remove: (c, id) => fs.deleteDoc(fs.doc(col(c), id)),
-    saveSettings: (s) => fs.setDoc(settingsRef, s)
-  };
-
-  function onErr(e) {
-    if (e && e.code === "permission-denied") {
-      showNote("보드를 열 권한이 없어요. Firestore 규칙에 보드 전용 계정이 들어 있는지 확인해 주세요.", true);
-    } else showNote("데이터를 불러오지 못했어요: " + (e && e.message ? e.message : "알 수 없는 오류"), true);
-  }
-
-  // 비밀번호만 입력 — 이메일은 보드 전용 계정(LOGIN_EMAIL)으로 고정
-  $("loginUser").value = LOGIN_EMAIL;
-  $("loginForm").onsubmit = (ev) => {
-    ev.preventDefault();
-    $("loginMsg").textContent = "";
-    au.signInWithEmailAndPassword(auth, LOGIN_EMAIL, $("loginPw").value).then(() => { $("loginPw").value = ""; }).catch((e) => {
-      const code = e && e.code;
-      $("loginMsg").textContent =
-        code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-login-credentials" ? "비밀번호가 달라요."
-        : code === "auth/too-many-requests" ? "여러 번 틀려서 잠시 막혔어요. 조금 뒤에 다시 해 주세요."
-        : code === "auth/operation-not-allowed" ? "Firebase 콘솔에서 '이메일/비밀번호' 로그인을 켜 주세요."
-        : "열지 못했어요. 인터넷 연결을 확인해 주세요.";
-    });
-  };
-
-  au.onAuthStateChanged(auth, (user) => {
+  const lockScreen = (msg) => {
     unsubs.forEach((u) => u()); unsubs = [];
-    if (!user) {
-      backend = null; S.loaded = false;
-      $("loginView").hidden = false; $("mainView").hidden = true;
-      $("account").innerHTML = "";
-      return;
-    }
+    backend = null; S.loaded = false;
+    $("loginView").hidden = false; $("mainView").hidden = true; $("account").innerHTML = "";
+    $("newBoard").hidden = true; $("loginMsg").textContent = msg || "";
+    $("loginPw").focus();
+  };
+  const denied = () => "Firestore 규칙이 아직 안 들어갔어요. README의 규칙을 Firebase 콘솔에 추가해 주세요.";
+
+  function open(room) {
+    const col = (c) => fs.collection(db, "boards", room, c);
+    const settingsRef = fs.doc(db, "boards", room, "meta", "settings");
+    backend = {
+      mode: "firebase",
+      add: (c, obj) => fs.addDoc(col(c), obj).then((r) => r.id),
+      update: (c, id, patch) => fs.setDoc(fs.doc(col(c), id), patch, { merge: true }), // 중첩 필드는 합쳐짐
+      remove: (c, id) => fs.deleteDoc(fs.doc(col(c), id)),
+      saveSettings: (st) => fs.setDoc(settingsRef, st)
+    };
+    const onErr = (e) => showNote(e && e.code === "permission-denied" ? denied() : "데이터를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.", true);
     $("loginView").hidden = true; $("mainView").hidden = false;
-    $("account").innerHTML = '<button class="btn ghost small" type="button" id="logoutBtn">로그아웃</button>';
-    $("logoutBtn").onclick = () => au.signOut(auth);
-    backend = fbBackend;
+    $("account").innerHTML = '<button class="btn ghost small" type="button" id="lockBtn">잠그기</button>';
+    $("lockBtn").onclick = () => { try { localStorage.removeItem(LS_PW); } catch (e) { /* 무시 */ } lockScreen("잠갔어요. 다시 열려면 비밀번호를 넣어 주세요."); };
     const got = {};
     COLS.forEach((c) => {
       unsubs.push(fs.onSnapshot(col(c), (snap) => {
@@ -185,12 +169,58 @@ async function firebaseStart() {
     });
     unsubs.push(fs.onSnapshot(settingsRef, (d) => { S.settings = { ...DEFAULTS, ...(d.exists() ? d.data() : {}) }; render(); }, onErr));
     render();
-  });
+  }
+
+  async function tryPassword(pw, remember) {
+    const room = await roomOf(pw);
+    const snap = await fs.getDoc(fs.doc(db, "boards", room, "meta", "settings"));
+    if (!snap.exists()) return { room, exists: false };
+    if (remember) { try { localStorage.setItem(LS_PW, pw); } catch (e) { /* 무시 */ } }
+    open(room);
+    return { room, exists: true };
+  }
+
+  $("loginForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const pw = $("loginPw").value;
+    $("loginMsg").textContent = ""; $("newBoard").hidden = true;
+    if (pw.length < 6) { $("loginMsg").textContent = "비밀번호는 6자 이상으로 해 주세요."; return; }
+    try {
+      const r = await tryPassword(pw, true);
+      if (r.exists) { $("loginPw").value = ""; return; }
+      pendingPw = pw; $("newBoard").hidden = false; // 오타로 빈 보드가 생기지 않게 한 번 더 확인
+    } catch (e) {
+      $("loginMsg").textContent = e && e.code === "permission-denied" ? denied() : "열지 못했어요. 인터넷 연결을 확인해 주세요.";
+    }
+  };
+  $("newBoardYes").onclick = async () => {
+    if (!pendingPw) return;
+    try {
+      const room = await roomOf(pendingPw);
+      await fs.setDoc(fs.doc(db, "boards", room, "meta", "settings"), { ...DEFAULTS, createdAt: Date.now() });
+      try { localStorage.setItem(LS_PW, pendingPw); } catch (e) { /* 무시 */ }
+      pendingPw = null; $("loginPw").value = "";
+      open(room); toast("새 보드를 만들었어요. 다른 기기에서도 같은 비밀번호로 열면 돼요.");
+    } catch (e) {
+      $("loginMsg").textContent = e && e.code === "permission-denied" ? denied() : "만들지 못했어요. 인터넷 연결을 확인해 주세요.";
+    }
+  };
+  $("newBoardNo").onclick = () => { pendingPw = null; lockScreen(""); };
+
+  let saved = null;
+  try { saved = localStorage.getItem(LS_PW); } catch (e) { /* 무시 */ }
+  if (!saved) { lockScreen(""); return; }
+  try {
+    const r = await tryPassword(saved, false);
+    if (!r.exists) lockScreen("저장된 비밀번호로 보드를 찾지 못했어요. 다시 넣어 주세요.");
+  } catch (e) {
+    lockScreen(e && e.code === "permission-denied" ? denied() : "연결하지 못했어요. 인터넷 연결을 확인해 주세요.");
+  }
 }
 
 function act(promise, okMsg) {
   return Promise.resolve(promise).then((r) => { if (okMsg) toast(okMsg); return r; }, (e) => {
-    toast(e && e.code === "permission-denied" ? "저장 권한이 없어요. 로그인 계정을 확인해 주세요." : "저장하지 못했어요. 잠시 뒤 다시 해 주세요.");
+    toast(e && e.code === "permission-denied" ? "저장 권한이 없어요. Firestore 규칙을 확인해 주세요." : "저장하지 못했어요. 잠시 뒤 다시 해 주세요.");
     throw e;
   });
 }
@@ -203,7 +233,7 @@ function showMode() {
     showNote("지금은 이 브라우저에만 저장돼요. firebase-config.js에 Firebase 설정을 넣으면 폰·PC 어디서든 같은 데이터를 써요.");
     $("modeInfo").textContent = "이 브라우저 (Firebase 연결 전)";
   } else {
-    $("modeInfo").textContent = `Firebase · Firestore 'boards/${BOARD_ID}' (비밀번호로 열면 폰·PC 어디서든 같은 데이터)`;
+    $("modeInfo").textContent = "Firebase — 같은 비밀번호로 열면 폰·PC 어디서든 같은 데이터. 비밀번호를 바꾸면 다른(빈) 보드가 열려요.";
   }
 }
 
