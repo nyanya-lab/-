@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261010a";
+import { firebaseConfig } from "./firebase-config.js?v=20261010b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -341,14 +341,14 @@ function renderGcalChip() {
 function renderGcalBox() {
   const box = $("gcalBox"), st = gsyncState(), g = S.gsync;
   if (st === "none") {
-    box.innerHTML = '<p class="small muted">욱진이 구글 계정에서 한 번만 설정하면, 5분마다 자동으로 보드 할 일·시험일이 구글 캘린더에 들어가고 구글 일정도 달력에 보여요. 사이트에서 구글 로그인은 필요 없어요.</p>' +
+    box.innerHTML = '<p class="small muted">욱진이 구글 계정에서 한 번만 설정하면, 5분마다 자동으로 보드 할 일·반복하는 일·시험일이 구글 캘린더에 들어가고 구글 일정도 달력에 보여요. 사이트에서 구글 로그인은 필요 없어요.</p>' +
       '<div><a class="btn small" href="google-sync.html" target="_blank" rel="noopener">설정 방법 보기</a></div>';
     return;
   }
   box.innerHTML = `<p class="sync-line"><span class="sync-dot" data-state="${st === "ok" ? "ok" : "off"}"></span><span>${esc(g.email || "구글 계정")} 캘린더와 자동 동기화${st === "ok" ? " 중" : ""}</span></p>` +
     `<p class="small muted">마지막으로 맞춘 때: ${fmtTime(g.at)} · 추가 ${g.added || 0} · 수정 ${g.updated || 0} · 삭제 ${g.deleted || 0}${g.cleaned ? ` · 예전 일정 정리 ${g.cleaned}` : ""}</p>` +
     (st === "stale" ? '<p class="small" style="color:var(--danger)">20분 넘게 소식이 없어요. 스크립트가 멈췄을 수 있어요. 설정 방법 페이지의 \'문제 해결\'을 봐 주세요.</p>' : "") +
-    '<p class="small muted">보드에서 바꾸면 5분 안에 구글 캘린더에 반영돼요.</p>' +
+    '<p class="small muted">보드에서 바꾸면 5분 안에 구글 캘린더에 반영돼요. 구글에서는 (예) 파랑 · (완) 초록 · (반복) 보라 · [D-DAY] 빨강으로 보여요.</p>' +
     '<div><a class="btn ghost small" href="google-sync.html" target="_blank" rel="noopener">설정 방법 다시 보기</a></div>';
 }
 

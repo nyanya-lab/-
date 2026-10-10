@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261010a">
+<link rel="stylesheet" href="style.css?v=20261010b">
 <style>
   body { padding-left: 0; }
   .guide { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
@@ -82,7 +82,14 @@
     </li>
   </ol>
 
-  <div class="callout">보드에서 할 일을 추가·체크·삭제하면 <b>5분 안에</b> 구글 캘린더에 반영돼요. 매일·매주 반복하는 일은 캘린더가 복잡해지지 않게 넣지 않아요. 예전에 할 일 옆 '캘린더' 버튼으로 직접 넣었던 보드 일정도 첫 동기화 때 같이 정리돼요.</div>
+  <div class="callout">보드에서 할 일을 추가·체크·삭제하면 <b>5분 안에</b> 구글 캘린더에 반영돼요. 구글 캘린더에는 이렇게 보여요:
+    <ul style="margin:6px 0 0;padding-left:18px">
+      <li><b>(예) 할 일</b> · 파랑 = 아직 안 한 할 일</li>
+      <li><b>(완) 할 일</b> · 초록 = 끝낸 할 일 (반복하는 일은 한 날 칸만 초록)</li>
+      <li><b>(반복) 할 일</b> · 보라 = 매일·매주 반복하는 일 (반복 일정 하나로 들어가요)</li>
+      <li><b>[D-DAY] 목표</b> · 빨강 = 시험일·목표일</li>
+    </ul>
+    예전에 할 일 옆 '캘린더' 버튼으로 직접 넣었던 보드 일정은 첫 동기화 때 같이 정리돼요.</div>
 
   <section class="fix">
     <h2 style="font-size:22px">문제 해결</h2>
@@ -98,7 +105,7 @@
 <script>
   (function () {
     var pre = document.getElementById("code"), btn = document.getElementById("copyBtn");
-    fetch("apps-script/Code.gs?v=20261010a").then(function (r) { if (!r.ok) throw 0; return r.text(); })
+    fetch("apps-script/Code.gs?v=20261010b").then(function (r) { if (!r.ok) throw 0; return r.text(); })
       .then(function (t) { pre.textContent = t; })
       .catch(function () { pre.textContent = "코드를 불러오지 못했어요. 새로고침해 주세요."; });
     btn.addEventListener("click", function () {
