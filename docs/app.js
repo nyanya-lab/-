@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261010c";
+import { firebaseConfig } from "./firebase-config.js?v=20261010d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -348,7 +348,7 @@ function renderGcalBox() {
   box.innerHTML = `<p class="sync-line"><span class="sync-dot" data-state="${st === "ok" ? "ok" : "off"}"></span><span>${esc(g.email || "구글 계정")} 캘린더와 자동 동기화${st === "ok" ? " 중" : ""}</span></p>` +
     `<p class="small muted">마지막으로 맞춘 때: ${fmtTime(g.at)} · 추가 ${g.added || 0} · 수정 ${g.updated || 0} · 삭제 ${g.deleted || 0}${g.cleaned ? ` · 예전 일정 정리 ${g.cleaned}` : ""}</p>` +
     (st === "stale" ? '<p class="small" style="color:var(--danger)">20분 넘게 소식이 없어요. 스크립트가 멈췄을 수 있어요. 설정 방법 페이지의 \'문제 해결\'을 봐 주세요.</p>' : "") +
-    '<p class="small muted">보드에서 바꾸면 5분 안에 구글 캘린더에 반영돼요. 구글에서는 (예) 파랑 · (완) 초록 · (반복) 보라 · [D-DAY] 빨강으로 보여요.</p>' +
+    '<p class="small muted">보드에서 바꾸면 5분 안에 구글 캘린더에 반영돼요. 구글에서는 (예) 파랑 · (완) 초록 · (반복) 보라 · [D-DAY] 빨강 · (실천) 노랑으로 보여요.</p>' +
     '<div><a class="btn ghost small" href="google-sync.html" target="_blank" rel="noopener">설정 방법 다시 보기</a></div>';
 }
 
