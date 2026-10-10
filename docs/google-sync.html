@@ -54,6 +54,7 @@
     <li>
       <h3>코드 붙여넣기</h3>
       <p>가운데 편집기에 있는 <code>function myFunction() { … }</code>을 전부 지우고, 아래 코드를 <b>코드 복사</b>로 복사해서 붙여넣어요.</p>
+      <p class="small muted" id="codeVer"></p>
       <div class="code-box"><pre id="code">불러오는 중…</pre><button class="btn small" type="button" id="copyBtn">코드 복사</button></div>
     </li>
     <li>
@@ -117,8 +118,8 @@
 <script>
   (function () {
     var pre = document.getElementById("code"), btn = document.getElementById("copyBtn");
-    fetch("apps-script/Code.gs?v=20261010d").then(function (r) { if (!r.ok) throw 0; return r.text(); })
-      .then(function (t) { pre.textContent = t; })
+    fetch("apps-script/Code.gs?t=" + Date.now(), { cache: "no-store" }).then(function (r) { if (!r.ok) throw 0; return r.text(); })
+      .then(function (t) { pre.textContent = t; var v = (t.match(/^const COLOR = .*$/m) || [""])[0]; document.getElementById("codeVer").textContent = /log:/.test(v) ? "최신 코드예요 (실천한 일 포함)." : ""; })
       .catch(function () { pre.textContent = "코드를 불러오지 못했어요. 새로고침해 주세요."; });
     btn.addEventListener("click", function () {
       var text = pre.textContent;
