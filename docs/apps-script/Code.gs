@@ -52,7 +52,7 @@ function sync() {
     at: Date.now(), email: Session.getEffectiveUser().getEmail(),
     added: res.added, updated: res.updated, deleted: res.deleted, cleaned: res.cleaned
   });
-  Logger.log("추가 %s · 수정 %s · 삭제 %s · 예전 일정 정리 %s", res.added, res.updated, res.deleted, res.cleaned);
+  Logger.log("추가 " + res.added + " · 수정 " + res.updated + " · 삭제 " + res.deleted + " · 예전 일정 정리 " + res.cleaned);
 }
 
 // ---------- 보드 → 구글 ----------
