@@ -309,6 +309,18 @@ table.t tr.cur td { background: var(--sunk); }
 .day .prac.l4 { background: var(--mint); }
 .ev { font-size: 11.5px; line-height: 1.35; padding: 2px 6px; border-radius: 5px; background: var(--cat-soft, var(--sunk)); color: var(--fg); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-left: 3px solid var(--cat, var(--line)); }
 .ev.done { text-decoration: line-through; color: var(--muted); }
+.ev.task { display: flex; align-items: center; gap: 5px; padding: 2px 5px; white-space: nowrap; }
+.ev.task > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ev.task.done { text-decoration: none; }
+.ev.task.done > span { text-decoration: line-through; color: var(--muted); }
+.mini-check {
+  flex-shrink: 0; width: 15px; height: 15px; padding: 0; border-radius: 4px; display: grid; place-items: center;
+  border: 1.5px solid var(--cat, var(--blue)); background: var(--surface); cursor: pointer;
+}
+.mini-check svg { width: 10px; height: 10px; stroke: #FFFFFF; stroke-width: 3; fill: none; opacity: 0; }
+.mini-check.on { background: var(--cat, var(--blue)); }
+.mini-check.on svg { opacity: 1; }
+.mini-check:hover { box-shadow: 0 0 0 3px var(--cat-soft, var(--blue-soft)); }
 .ev.exam { background: var(--coral); color: #FFFFFF; border-left-color: var(--coral); font-weight: 600; }
 .ev.money { background: var(--mint-soft); color: var(--ok); border-left-color: var(--mint); font-family: var(--f-mono); }
 .ev.habit { background: transparent; border-left-color: var(--grape); color: var(--grape); font-weight: 600; }
@@ -358,5 +370,7 @@ table.t tr.cur td { background: var(--sunk); }
   .day { min-height: 64px; padding: 4px 3px; }
   .day .num { width: 22px; height: 22px; font-size: 12px; }
   .ev { font-size: 10px; padding: 1px 3px; border-left-width: 2px; }
+  .ev.task { gap: 3px; padding: 1px 2px; }
+  .mini-check { width: 13px; height: 13px; border-radius: 3px; }
   .ev.more, .ev.habit { display: none; }
 }

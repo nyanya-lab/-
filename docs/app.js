@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261010b";
+import { firebaseConfig } from "./firebase-config.js?v=20261010c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -365,7 +365,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -408,7 +408,7 @@ function taskItem(x, day, upcoming) {
     (isRep(x) && (!activeOn(x, day) || day > today())
       ? `<button class="check" type="button" disabled title="${activeOn(x, day) ? "그 날이 되면 체크할 수 있어요" : "이 날은 쉬는 날"}" aria-label="아직 체크할 수 없음" style="opacity:.35">${CHECK}</button>`
       : `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" data-day="${day}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>`) +
-    `<div class="body"><div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
+    `<div class="body" data-act="editTask" data-id="${esc(x.id)}" style="cursor:pointer" title="눌러서 편집"><div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
     `<div class="actions">` +
     `<button class="icon-btn" type="button" data-act="del" data-col="tasks" data-id="${esc(x.id)}">삭제</button></div></div>`;
 }
@@ -436,6 +436,12 @@ function tasksOn(d) {
   return rows(S.tasks).filter((x) => activeOn(x, d))
     .sort((a, b) => isRep(a) - isRep(b) || (a.createdAt || 0) - (b.createdAt || 0));
 }
+function calTask(x, d, repeat) {
+  const done = isDone(x, d), color = x.goalId && S.goals.has(x.goalId) ? catCls(x.goalId) : repeat ? "c-grape" : "c-blue";
+  return `<div class="ev task ${color}${done ? " done" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
+    `<button type="button" class="mini-check${done ? " on" : ""}" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="${done}" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>` +
+    `<span>${esc(x.title)}</span></div>`;
+}
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
   const first = new Date(+p[0], +p[1] - 1, 1);
@@ -444,32 +450,58 @@ function renderCalendar() {
   const weeks = Math.ceil((first.getDay() + lastDay) / 7);
   $("calTitle").textContent = `${p[0]}년 ${+p[1]}월`;
   const prac = practiceMinutes();
-  const exams = {}; S.goals.forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
+  const exams = {}; rows(S.goals).forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
   const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
   const habits = rows(S.tasks).filter(isRep);
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
-    (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" title="${esc(g.title)}">D-DAY ${esc(g.title)}</div>`));
-    if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
+    (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
+    // 할 일은 칸 안에서 바로 체크 (반복하는 일은 오늘·지난 날만 하나씩, 앞으로의 날은 개수만)
+    rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => evs.push(calTask(x, d, false)));
+    const hs = habits.filter((h) => activeOn(h, d));
+    if (d <= t) hs.forEach((h) => evs.push(calTask(h, d, true)));
     gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
-    rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => {
-      const g = x.goalId ? S.goals.get(x.goalId) : null;
-      evs.push(`<div class="ev ${g ? catCls(x.goalId) : "c-blue"}${x.done ? " done" : ""}" title="${esc(x.title)}">${esc(x.title)}</div>`);
-    });
-    const hs = d <= t ? habits.filter((h) => activeOn(h, d)) : [];
-    const shown = evs.slice(0, 3), more = evs.length - shown.length;
+    if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
+    const shown = evs.slice(0, 4), more = evs.length - shown.length;
     if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
-    if (hs.length) shown.push(`<div class="ev habit">반복 ${hs.filter((h) => h.doneDates && h.doneDates[d]).length}/${hs.length}</div>`);
+    if (d > t && hs.length) shown.push(`<div class="ev habit">반복 ${hs.length}개</div>`);
     const mm = prac[d] || 0, lv = mm >= 120 ? 4 : mm >= 60 ? 3 : mm >= 30 ? 2 : mm > 0 ? 1 : 0;
     const cls = ["day", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
-    html += `<button type="button" class="${cls}" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span>${lv ? `<span class="prac l${lv}" title="실천 ${fmtMin(mm)}"></span>` : ""}</span>${shown.join("")}</button>`;
+    // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
+    html += `<div class="${cls}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
+      `<span class="top"><span class="num">${dt.getDate()}</span>${lv ? `<span class="prac l${lv}" title="실천 ${fmtMin(mm)}"></span>` : ""}</span>${shown.join("")}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
   renderDaySide();
 }
+// ---------- 할 일 편집 작은 창 ----------
+const tk = { id: null, rep: "none", days: new Set() };
+function openTask(id) {
+  const x = S.tasks.get(id); if (!x) return;
+  tk.id = id; tk.rep = isRep(x) ? x.repeat : "none"; tk.days = new Set(x.days || [parseYmd(x.start || x.date || today()).getDay()]);
+  $("tkTitle").value = x.title || "";
+  $("tkDate").value = (isRep(x) ? x.start : x.date) || today();
+  $("tkEnd").value = x.end || "";
+  $("tkDone").checked = !!x.done;
+  const sel = $("tkGoal");
+  sel.innerHTML = '<option value="">없음</option>' + rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
+  sel.value = x.goalId && S.goals.has(x.goalId) ? x.goalId : "";
+  const del = $("tkDel"); del.classList.remove("armed"); del.textContent = "삭제"; delete del.dataset.armed;
+  renderTaskForm(); openDlg($("taskDlg"));
+}
+function renderTaskForm() {
+  document.querySelectorAll("#tkRepSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === tk.rep)));
+  $("tkDays").hidden = tk.rep !== "weekly";
+  $("tkDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="tkDay" data-d="${n}" aria-pressed="${tk.days.has(n)}">${DOW[n]}</button>`).join("");
+  $("tkDateLabel").firstChild.textContent = tk.rep === "none" ? "날짜" : "시작일";
+  $("tkEndLabel").hidden = tk.rep === "none";
+  $("tkDoneWrap").hidden = tk.rep !== "none";
+  const x = S.tasks.get(tk.id);
+  $("tkSub").textContent = x ? (isRep(x) ? repeatLabel(x) : shortDate(x.date || today())) : "";
+}
+
 // 날짜 작은 창: [할 일] [실천한 일] 두 버튼, 할 일 추가는 한 번/매일/매주 요일
 const dt = { tab: "tasks", rep: "none", days: new Set() };
 function openDay(d) {
@@ -782,6 +814,16 @@ document.addEventListener("click", (ev) => {
   if (a === "closeSettings") { closeSettings(); return; }
   if (a === "lock") { if (lockAction) lockAction(); return; }
   if (a === "selDay") { openDay(el.dataset.day); return; }
+  if (a === "editTask") { openTask(id); return; }
+  if (a === "closeTask") { closeDlg($("taskDlg")); return; }
+  if (a === "tkRep") { tk.rep = el.dataset.k; renderTaskForm(); return; }
+  if (a === "tkDay") { const n = +el.dataset.d; if (tk.days.has(n)) tk.days.delete(n); else tk.days.add(n); renderTaskForm(); return; }
+  if (a === "delTask") {
+    if (!ready() || !tk.id) return;
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 삭제?"; return; }
+    act(backend.remove("tasks", tk.id), "삭제했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
+    return;
+  }
   if (a === "dayTab") { dt.tab = el.dataset.k; renderDayForm(); return; }
   if (a === "dtRep") { dt.rep = el.dataset.k; renderDayForm(); return; }
   if (a === "dtDay") { const n = +el.dataset.d; if (dt.days.has(n)) dt.days.delete(n); else dt.days.add(n); renderDayForm(); return; }
@@ -899,6 +941,25 @@ $("budgetForm").addEventListener("submit", (ev) => {
   act(backend.saveSettings({ budget: parseInt($("budgetIn").value, 10) || 0 }), "예산을 저장했어요.").catch(() => {});
 });
 
+$("taskEditForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  if (!ready() || !tk.id) return;
+  const x = S.tasks.get(tk.id); if (!x) { closeDlg($("taskDlg")); return; }
+  const title = $("tkTitle").value.trim(); if (!title) { toast("할 일을 적어 주세요."); return; }
+  const date = $("tkDate").value || today(), goalId = $("tkGoal").value || null;
+  let patch;
+  if (tk.rep === "none") {
+    const done = $("tkDone").checked;
+    patch = { title, goalId, repeat: "none", date, done, doneDate: done ? (x.doneDate || today()) : null, start: null, end: null, days: null, doneDates: null };
+  } else {
+    if (tk.rep === "weekly" && !tk.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
+    const end = $("tkEnd").value || null;
+    if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
+    patch = { title, goalId, repeat: tk.rep, start: date, end, days: tk.rep === "weekly" ? [...tk.days].sort() : null, date: null, done: null, doneDate: null };
+  }
+  act(backend.update("tasks", tk.id, patch), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
+});
+
 $("goalEditForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready() || !ui.goalId) return;
@@ -951,6 +1012,7 @@ $("dayLogForm").addEventListener("submit", (ev) => {
 document.addEventListener("keydown", (ev) => {
   const el = ev.target;
   if ((ev.key === "Enter" || ev.key === " ") && el.dataset && el.dataset.act === "openGoal") { ev.preventDefault(); openGoal(el.dataset.id); }
+  if ((ev.key === "Enter" || ev.key === " ") && el.dataset && el.dataset.act === "selDay") { ev.preventDefault(); openDay(el.dataset.day); }
 });
 $("goalDlg").addEventListener("close", () => { ui.goalId = null; });
 

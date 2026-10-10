@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261010b">
+<link rel="stylesheet" href="style.css?v=20261010c">
 </head>
 <body>
 
@@ -68,8 +68,8 @@
           <div class="cal-grid" id="calGrid"></div>
           <div class="cal-legend">
             <span><i style="background:var(--coral)"></i>시험·목표일</span>
-            <span><i style="background:var(--blue)"></i>할 일</span>
-            <span><i style="background:var(--grape)"></i>반복하는 일 (한 것/그날 할 것)</span>
+            <span><i style="background:var(--blue)"></i>할 일 (네모 눌러 체크 · 글자 눌러 편집)</span>
+            <span><i style="background:var(--grape)"></i>반복하는 일</span>
             <span><i style="background:var(--mint)"></i>날짜 옆 초록 네모 = 그날 공부·연습함 (오래 할수록 진함)</span>
             <span><i style="background:var(--mint-soft);border:1px solid var(--mint)"></i>월급·수입</span>
             <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
@@ -280,7 +280,30 @@
   <div class="dlg-foot"><button class="icon-btn" type="button" id="gDelBtn" data-act="del" data-col="goals">목표 삭제</button><span class="small muted">목표와 그 할 일이 같이 지워져요. 구글 캘린더에 들어간 일정도 지워져요.</span></div>
 </dialog>
 
+<dialog class="dlg dlg-day" id="taskDlg" aria-labelledby="tkTitleH">
+  <div class="dlg-head"><div><h3 id="tkTitleH">할 일 편집</h3><span class="muted small" id="tkSub"></span></div><button class="icon-round" type="button" data-act="closeTask" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <form class="dlg-sec" id="taskEditForm" autocomplete="off">
+    <label class="f">할 일<input type="text" id="tkTitle" maxlength="120"></label>
+    <div class="seg" id="tkRepSeg">
+      <button type="button" data-act="tkRep" data-k="none">한 번</button>
+      <button type="button" data-act="tkRep" data-k="daily">매일</button>
+      <button type="button" data-act="tkRep" data-k="weekly">매주 요일</button>
+    </div>
+    <div class="chips" id="tkDays" hidden></div>
+    <div class="row">
+      <label class="f" id="tkDateLabel">날짜<input type="date" id="tkDate"></label>
+      <label class="f" id="tkEndLabel" hidden>끝나는 날 (비우면 계속)<input type="date" id="tkEnd"></label>
+    </div>
+    <label class="f">목표<select id="tkGoal"></select></label>
+    <label class="inline-check" id="tkDoneWrap"><input type="checkbox" id="tkDone"> 다 했어요</label>
+    <div class="row" style="align-items:center;flex:0 0 auto">
+      <button class="btn" type="submit">저장</button>
+      <button class="icon-btn" type="button" data-act="delTask" id="tkDel">삭제</button>
+    </div>
+  </form>
+</dialog>
+
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261010b"></script>
+<script type="module" src="app.js?v=20261010c"></script>
 </body>
 </html>
