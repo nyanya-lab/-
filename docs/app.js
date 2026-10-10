@@ -1,5 +1,5 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261009j";
-import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush, gcalSyncNow, gcalLastSync } from "./gcal.js?v=20261009j";
+import { firebaseConfig } from "./firebase-config.js?v=20261009k";
+import { initGcal, gcalEnabled, gcalStatus, gcalPrefs, gcalPushing, gcalConnect, gcalDisconnect, gcalSetPref, gcalEnsureRange, gcalEventsOn, schedulePush, gcalSyncNow, gcalLastSync, gcalFindManual, gcalDeleteEvents } from "./gcal.js?v=20261009k";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -353,9 +353,19 @@ function renderGcalBox() {
       '<p class="small muted">매일 하는 일은 넣지 않아요. 보드에서 고치거나 지우면 구글 캘린더에서도 바뀌어요.</p>' +
       '<div class="row" style="flex:0 0 auto">' + (s.state === "expired" ? '<button class="btn small" type="button" data-act="gConnect">다시 연결</button>' : '<button class="btn small" type="button" data-act="gSyncNow">지금 구글과 맞추기</button>') +
       '<button class="btn ghost small" type="button" data-act="gDisconnect">이 기기에서 연결 해제</button>' +
+      (s.state === "ok" ? '<button class="btn ghost small" type="button" data-act="gFindManual">예전 \'캘린더\' 버튼으로 넣은 일정 찾기</button>' : "") +
       (s.other ? '<button class="btn ghost small" type="button" data-act="gRelink">이 계정으로 보드 연결 바꾸기</button>' : "") + "</div>";
   }
-  box.innerHTML = html;
+  box.innerHTML = html + '<div id="gManual" style="display:grid;gap:8px"></div>';
+  renderManualList();
+}
+let manualFound = null;   // 찾은 예전 일정 목록 (설정 창이 다시 그려져도 유지)
+function renderManualList() {
+  const box = $("gManual"); if (!box || !manualFound) return;
+  if (!manualFound.length) { box.innerHTML = '<p class="small muted">예전 버튼으로 넣은 일정이 없어요. 구글에 남은 일정은 보드에 아직 있는 할 일이거나, 직접 만든 일정이에요.</p>'; return; }
+  box.innerHTML = `<p class="small">예전 '캘린더' 버튼으로 넣은 일정 <b>${manualFound.length}개</b>를 찾았어요.</p>` +
+    '<div class="list">' + manualFound.map((x) => `<div class="item"><span class="mono small muted" style="padding-top:2px">${x.date ? shortDate(x.date) : ""}</span><div class="body"><div class="title">${esc(x.title)}</div>${x.repeat ? '<div class="meta"><span class="tag daily">반복 일정 전체</span></div>' : ""}</div></div>`).join("") + "</div>" +
+    `<div><button class="btn small" type="button" data-act="gDelManual">구글에서 ${manualFound.length}개 모두 지우기</button></div>`;
 }
 
 // ---------- 설정 작은 창 ----------
@@ -804,6 +814,19 @@ document.addEventListener("click", (ev) => {
   if (a === "openSettings") { openSettings(); return; }
   if (a === "closeSettings") { closeSettings(); return; }
   if (a === "gConnect") { gcalConnect(); return; }
+  if (a === "gFindManual") {
+    el.disabled = true; el.textContent = "찾는 중…";
+    gcalFindManual().then((r) => { if (r.error) { toast(r.error); manualFound = null; } else manualFound = r.items; renderGcalBox(); })
+      .catch(() => { toast("구글 캘린더를 읽지 못했어요."); renderGcalBox(); });
+    return;
+  }
+  if (a === "gDelManual") {
+    if (!manualFound || !manualFound.length) return;
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 지울까요? 되돌릴 수 없어요"; return; }
+    el.disabled = true; el.textContent = "지우는 중…";
+    gcalDeleteEvents(manualFound.map((x) => x.id)).then((n) => { toast(`구글 캘린더에서 ${n}개 지웠어요.`); manualFound = null; renderGcalBox(); });
+    return;
+  }
   if (a === "gSyncNow") {
     el.disabled = true; el.textContent = "맞추는 중…";
     gcalSyncNow().then((r) => {
