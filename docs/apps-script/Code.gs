@@ -3,6 +3,7 @@
  * 욱진이 구글 계정의 Apps Script(script.google.com)에서 돌아가요. 5분마다 자동으로:
  *   · 보드 할 일·반복하는 일·시험일 → 구글 캘린더에 넣기/고치기/지우기
  *     (예) 할 일 = 파랑, (완) 끝낸 일 = 초록, (반복) 반복하는 일 = 보라, [D-DAY] 시험일 = 빨강
+ *   · 실천한 일(최근 1년) → (실천) 노랑
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  *
@@ -18,7 +19,7 @@ const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
 const CAL = "primary";       // 욱진이 기본 캘린더
-const COLOR = { plan: "9", done: "10", repeat: "3", dday: "11" };   // 구글 일정 색: 파랑, 초록, 보라, 빨강
+const COLOR = { plan: "9", done: "10", repeat: "3", dday: "11", log: "5" };   // 구글 일정 색: 파랑, 초록, 보라, 빨강, 노랑
 const DOW = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
 // 처음 한 번 실행: 5분마다 sync가 돌게 예약하고 바로 한 번 맞춰요
@@ -46,7 +47,8 @@ function sync() {
   }
   const tasks = getJson_(base + "/tasks.json") || {};
   const goals = getJson_(base + "/goals.json") || {};
-  const res = pushToGoogle_(tasks, goals);
+  const logs = getJson_(base + "/logs.json") || {};
+  const res = pushToGoogle_(tasks, goals, logs);
   putJson_(base + "/gevents.json", pullFromGoogle_());
   putJson_(base + "/gsync.json", {
     at: Date.now(), email: Session.getEffectiveUser().getEmail(),
@@ -56,7 +58,7 @@ function sync() {
 }
 
 // ---------- 보드 → 구글 ----------
-function pushToGoogle_(tasks, goals) {
+function pushToGoogle_(tasks, goals, logs) {
   const items = {};
   Object.keys(tasks).forEach(function (id) {
     const t = tasks[id];
@@ -75,6 +77,16 @@ function pushToGoogle_(tasks, goals) {
   Object.keys(goals).forEach(function (id) {
     const g = goals[id];
     if (g && g.due) items["goal:" + id] = { summary: "[D-DAY] " + g.title, colorId: COLOR.dday, date: g.due };
+  });
+  // 실천한 일 (최근 1년): "(실천) 1시간 30분 · 메모"
+  const yearAgo = Utilities.formatDate(new Date(Date.now() - 365 * 864e5), TZ, "yyyy-MM-dd");
+  Object.keys(logs || {}).forEach(function (id) {
+    const l = logs[id];
+    if (!l || !l.date || l.date < yearAgo) return;
+    const parts = [];
+    if (Number(l.minutes) > 0) parts.push(fmtMin_(Number(l.minutes)));
+    if (l.text) parts.push(l.text);
+    items["log:" + id] = { summary: "(실천) " + (parts.join(" · ") || "기록"), colorId: COLOR.log, date: l.date };
   });
 
   const res = { added: 0, updated: 0, deleted: 0, cleaned: 0 };
@@ -135,6 +147,12 @@ function pushToGoogle_(tasks, goals) {
     if (/실천 보드$/.test(String(ev.description || "").trim())) { remove_(ev.id); res.cleaned++; }
   });
   return res;
+}
+
+function fmtMin_(m) {
+  if (m < 60) return m + "분";
+  const h = Math.floor(m / 60), r = m % 60;
+  return h + "시간" + (r ? " " + r + "분" : "");
 }
 
 // 반복 일정의 첫 날: 시작일부터 처음으로 요일이 맞는 날 (끝날 넘으면 없음)
