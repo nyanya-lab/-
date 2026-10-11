@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012e";
+import { firebaseConfig } from "./firebase-config.js?v=20261012f";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -120,6 +120,8 @@ function repeatLabel(x) {
   return l;
 }
 function isDone(t, day) { return isRep(t) ? !!(t.doneDates && t.doneDates[day]) : !!t.done; }
+// 화면에 보이는 시간은 짧게 "1h 30m" (입력 칸·버튼·알림 글은 fmtMin의 "1시간 30분")
+function fmtHM(m) { m = Math.round(Number(m) || 0); const h = Math.floor(m / 60), r = m % 60; return h ? h + "h" + (r ? " " + r + "m" : "") : r + "m"; }
 function fmtMin(m) { if (!m) return "0분"; if (m < 60) return m + "분"; const h = Math.floor(m / 60), r = m % 60; return h + "시간" + (r ? " " + r + "분" : ""); }
 function won(n) { return Math.round(Number(n) || 0).toLocaleString("ko-KR") + "원"; }
 function monthLabel(m) { return m.replace("-", "."); }
@@ -411,8 +413,8 @@ function taskItem(x, day, upcoming) {
   if (isRep(x)) meta.push(`<span class="tag daily">${esc(repeatLabel(x))}</span>`);
   if (g) meta.push(`<span class="tag cat ${catCls(x.goalId)}">${esc(g.title)}</span>`);
   const tm = done ? taskMinutes(x.id, isRep(x) ? day : x.doneDate) : 0;
-  if (tm) meta.push(`<span class="tag mono">⏱ ${fmtMin(tm)}</span>`);
-  else if (!done && x.minutes > 0) meta.push(`<span class="tag mono" title="체크하면 이 시간으로 기록돼요">⏱ ${fmtMin(x.minutes)}</span>`);
+  if (tm) meta.push(`<span class="tag mono">⏱ ${fmtHM(tm)}</span>`);
+  else if (!done && x.minutes > 0) meta.push(`<span class="tag mono" title="체크하면 이 시간으로 기록돼요">⏱ ${fmtHM(x.minutes)}</span>`);
   if (upcoming) meta.push(`<span class="mono">${shortDate(x.date)}</span>`);
   else if (!isRep(x) && x.date < day && !done) meta.push(`<span class="tag late">${diffDays(day, x.date)}일 밀림</span>`);
   return `<div class="item${done ? " done" : ""}">` +
@@ -464,7 +466,7 @@ function calTask(x, d, repeat) {
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
       : `<button type="button" class="mini-check${done ? " on" : ""}" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="${done}" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
-    `<span>${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtMin(min)}</span>` : ""}</span></div>`;
+    `<span>${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
@@ -488,7 +490,7 @@ function renderCalendar() {
     rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => evs.push(calTask(x, d, false)));
     const hs = habits.filter((h) => activeOn(h, d));
     hs.forEach((h) => evs.push(calTask(h, d, true)));
-    (logsByDay[d] || []).forEach((l) => evs.push(`<div class="ev log" data-act="openDayLogs" data-day="${d}" title="실천한 일 · 눌러서 보기">🔥 ${esc([l.minutes ? fmtMin(Number(l.minutes)) : "", l.text || ""].filter(Boolean).join(" · ") || "기록")}</div>`));
+    (logsByDay[d] || []).forEach((l) => evs.push(`<div class="ev log" data-act="openDayLogs" data-day="${d}" title="실천한 일 · 눌러서 보기">🔥 ${esc([l.minutes ? fmtHM(l.minutes) : "", l.text || ""].filter(Boolean).join(" · ") || "기록")}</div>`));
     gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
@@ -510,7 +512,7 @@ function showDoneSheet(taskId, day) {
   const x = S.tasks.get(taskId); if (!x) return;
   doneFor = { taskId, day };
   $("dsTitle").textContent = `✅ '${x.title}' 끝! 얼마나 했어요?`;
-  $("dsMin").value = "";
+  setMinInput("dsMin", 0);
   $("doneSheet").hidden = false;
   clearTimeout(doneTimer); doneTimer = setTimeout(hideDoneSheet, 20000);   // 20초 동안 안 누르면 그냥 닫힘
 }
@@ -607,7 +609,7 @@ function renderDaySide() {
   $("dayTasks").innerHTML = exams.map((g) => `<div class="item"><span class="tag cat c-coral">D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div></div>`).join("") +
     (ts.length ? ts.map((x) => taskItem(x, d)).join("") : (exams.length ? "" : '<div class="empty">이 날 할 일이 없어요.</div>'));
   const ls = rows(S.logs).filter((l) => l.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  $("dayLogs").innerHTML = ls.length ? ls.map((l) => `<div class="item"><span class="tag mono">${l.minutes ? fmtMin(Number(l.minutes)) : "기록"}</span><div class="body"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div></div>` +
+  $("dayLogs").innerHTML = ls.length ? ls.map((l) => `<div class="item"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "기록"}</span><div class="body"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div></div>` +
     `<div class="actions"><button class="icon-btn" type="button" data-act="del" data-col="logs" data-id="${esc(l.id)}">삭제</button></div></div>`).join("") : '<div class="empty">아직 기록이 없어요.</div>';
   const gs = gcalEventsOn(d);
   $("dayGcalSec").hidden = !gs.length;
@@ -630,8 +632,8 @@ function renderToday() {
   const dn = list.filter((x) => isDone(x, t)).length;
   $("todayStats").innerHTML =
     statTile(STAT_ICON.task + "오늘 할 일", `${dn}/${list.length}`, list.length ? (dn === list.length ? "다 끝냈어요!" : "누르면 체크하러 가요") : "아직 없음", "click", "openToday") +
-    statTile(STAT_ICON.clock + "오늘 실천", fmtMin(logMinutes(t, t))) +
-    statTile(STAT_ICON.week + "이번 주 실천", fmtMin(logMinutes(wk, addDays(wk, 6)))) +
+    statTile(STAT_ICON.clock + "오늘 실천", fmtHM(logMinutes(t, t))) +
+    statTile(STAT_ICON.week + "이번 주 실천", fmtHM(logMinutes(wk, addDays(wk, 6)))) +
     statTile(STAT_ICON.fire + "연속 실천", streak(days) + "일", "기록이나 완료가 있는 날");
   const end = addDays(t, 14);
   const up = rows(S.tasks).filter((x) => !isRep(x) && x.date > t && x.date <= end && !x.done).sort((a, b) => a.date.localeCompare(b.date));
@@ -664,7 +666,7 @@ function renderGoals() {
         `<div style="display:grid;gap:4px"><div class="bar"><i style="width:${pct}%"></i></div>` +
         `<div class="small muted">할 일 <span class="mono">${onceDone}/${once.length}</span> 완료` +
         (habits.length ? ` · 반복하는 일 ${habits.length}개, 최근 7일 <span class="mono">${hits}</span>회` : "") +
-        ` · 누적 <span class="mono">${fmtMin(mins)}</span></div></div>` +
+        ` · 누적 <span class="mono">${fmtHM(mins)}</span></div></div>` +
         `<div class="goal-foot"><span>누르면 할 일·반복 설정</span><span aria-hidden="true">›</span></div></article>`;
     }).join("");
   const gc = $("goalCat"), v = gc.value || "자격증";
@@ -1021,7 +1023,6 @@ document.addEventListener("click", (ev) => {
   if (a === "dayTab") { dt.tab = el.dataset.k; renderDayForm(); return; }
   if (a === "dtRep") { dt.rep = el.dataset.k; renderDayForm(); return; }
   if (a === "dtDay") { const n = +el.dataset.d; if (dt.days.has(n)) dt.days.delete(n); else dt.days.add(n); renderDayForm(); return; }
-  if (a === "dayMin") { $("dayLogMin").value = el.dataset.m; return; }
   if (a === "closeDay") { closeDlg($("dayDlg")); return; }
   if (a === "openGoal") { if (ev.target.closest("a, button, input, select") && ev.target.closest("[data-act]") !== el) return; openGoal(el.dataset.id); return; }
   if (a === "closeGoal") { closeDlg($("goalDlg")); ui.goalId = null; return; }
@@ -1258,7 +1259,7 @@ $("goalEditForm").addEventListener("submit", (ev) => {
   act(backend.update("goals", ui.goalId, { title, cat: $("geCat").value, due: $("geDue").value || null }), "목표를 저장했어요.").catch(() => {});
 });
 ["gtDate", "gtEnd"].forEach((k) => $(k).addEventListener("change", renderGoalDlg));
-["gtMin", "dtMin", "tkPlan"].forEach(renderMinChips);
+["gtMin", "dtMin", "tkPlan", "dayLogMin"].forEach(renderMinChips);
 $("goalTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready() || !ui.goalId) return;
@@ -1295,14 +1296,13 @@ $("dayTaskForm").addEventListener("submit", (ev) => {
   act(backend.add("tasks", doc), dt.rep === "none" ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.")
     .then(() => { $("dayTaskTitle").value = ""; setMinInput("dtMin", ""); }).catch(() => {});
 });
-$("dayMinQuick").innerHTML = [30, 60, 90, 120].map((m) => `<button class="chip" type="button" data-act="dayMin" data-m="${m}">${fmtMin(m)}</button>`).join("");
 $("dayLogForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
   const min = parseInt($("dayLogMin").value, 10) || 0, text = $("dayLogText").value.trim();
   if (!min && !text) { toast("시간이나 메모 중 하나는 적어 주세요."); return; }
   act(backend.add("logs", { date: ui.selDay, minutes: min, text, goalId: null, createdAt: Date.now() }), "기록했어요.")
-    .then(() => { $("dayLogMin").value = ""; $("dayLogText").value = ""; }).catch(() => {});
+    .then(() => { setMinInput("dayLogMin", 0); $("dayLogText").value = ""; }).catch(() => {});
 });
 
 document.addEventListener("keydown", (ev) => {

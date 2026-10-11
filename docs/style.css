@@ -262,6 +262,8 @@ table.t tr.cur td { background: var(--sunk); }
 .add-form { background: var(--sunk); }
 .hm { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--fg); }
 .hm input { width: 72px; flex: 0 0 auto; text-align: right; }
+.hm-sm input { width: 56px; }
+.ds-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .ev-short { display: none; font-family: var(--f-mono); font-weight: 600; margin-right: 2px; }
 .link-btn { border: 0; background: none; padding: 0 2px; color: var(--ink); font-size: 12px; cursor: pointer; text-decoration: underline; }
 tr.clickable { cursor: pointer; }

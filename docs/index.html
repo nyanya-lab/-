@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261012e">
+<link rel="stylesheet" href="style.css?v=20261012f">
 </head>
 <body>
 
@@ -270,8 +270,9 @@
     <div class="dlg-sec"><div class="list" id="dayLogs"></div></div>
     <form class="dlg-sec" id="dayLogForm" autocomplete="off">
       <h4>실천한 일 기록</h4>
-      <div class="mini-row"><input type="number" id="dayLogMin" min="0" step="1" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="예: CAD 벽체 연습, 현장에서 줄눈 맞추는 법 배움" aria-label="메모"><button class="btn small" type="submit">기록</button></div>
-      <div class="chips" id="dayMinQuick"></div>
+      <input type="hidden" id="dayLogMin"><div class="hm"><input type="number" data-hm="dayLogMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dayLogMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div>
+      <div class="chips" data-min-for="dayLogMin"></div>
+      <div class="mini-row"><input type="text" id="dayLogText" maxlength="300" placeholder="예: CAD 벽체 연습, 현장에서 줄눈 맞추는 법 배움" aria-label="메모"><button class="btn small" type="submit">기록</button></div>
     </form>
   </div>
 </dialog>
@@ -341,8 +342,8 @@
 <div class="done-sheet" id="doneSheet" hidden role="dialog" aria-labelledby="dsTitle">
   <p id="dsTitle"></p>
   <div class="chips" id="dsQuick"></div>
-  <form class="mini-row" id="dsForm" autocomplete="off">
-    <input type="number" id="dsMin" min="1" step="1" inputmode="numeric" placeholder="직접 입력 (분)" aria-label="걸린 시간(분)">
+  <form class="ds-form" id="dsForm" autocomplete="off">
+    <input type="hidden" id="dsMin"><div class="hm hm-sm"><input type="number" data-hm="dsMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dsMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div>
     <button class="btn small" type="submit">기록</button>
     <button class="btn ghost small" type="button" data-act="dsSkip">건너뛰기</button>
   </form>
@@ -373,6 +374,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261012e"></script>
+<script type="module" src="app.js?v=20261012f"></script>
 </body>
 </html>
