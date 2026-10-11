@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012b";
+import { firebaseConfig } from "./firebase-config.js?v=20261012c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -1298,6 +1298,18 @@ $("goalDlg").addEventListener("close", () => { ui.goalId = null; });
 $("certSearch").addEventListener("submit", (ev) => { ev.preventDefault(); ui.certQ = $("certQ").value; ui.certTag = "전체"; renderCerts(); });
 $("certQ").addEventListener("input", () => { ui.certQ = $("certQ").value; renderCerts(); });
 
+
+// 로고 = 강력 새로고침 (폰에는 Ctrl+Shift+R이 없고, 홈 화면 앱엔 주소창도 없음)
+// location.reload(true)는 무시되므로: index.html을 HTTP 캐시 건너뛰고 다시 받은 뒤 평범하게 reload → 바뀐 ?v= 따라 js·css도 새로 받음
+async function hardReload() {
+  if (sync.pending > 0) { toast("저장 중이에요. 잠깐 뒤에 다시 눌러 주세요."); return; }
+  toast("새로 받아오는 중…");
+  try { if (window.caches) await Promise.all((await caches.keys()).map((k) => caches.delete(k))); } catch (e) { /* 무시 */ }
+  try { await fetch(location.pathname, { cache: "reload" }); } catch (e) { /* 오프라인이면 그냥 reload */ }
+  history.replaceState(null, "", location.pathname + "#calendar");
+  location.reload();
+}
+document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (ev) => { ev.preventDefault(); hardReload(); }));
 
 // ---------- 시작 ----------
 route();
