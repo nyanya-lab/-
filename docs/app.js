@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261011k";
+import { firebaseConfig } from "./firebase-config.js?v=20261012a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -654,13 +654,13 @@ function renderOrphanNote() {
 }
 
 // ---------- 목표 작은 창 ----------
-const gt = { rep: "none", days: new Set([1, 3, 5]) };   // 할 일 추가 폼 상태
+const gt = { open: null, rep: "daily", days: new Set([1, 3, 5]) };   // 할 일 추가 폼 상태 (open: "rep" | "once" | null)
 function openGoal(id) {
   ui.goalId = id;
   const g = S.goals.get(id); if (!g) return;
   $("geTitle").value = g.title || ""; $("geDue").value = g.due || "";
   $("geCat").innerHTML = GOAL_CATS.map((c) => `<option>${c}</option>`).join(""); $("geCat").value = g.cat || "기타";
-  $("gtTitle").value = ""; $("gtDate").value = today();
+  gt.open = null;
   renderGoalDlg(); openDlg($("goalDlg"));
 }
 function renderGoalDlg() {
@@ -675,15 +675,26 @@ function renderGoalDlg() {
   const ts = rows(S.tasks).filter((x) => x.goalId === ui.goalId);
   const reps = ts.filter(isRep).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const once = ts.filter((x) => !isRep(x)).sort((a, b) => (a.done - b.done) || (a.date || "").localeCompare(b.date || ""));
-  $("gRepeats").innerHTML = reps.length ? reps.map((x) => taskItem(x, t)).join("") : '<div class="empty">아직 없어요. 아래에서 "매일"이나 "매주"로 추가해요.</div>';
+  $("gRepeats").innerHTML = reps.length ? reps.map((x) => taskItem(x, t)).join("") : '<div class="empty">아직 없어요. ＋ 추가를 눌러 매일·매주 하는 일을 넣어요.</div>';
   $("gTasks").innerHTML = once.length ? once.map((x) => taskItem(x, t, !x.done && x.date > t)).join("") : '<div class="empty">아직 없어요.</div>';
-  // 추가 폼
-  document.querySelectorAll("#gtRepSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === gt.rep)));
-  $("gtDays").hidden = gt.rep !== "weekly";
-  $("gtDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="gtDay" data-d="${n}" aria-pressed="${gt.days.has(n)}">${DOW[n]}</button>`).join("");
-  $("gtDateLabel").firstChild.textContent = gt.rep === "none" ? "날짜" : "시작일";
-  $("gtUntilWrap").hidden = gt.rep === "none" || !g.due;
-  $("gtUntilText").textContent = g.due ? `목표일 ${shortDate(g.due)}까지만 반복` : "";
+  // 추가 폼: ＋ 누른 칸 바로 아래에 열림
+  const f = $("goalTaskForm"), rep = gt.open === "rep";
+  f.hidden = !gt.open;
+  if (gt.open) {
+    const sec = $(rep ? "gRepSec" : "gOnceSec"); if (sec.nextElementSibling !== f) sec.after(f);
+    $("gtHead").textContent = rep ? "반복하는 일 추가" : "할 일 추가";
+    $("gtRepSeg").hidden = !rep;
+    document.querySelectorAll("#gtRepSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === gt.rep)));
+    $("gtDays").hidden = !rep || gt.rep !== "weekly";
+    $("gtDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="gtDay" data-d="${n}" aria-pressed="${gt.days.has(n)}">${DOW[n]}</button>`).join("");
+    $("gtDateLabel").firstChild.textContent = rep ? "시작일" : "날짜";
+    $("gtEndLabel").hidden = !rep;
+    const quick = [[addDays($("gtDate").value || t, 27), "4주"], [addDays($("gtDate").value || t, 55), "8주"]];
+    if (g.due) quick.unshift([g.due, `목표일 ${shortDate(g.due)}`]);
+    $("gtEndQuick").hidden = !rep;
+    $("gtEndQuick").innerHTML = quick.map(([d, l]) => `<button class="chip" type="button" data-act="gtEnd" data-d="${d}" aria-pressed="${$("gtEnd").value === d}">${esc(l)}까지</button>`).join("") +
+      `<button class="chip" type="button" data-act="gtEnd" data-d="" aria-pressed="${!$("gtEnd").value}">계속</button>`;
+  }
   $("gDelBtn").dataset.id = ui.goalId;
   const c = g.cert && CERTS.find((z) => z.name === g.cert);
   $("gTemplate").hidden = !(c && c.tasks);
@@ -986,6 +997,13 @@ document.addEventListener("click", (ev) => {
   if (a === "closeDay") { closeDlg($("dayDlg")); return; }
   if (a === "openGoal") { if (ev.target.closest("a, button, input, select") && ev.target.closest("[data-act]") !== el) return; openGoal(el.dataset.id); return; }
   if (a === "closeGoal") { closeDlg($("goalDlg")); ui.goalId = null; return; }
+  if (a === "gtOpen") {
+    gt.open = el.dataset.k; if (gt.rep === "none") gt.rep = "daily";
+    $("gtTitle").value = ""; $("gtDate").value = today(); $("gtEnd").value = "";
+    renderGoalDlg(); $("goalTaskForm").scrollIntoView({ block: "nearest", behavior: "smooth" }); $("gtTitle").focus({ preventScroll: true }); return;
+  }
+  if (a === "gtClose") { gt.open = null; renderGoalDlg(); return; }
+  if (a === "gtEnd") { $("gtEnd").value = el.dataset.d; renderGoalDlg(); return; }
   if (a === "gtRep") { gt.rep = el.dataset.k; renderGoalDlg(); return; }
   if (a === "gtDay") { const n = +el.dataset.d; if (gt.days.has(n)) gt.days.delete(n); else gt.days.add(n); renderGoalDlg(); return; }
   if (a === "calMonth") { ui.calMonth = shiftMonth(ui.calMonth, +el.dataset.d); renderCalendar(); return; }
@@ -1208,21 +1226,23 @@ $("goalEditForm").addEventListener("submit", (ev) => {
   const title = $("geTitle").value.trim(); if (!title) { toast("목표 이름을 적어 주세요."); return; }
   act(backend.update("goals", ui.goalId, { title, cat: $("geCat").value, due: $("geDue").value || null }), "목표를 저장했어요.").catch(() => {});
 });
+["gtDate", "gtEnd"].forEach((k) => $(k).addEventListener("change", renderGoalDlg));
 $("goalTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready() || !ui.goalId) return;
   const g = S.goals.get(ui.goalId); if (!g) return;
   const title = $("gtTitle").value.trim(); if (!title) { toast("할 일을 적어 주세요."); return; }
-  const date = $("gtDate").value || today();
+  const date = $("gtDate").value || today(), once = gt.open !== "rep", end = $("gtEnd").value;
   const doc = { title, goalId: ui.goalId, createdAt: Date.now() };
-  if (gt.rep === "none") Object.assign(doc, { repeat: "none", date, done: false, doneDate: null });
+  if (once) Object.assign(doc, { repeat: "none", date, done: false, doneDate: null });
   else {
     if (gt.rep === "weekly" && !gt.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
     Object.assign(doc, { repeat: gt.rep, start: date, doneDates: {} });
     if (gt.rep === "weekly") doc.days = [...gt.days].sort();
-    if (g.due && $("gtUntil").checked) doc.end = g.due;
+    if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
+    if (end) doc.end = end;
   }
-  act(backend.add("tasks", doc), gt.rep === "none" ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.").then(() => { $("gtTitle").value = ""; }).catch(() => {});
+  act(backend.add("tasks", doc), once ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.").then(() => { $("gtTitle").value = ""; $("gtTitle").focus(); }).catch(() => {});
 });
 
 $("dayTaskForm").addEventListener("submit", (ev) => {
