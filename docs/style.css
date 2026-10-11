@@ -261,6 +261,20 @@ table.t tr.cur td { background: var(--sunk); }
 tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: var(--sunk); }
 
+/* ---------- 기능 요청 ---------- */
+.nav-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--coral); color: #FFFFFF; font-size: 12px; display: grid; place-items: center; font-family: var(--f-mono); }
+.reqs { display: grid; gap: 12px; }
+.req { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--coral); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px; display: grid; gap: 8px; }
+.req.st-doing { border-left-color: var(--sun); }
+.req.st-done { border-left-color: var(--mint); opacity: 0.8; }
+.req-head { display: flex; align-items: center; gap: 10px; }
+.req-head .icon-btn { margin-left: auto; }
+.req-status { border: 0; border-radius: 999px; padding: 3px 12px; font-size: 13px; font-weight: 600; cursor: pointer; background: var(--coral-soft); color: var(--coral); }
+.st-doing .req-status { background: var(--sun-soft); color: var(--sun); }
+.st-done .req-status { background: var(--mint-soft); color: var(--ok); }
+.req-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
+.req textarea { min-height: 44px; }
+
 /* ---------- certificates ---------- */
 .search-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
 .search-bar input { font-size: 17px; padding: 12px 14px; }
