@@ -257,6 +257,9 @@ table.t tr.cur td { background: var(--sunk); }
 .acct b { font-size: 18px; }
 .acct small { color: var(--muted); font-size: 12px; }
 .seg.seg4 { grid-template-columns: repeat(4, 1fr); }
+.seg.seg2 { grid-template-columns: repeat(2, 1fr); }
+.sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.add-form { background: var(--sunk); }
 .link-btn { border: 0; background: none; padding: 0 2px; color: var(--ink); font-size: 12px; cursor: pointer; text-decoration: underline; }
 tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: var(--sunk); }
