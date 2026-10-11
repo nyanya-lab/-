@@ -259,6 +259,23 @@ table.t tr:last-child td { border-bottom: 0; }
 table.t .num { text-align: right; }
 table.t tr.cur td { background: var(--sunk); }
 
+.accts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.acct {
+  display: grid; gap: 2px; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--sunk); border-left: 4px solid var(--blue);
+}
+.acct.t-card { border-left-color: var(--coral); }
+.acct.t-cash { border-left-color: var(--mint); }
+.acct.t-save { border-left-color: var(--sun); }
+.acct:hover { background: var(--surface); }
+.acct-name { display: flex; gap: 6px; align-items: center; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct b { font-size: 18px; }
+.acct small { color: var(--muted); font-size: 12px; }
+.seg.seg4 { grid-template-columns: repeat(4, 1fr); }
+.link-btn { border: 0; background: none; padding: 0 2px; color: var(--ink); font-size: 12px; cursor: pointer; text-decoration: underline; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--sunk); }
+
 /* ---------- certificates ---------- */
 .search-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
 .search-bar input { font-size: 17px; padding: 12px 14px; }
