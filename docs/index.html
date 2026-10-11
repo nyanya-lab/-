@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261012d">
+<link rel="stylesheet" href="style.css?v=20261012e">
 </head>
 <body>
 
@@ -255,7 +255,7 @@
       </div>
       <div class="chips" id="dtDays" hidden></div>
       <p class="small muted" id="dtHint"></p>
-      <label class="f">할 시간 (선택)<input type="number" id="dtMin" min="1" step="1" inputmode="numeric" placeholder="분, 예: 60"></label>
+      <div class="f">할 시간 (선택)<input type="hidden" id="dtMin"><div class="hm"><input type="number" data-hm="dtMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dtMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
       <div class="chips" data-min-for="dtMin"></div>
       <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
       <div class="row" style="align-items:end">
@@ -303,7 +303,7 @@
       <label class="f" id="gtEndLabel" hidden>끝나는 날 (비우면 계속)<input type="date" id="gtEnd"></label>
     </div>
     <div class="chips" id="gtEndQuick" hidden></div>
-    <label class="f">할 시간 (선택)<input type="number" id="gtMin" min="1" step="1" inputmode="numeric" placeholder="분, 예: 60"></label>
+    <div class="f">할 시간 (선택)<input type="hidden" id="gtMin"><div class="hm"><input type="number" data-hm="gtMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="gtMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="chips" data-min-for="gtMin"></div>
     <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
     <div style="display:flex;gap:8px"><button class="btn small" type="submit">추가</button><button class="btn ghost small" type="button" data-act="gtClose">닫기</button></div>
@@ -325,12 +325,12 @@
       <label class="f" id="tkDateLabel">날짜<input type="date" id="tkDate"></label>
       <label class="f" id="tkEndLabel" hidden>끝나는 날 (비우면 계속)<input type="date" id="tkEnd"></label>
     </div>
-    <label class="f">할 시간 (선택)<input type="number" id="tkPlan" min="1" step="1" inputmode="numeric" placeholder="분, 예: 60"></label>
+    <div class="f">할 시간 (선택)<input type="hidden" id="tkPlan"><div class="hm"><input type="number" data-hm="tkPlan" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="tkPlan" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="chips" data-min-for="tkPlan"></div>
     <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
     <label class="f">목표<select id="tkGoal"></select></label>
     <label class="inline-check" id="tkDoneWrap"><input type="checkbox" id="tkDone"> 다 했어요</label>
-    <label class="f" id="tkMinWrap" hidden>걸린 시간 (분, 비우면 기록 안 함)<input type="number" id="tkMin" min="0" step="1" inputmode="numeric" placeholder="예: 60"></label>
+    <div class="f" id="tkMinWrap" hidden>걸린 시간 (비우면 기록 안 함)<input type="hidden" id="tkMin"><div class="hm"><input type="number" data-hm="tkMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="tkMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="row" style="align-items:center;flex:0 0 auto">
       <button class="btn" type="submit">저장</button>
       <button class="icon-btn" type="button" data-act="delTask" id="tkDel">삭제</button>
@@ -373,6 +373,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261012d"></script>
+<script type="module" src="app.js?v=20261012e"></script>
 </body>
 </html>
