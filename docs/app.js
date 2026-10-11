@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012c";
+import { firebaseConfig } from "./firebase-config.js?v=20261012d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -457,9 +457,14 @@ function boardStart() {
 }
 function calTask(x, d, repeat) {
   const done = isDone(x, d), color = x.goalId && S.goals.has(x.goalId) ? catCls(x.goalId) : "c-blue";
+  // 시간: 끝냈으면 기록한 시간, 아니면 정해 둔 '할 시간'
+  const min = (done && taskMinutes(x.id, repeat ? d : x.doneDate)) || (Number(x.minutes) || 0);
+  const later = repeat && d > today();   // 반복하는 일의 앞으로의 날은 그 날이 되면 체크
   return `<div class="ev task ${color}${done ? " done" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
-    `<button type="button" class="mini-check${done ? " on" : ""}" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="${done}" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>` +
-    `<span>${esc(x.title)}${done && taskMinutes(x.id, repeat ? d : x.doneDate) ? ` · ${fmtMin(taskMinutes(x.id, repeat ? d : x.doneDate))}` : ""}</span></div>`;
+    (later
+      ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
+      : `<button type="button" class="mini-check${done ? " on" : ""}" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="${done}" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
+    `<span>${esc(x.title)}${min ? ` · ${fmtMin(min)}` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
@@ -479,16 +484,15 @@ function renderCalendar() {
   for (let i = 0; i < weeks * 7; i++) {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
-    // 할 일은 칸 안에서 바로 체크 (반복하는 일은 오늘·지난 날만 하나씩, 앞으로의 날은 개수만)
+    // 할 일은 칸 안에서 바로 체크 (반복하는 일도 날마다 하나씩, 앞으로의 날은 체크만 막음)
     rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => evs.push(calTask(x, d, false)));
     const hs = habits.filter((h) => activeOn(h, d));
-    if (d <= t) hs.forEach((h) => evs.push(calTask(h, d, true)));
+    hs.forEach((h) => evs.push(calTask(h, d, true)));
     (logsByDay[d] || []).forEach((l) => evs.push(`<div class="ev log" data-act="openDayLogs" data-day="${d}" title="실천한 일 · 눌러서 보기">🔥 ${esc([l.minutes ? fmtMin(Number(l.minutes)) : "", l.text || ""].filter(Boolean).join(" · ") || "기록")}</div>`));
     gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
     if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
-    if (d > t && hs.length) shown.push(`<div class="ev more">할 일 ${hs.length}개 (반복)</div>`);
     const mm = prac[d] || 0, lv = mm >= 120 ? 4 : mm >= 60 ? 3 : mm >= 30 ? 2 : mm > 0 ? 1 : 0;
     const missed = !lv && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 없음
     const cls = ["day", lv ? "p" + lv : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");

@@ -43,6 +43,8 @@ function pushToGoogle_(tasks, goals, logs) {
     if (l && l.taskId && l.date) timed[l.taskId + "|" + l.date] = (timed[l.taskId + "|" + l.date] || 0) + (Number(l.minutes) || 0);
   });
   const withTime = function (taskId, day, title) { const m = timed[taskId + "|" + day]; return m ? title + " · " + fmtMin_(m) : title; };
+  // 아직 안 한 일: 정해 둔 '할 시간'이 있으면 "📌 제목 · 1시간"
+  const withPlan = function (t) { return Number(t.minutes) > 0 ? t.title + " · " + fmtMin_(Number(t.minutes)) : t.title; };
   Object.keys(tasks).forEach(function (id) {
     const t = tasks[id];
     if (!t || !t.title) return;
@@ -51,11 +53,11 @@ function pushToGoogle_(tasks, goals, logs) {
       if (!start) return;
       let rule = t.repeat === "daily" ? "RRULE:FREQ=DAILY" : "RRULE:FREQ=WEEKLY;BYDAY=" + (t.days || []).map(function (n) { return DOW[n]; }).join(",");
       if (t.end) rule += ";UNTIL=" + t.end.replace(/-/g, "");
-      items["rep:" + id] = { summary: MARK.plan + t.title, colorId: COLOR.plan, date: start, recurrence: [rule], title: t.title, doneDates: t.doneDates || {}, taskId: id };
+      items["rep:" + id] = { summary: MARK.plan + withPlan(t), colorId: COLOR.plan, date: start, recurrence: [rule], title: t.title, plan: withPlan(t), doneDates: t.doneDates || {}, taskId: id };
       return;
     }
     if (!t.date) return;
-    items["task:" + id] = { summary: t.done ? MARK.done + withTime(id, t.doneDate, t.title) : MARK.plan + t.title, colorId: t.done ? COLOR.done : COLOR.plan, date: t.date };
+    items["task:" + id] = { summary: t.done ? MARK.done + withTime(id, t.doneDate, t.title) : MARK.plan + withPlan(t), colorId: t.done ? COLOR.done : COLOR.plan, date: t.date };
   });
   Object.keys(goals).forEach(function (id) {
     const g = goals[id];
@@ -115,7 +117,7 @@ function pushToGoogle_(tasks, goals, logs) {
       const d = inst.originalStartTime && inst.originalStartTime.date;
       if (!d) return;
       const done = !!it.doneDates[d];
-      const summary = done ? MARK.done + withTime(it.taskId, d, it.title) : MARK.plan + it.title, colorId = done ? COLOR.done : COLOR.plan;
+      const summary = done ? MARK.done + withTime(it.taskId, d, it.title) : MARK.plan + it.plan, colorId = done ? COLOR.done : COLOR.plan;
       if (inst.summary !== summary || (inst.colorId || "") !== colorId) {
         Calendar.Events.patch({ summary: summary, colorId: colorId }, CAL, inst.id);
         res.updated++;
