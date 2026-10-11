@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261011c";
+import { firebaseConfig } from "./firebase-config.js?v=20261011e";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -436,6 +436,14 @@ function tasksOn(d) {
   return rows(S.tasks).filter((x) => activeOn(x, d))
     .sort((a, b) => isRep(a) - isRep(b) || (a.createdAt || 0) - (b.createdAt || 0));
 }
+function boardStart() {
+  const c = S.settings && S.settings.createdAt;
+  let first = c ? ymd(new Date(c)) : "";
+  const consider = (d) => { if (d && (!first || d < first)) first = d; };
+  S.logs.forEach((l) => consider(l.date));
+  S.tasks.forEach((x) => { if (x.done) consider(x.doneDate); Object.keys(x.doneDates || {}).forEach((d) => { if (x.doneDates[d]) consider(d); }); });
+  return first;
+}
 function calTask(x, d, repeat) {
   const done = isDone(x, d), color = x.goalId && S.goals.has(x.goalId) ? catCls(x.goalId) : "c-blue";
   return `<div class="ev task ${color}${done ? " done" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
@@ -453,6 +461,9 @@ function renderCalendar() {
   const exams = {}; rows(S.goals).forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
   const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
   const habits = rows(S.tasks).filter(isRep);
+  // 보드를 쓰기 시작한 날 (그 전 날짜는 '안 한 날'로 칠하지 않음)
+  const startedAt = boardStart();
+  const logsByDay = {}; rows(S.logs).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((l) => { if (l.date) (logsByDay[l.date] ||= []).push(l); });
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
@@ -461,16 +472,18 @@ function renderCalendar() {
     rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => evs.push(calTask(x, d, false)));
     const hs = habits.filter((h) => activeOn(h, d));
     if (d <= t) hs.forEach((h) => evs.push(calTask(h, d, true)));
+    (logsByDay[d] || []).forEach((l) => evs.push(`<div class="ev log" data-act="openDayLogs" data-day="${d}" title="실천한 일 · 눌러서 보기">🔥 ${esc([l.minutes ? fmtMin(Number(l.minutes)) : "", l.text || ""].filter(Boolean).join(" · ") || "기록")}</div>`));
     gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
     if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
     if (d > t && hs.length) shown.push(`<div class="ev more">할 일 ${hs.length}개 (반복)</div>`);
     const mm = prac[d] || 0, lv = mm >= 120 ? 4 : mm >= 60 ? 3 : mm >= 30 ? 2 : mm > 0 ? 1 : 0;
-    const cls = ["day", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
+    const missed = !lv && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 없음
+    const cls = ["day", lv ? "p" + lv : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
     // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
     html += `<div class="${cls}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span>${lv ? `<span class="prac l${lv}" title="실천 ${fmtMin(mm)}"></span>` : ""}</span>${shown.join("")}</div>`;
+      `<span class="top"><span class="num">${dt.getDate()}</span></span>${shown.join("")}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
@@ -824,6 +837,7 @@ document.addEventListener("click", (ev) => {
     act(backend.remove("tasks", tk.id), "삭제했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
     return;
   }
+  if (a === "openDayLogs") { openDay(el.dataset.day); dt.tab = "logs"; renderDayForm(); return; }
   if (a === "dayTab") { dt.tab = el.dataset.k; renderDayForm(); return; }
   if (a === "dtRep") { dt.rep = el.dataset.k; renderDayForm(); return; }
   if (a === "dtDay") { const n = +el.dataset.d; if (dt.days.has(n)) dt.days.delete(n); else dt.days.add(n); renderDayForm(); return; }

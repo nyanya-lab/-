@@ -4,10 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>욱진 실천 보드</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="실천 보드">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FFFFFF">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261011c">
+<link rel="stylesheet" href="style.css?v=20261011e">
 </head>
 <body>
 
@@ -69,7 +77,9 @@
           <div class="cal-legend">
             <span><i style="background:var(--coral)"></i>시험·목표일</span>
             <span><i style="background:var(--blue)"></i>할 일 (네모 눌러 체크 · 글자 눌러 편집)</span>
-            <span><i style="background:var(--mint)"></i>날짜 옆 초록 네모 = 그날 공부·연습함 (오래 할수록 진함)</span>
+            <span><i style="background:color-mix(in srgb, var(--mint) 30%, var(--surface));border:1px solid var(--mint)"></i>초록 칸 = 실천한 날 (오래 할수록 진함)</span>
+            <span><i style="background:color-mix(in srgb, var(--coral) 18%, var(--surface));border:1px solid var(--coral)"></i>연한 빨강 칸 = 실천 안 한 날</span>
+            <span><i style="background:var(--sun)"></i>🔥 실천한 일</span>
             <span><i style="background:var(--mint-soft);border:1px solid var(--mint)"></i>월급·수입</span>
             <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
           </div>
@@ -303,6 +313,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261011c"></script>
+<script type="module" src="app.js?v=20261011e"></script>
 </body>
 </html>
