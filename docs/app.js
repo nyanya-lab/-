@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012a";
+import { firebaseConfig } from "./firebase-config.js?v=20261012b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -412,6 +412,7 @@ function taskItem(x, day, upcoming) {
   if (g) meta.push(`<span class="tag cat ${catCls(x.goalId)}">${esc(g.title)}</span>`);
   const tm = done ? taskMinutes(x.id, isRep(x) ? day : x.doneDate) : 0;
   if (tm) meta.push(`<span class="tag mono">⏱ ${fmtMin(tm)}</span>`);
+  else if (!done && x.minutes > 0) meta.push(`<span class="tag mono" title="체크하면 이 시간으로 기록돼요">⏱ ${fmtMin(x.minutes)}</span>`);
   if (upcoming) meta.push(`<span class="mono">${shortDate(x.date)}</span>`);
   else if (!isRep(x) && x.date < day && !done) meta.push(`<span class="tag late">${diffDays(day, x.date)}일 밀림</span>`);
   return `<div class="item${done ? " done" : ""}">` +
@@ -515,11 +516,21 @@ function saveTaskTime(min) {
   const x = S.tasks.get(doneFor.taskId); if (!x) { hideDoneSheet(); return; }
   const { taskId, day } = doneFor; hideDoneSheet();
   if (!(min > 0)) return;
-  act((async () => {
+  recordTaskTime(x, taskId, day, min, `${fmtMin(min)} 기록했어요.`);
+}
+function recordTaskTime(x, taskId, day, min, msg) {
+  return act((async () => {
     for (const l of taskLogs(taskId, day)) await backend.remove("logs", l.id);   // 같은 날 다시 기록하면 바꿔치기
     await backend.add("logs", { date: day, minutes: min, text: x.title, goalId: x.goalId || null, taskId, createdAt: Date.now() });
-  })(), `${fmtMin(min)} 기록했어요.`).catch(() => {});
+  })(), msg).catch(() => {});
 }
+// 할 시간 빠른 버튼 (data-min-for="입력칸 id")
+const MIN_QUICK = [30, 60, 90, 120];
+function renderMinChips(id) {
+  const box = document.querySelector(`[data-min-for="${id}"]`), v = parseInt($(id).value, 10) || 0;
+  if (box) box.innerHTML = MIN_QUICK.map((m) => `<button class="chip" type="button" data-act="setMin" data-for="${id}" data-m="${m}" aria-pressed="${v === m}">${fmtMin(m)}</button>`).join("");
+}
+function setMinInput(id, v) { $(id).value = v || ""; renderMinChips(id); }
 
 // ---------- 할 일 편집 작은 창 ----------
 const tk = { id: null, rep: "none", days: new Set() };
@@ -531,6 +542,7 @@ function openTask(id) {
   $("tkEnd").value = x.end || "";
   $("tkDone").checked = !!x.done;
   $("tkMin").value = x.done ? (taskMinutes(id, x.doneDate) || "") : "";
+  setMinInput("tkPlan", x.minutes);
   const sel = $("tkGoal");
   sel.innerHTML = '<option value="">없음</option>' + rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
   sel.value = x.goalId && S.goals.has(x.goalId) ? x.goalId : "";
@@ -554,7 +566,7 @@ const dt = { tab: "tasks", rep: "none", days: new Set() };
 function openDay(d) {
   ui.selDay = d; if (d.slice(0, 7) !== ui.calMonth) ui.calMonth = d.slice(0, 7);
   dt.tab = "tasks"; dt.rep = "none"; dt.days = new Set([parseYmd(d).getDay()]);
-  $("dayTaskTitle").value = ""; $("dtGoal").value = "";
+  $("dayTaskTitle").value = ""; $("dtGoal").value = ""; setMinInput("dtMin", "");
   renderCalendar(); openDlg($("dayDlg"));
 }
 function renderDayForm() {
@@ -999,9 +1011,10 @@ document.addEventListener("click", (ev) => {
   if (a === "closeGoal") { closeDlg($("goalDlg")); ui.goalId = null; return; }
   if (a === "gtOpen") {
     gt.open = el.dataset.k; if (gt.rep === "none") gt.rep = "daily";
-    $("gtTitle").value = ""; $("gtDate").value = today(); $("gtEnd").value = "";
+    $("gtTitle").value = ""; $("gtDate").value = today(); $("gtEnd").value = ""; setMinInput("gtMin", "");
     renderGoalDlg(); $("goalTaskForm").scrollIntoView({ block: "nearest", behavior: "smooth" }); $("gtTitle").focus({ preventScroll: true }); return;
   }
+  if (a === "setMin") { const k = el.dataset.for, m = +el.dataset.m; setMinInput(k, (parseInt($(k).value, 10) || 0) === m ? "" : m); return; }
   if (a === "gtClose") { gt.open = null; renderGoalDlg(); return; }
   if (a === "gtEnd") { $("gtEnd").value = el.dataset.d; renderGoalDlg(); return; }
   if (a === "gtRep") { gt.rep = el.dataset.k; renderGoalDlg(); return; }
@@ -1054,7 +1067,8 @@ document.addEventListener("click", (ev) => {
     const nd = !isDone(x, day), doneDay = isRep(x) ? day : (nd ? day : x.doneDate);
     const patch = isRep(x) ? { doneDates: { [day]: nd } } : { done: nd, doneDate: nd ? day : null };
     act(backend.update("tasks", id, patch)).then(async () => {
-      if (nd) showDoneSheet(id, day);
+      if (nd && x.minutes > 0) { hideDoneSheet(); recordTaskTime(x, id, day, x.minutes, `✅ ${fmtMin(x.minutes)} 기록했어요.`); }
+      else if (nd) showDoneSheet(id, day);
       else { hideDoneSheet(); for (const l of taskLogs(id, doneDay)) await backend.remove("logs", l.id); }   // 체크를 풀면 같이 기록한 시간도 지움
     }).catch(() => {});
     return;
@@ -1122,7 +1136,7 @@ document.addEventListener("click", (ev) => {
 
 document.addEventListener("change", (ev) => {
   const el = ev.target;
-  if (el.id === "tkDone") { renderTaskForm(); return; }
+  if (el.id === "tkDone") { if (el.checked && !$("tkMin").value && $("tkPlan").value) $("tkMin").value = $("tkPlan").value; renderTaskForm(); return; }
   if (el.dataset && el.dataset.act === "due") {
     if (!ready()) return;
     act(backend.update("goals", el.dataset.id, { due: el.value || null }), "목표일을 바꿨어요.").catch(() => {});
@@ -1199,11 +1213,11 @@ $("taskEditForm").addEventListener("submit", (ev) => {
   if (!ready() || !tk.id) return;
   const x = S.tasks.get(tk.id); if (!x) { closeDlg($("taskDlg")); return; }
   const title = $("tkTitle").value.trim(); if (!title) { toast("할 일을 적어 주세요."); return; }
-  const date = $("tkDate").value || today(), goalId = $("tkGoal").value || null;
+  const date = $("tkDate").value || today(), goalId = $("tkGoal").value || null, minutes = parseInt($("tkPlan").value, 10) || null;
   let patch, timeOps = null;
   if (tk.rep === "none") {
     const done = $("tkDone").checked;
-    patch = { title, goalId, repeat: "none", date, done, doneDate: done ? (x.doneDate || today()) : null, start: null, end: null, days: null, doneDates: null };
+    patch = { title, goalId, minutes, repeat: "none", date, done, doneDate: done ? (x.doneDate || today()) : null, start: null, end: null, days: null, doneDates: null };
     // 걸린 시간: 연결된 실천 기록을 고치거나 만들거나 지움
     const min = parseInt($("tkMin").value, 10) || 0, doneDay = patch.doneDate || x.doneDate;
     const old = x.doneDate ? taskLogs(tk.id, x.doneDate) : [];
@@ -1215,7 +1229,7 @@ $("taskEditForm").addEventListener("submit", (ev) => {
     if (tk.rep === "weekly" && !tk.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
     const end = $("tkEnd").value || null;
     if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
-    patch = { title, goalId, repeat: tk.rep, start: date, end, days: tk.rep === "weekly" ? [...tk.days].sort() : null, date: null, done: null, doneDate: null };
+    patch = { title, goalId, minutes, repeat: tk.rep, start: date, end, days: tk.rep === "weekly" ? [...tk.days].sort() : null, date: null, done: null, doneDate: null };
   }
   act((async () => { await backend.update("tasks", tk.id, patch); if (timeOps) await timeOps(); })(), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
 });
@@ -1227,13 +1241,15 @@ $("goalEditForm").addEventListener("submit", (ev) => {
   act(backend.update("goals", ui.goalId, { title, cat: $("geCat").value, due: $("geDue").value || null }), "목표를 저장했어요.").catch(() => {});
 });
 ["gtDate", "gtEnd"].forEach((k) => $(k).addEventListener("change", renderGoalDlg));
+["gtMin", "dtMin", "tkPlan"].forEach((k) => { $(k).addEventListener("input", () => renderMinChips(k)); renderMinChips(k); });
 $("goalTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready() || !ui.goalId) return;
   const g = S.goals.get(ui.goalId); if (!g) return;
   const title = $("gtTitle").value.trim(); if (!title) { toast("할 일을 적어 주세요."); return; }
   const date = $("gtDate").value || today(), once = gt.open !== "rep", end = $("gtEnd").value;
-  const doc = { title, goalId: ui.goalId, createdAt: Date.now() };
+  const doc = { title, goalId: ui.goalId, createdAt: Date.now() }, min = parseInt($("gtMin").value, 10) || 0;
+  if (min > 0) doc.minutes = min;
   if (once) Object.assign(doc, { repeat: "none", date, done: false, doneDate: null });
   else {
     if (gt.rep === "weekly" && !gt.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
@@ -1242,7 +1258,7 @@ $("goalTaskForm").addEventListener("submit", (ev) => {
     if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
     if (end) doc.end = end;
   }
-  act(backend.add("tasks", doc), once ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.").then(() => { $("gtTitle").value = ""; $("gtTitle").focus(); }).catch(() => {});
+  act(backend.add("tasks", doc), once ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.").then(() => { $("gtTitle").value = ""; setMinInput("gtMin", ""); $("gtTitle").focus(); }).catch(() => {});
 });
 
 $("dayTaskForm").addEventListener("submit", (ev) => {
@@ -1250,7 +1266,8 @@ $("dayTaskForm").addEventListener("submit", (ev) => {
   if (!ready()) return;
   const title = $("dayTaskTitle").value.trim(); if (!title) { toast("할 일을 적어 주세요."); return; }
   const goalId = $("dtGoal").value || null, g = goalId && S.goals.get(goalId);
-  const doc = { title, goalId, createdAt: Date.now() };
+  const doc = { title, goalId, createdAt: Date.now() }, min = parseInt($("dtMin").value, 10) || 0;
+  if (min > 0) doc.minutes = min;
   if (dt.rep === "none") Object.assign(doc, { repeat: "none", date: ui.selDay, done: false, doneDate: null });
   else {
     if (dt.rep === "weekly" && !dt.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
@@ -1259,7 +1276,7 @@ $("dayTaskForm").addEventListener("submit", (ev) => {
     if (g && g.due && g.due >= ui.selDay) doc.end = g.due;
   }
   act(backend.add("tasks", doc), dt.rep === "none" ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.")
-    .then(() => { $("dayTaskTitle").value = ""; }).catch(() => {});
+    .then(() => { $("dayTaskTitle").value = ""; setMinInput("dtMin", ""); }).catch(() => {});
 });
 $("dayMinQuick").innerHTML = [30, 60, 90, 120].map((m) => `<button class="chip" type="button" data-act="dayMin" data-m="${m}">${fmtMin(m)}</button>`).join("");
 $("dayLogForm").addEventListener("submit", (ev) => {
