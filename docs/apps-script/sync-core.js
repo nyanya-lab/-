@@ -7,7 +7,7 @@
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  */
-const CORE_VERSION = "2026-10-11";
+const CORE_VERSION = "2026-10-11b";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
@@ -36,6 +36,13 @@ function ukjinSync(BOARD_PASSWORD) {
 // ---------- 보드 → 구글 ----------
 function pushToGoogle_(tasks, goals, logs) {
   const items = {};
+  // 할 일을 체크하면서 기록한 시간: "✅ 제목 · 1시간"으로 할 일에 붙이고 🔥 일정은 따로 안 만듦
+  const timed = {};
+  Object.keys(logs || {}).forEach(function (id) {
+    const l = logs[id];
+    if (l && l.taskId && l.date) timed[l.taskId + "|" + l.date] = (timed[l.taskId + "|" + l.date] || 0) + (Number(l.minutes) || 0);
+  });
+  const withTime = function (taskId, day, title) { const m = timed[taskId + "|" + day]; return m ? title + " · " + fmtMin_(m) : title; };
   Object.keys(tasks).forEach(function (id) {
     const t = tasks[id];
     if (!t || !t.title) return;
@@ -44,11 +51,11 @@ function pushToGoogle_(tasks, goals, logs) {
       if (!start) return;
       let rule = t.repeat === "daily" ? "RRULE:FREQ=DAILY" : "RRULE:FREQ=WEEKLY;BYDAY=" + (t.days || []).map(function (n) { return DOW[n]; }).join(",");
       if (t.end) rule += ";UNTIL=" + t.end.replace(/-/g, "");
-      items["rep:" + id] = { summary: MARK.plan + t.title, colorId: COLOR.plan, date: start, recurrence: [rule], title: t.title, doneDates: t.doneDates || {} };
+      items["rep:" + id] = { summary: MARK.plan + t.title, colorId: COLOR.plan, date: start, recurrence: [rule], title: t.title, doneDates: t.doneDates || {}, taskId: id };
       return;
     }
     if (!t.date) return;
-    items["task:" + id] = { summary: (t.done ? MARK.done : MARK.plan) + t.title, colorId: t.done ? COLOR.done : COLOR.plan, date: t.date };
+    items["task:" + id] = { summary: t.done ? MARK.done + withTime(id, t.doneDate, t.title) : MARK.plan + t.title, colorId: t.done ? COLOR.done : COLOR.plan, date: t.date };
   });
   Object.keys(goals).forEach(function (id) {
     const g = goals[id];
@@ -58,7 +65,7 @@ function pushToGoogle_(tasks, goals, logs) {
   const yearAgo = Utilities.formatDate(new Date(Date.now() - 365 * 864e5), TZ, "yyyy-MM-dd");
   Object.keys(logs || {}).forEach(function (id) {
     const l = logs[id];
-    if (!l || !l.date || l.date < yearAgo) return;
+    if (!l || !l.date || l.date < yearAgo || l.taskId) return;
     const parts = [];
     if (Number(l.minutes) > 0) parts.push(fmtMin_(Number(l.minutes)));
     if (l.text) parts.push(l.text);
@@ -108,7 +115,7 @@ function pushToGoogle_(tasks, goals, logs) {
       const d = inst.originalStartTime && inst.originalStartTime.date;
       if (!d) return;
       const done = !!it.doneDates[d];
-      const summary = (done ? MARK.done : MARK.plan) + it.title, colorId = done ? COLOR.done : COLOR.plan;
+      const summary = done ? MARK.done + withTime(it.taskId, d, it.title) : MARK.plan + it.title, colorId = done ? COLOR.done : COLOR.plan;
       if (inst.summary !== summary || (inst.colorId || "") !== colorId) {
         Calendar.Events.patch({ summary: summary, colorId: colorId }, CAL, inst.id);
         res.updated++;
