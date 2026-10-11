@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261011h">
+<link rel="stylesheet" href="style.css?v=20261011i">
 </head>
 <body>
 
@@ -31,7 +31,6 @@
   <nav class="nav" aria-label="메뉴">
       <a href="#calendar"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></a>
       <a href="#goals"><svg viewBox="0 0 24 24"><path d="M5 21V4h11l-1.8 3.8L16 12H5"/></svg><span>목표</span></a>
-      <a href="#log"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg><span>기록</span></a>
       <a href="#money"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg><span>돈 관리</span></a>
       <a href="#certs"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><span>자격증 찾기</span></a>
   </nav>
@@ -107,23 +106,6 @@
         </div>
         <div><button class="btn" type="submit">목표 추가</button></div>
       </form>
-    </section>
-
-    <!-- 기록 -->
-    <section class="page" data-page="log" hidden>
-      <div class="page-head">
-        <div><h2>기록</h2><p>하루 한 장씩 타일을 붙여요. 오래 할수록 진해져요.</p></div>
-      </div>
-      <div class="stats" id="logStats"></div>
-      <div class="panel">
-        <div class="panel-head"><h3>타일 벽</h3><span class="muted small">최근 26주</span></div>
-        <div class="wall-scroll"><div class="wall-row"><div class="wall-days"><span>월</span><span></span><span>수</span><span></span><span>금</span><span></span><span>일</span></div><div class="wall" id="wall"></div></div></div>
-        <div class="legend">덜 함 <i class="tile"></i><i class="tile l1"></i><i class="tile l2"></i><i class="tile l3"></i><i class="tile l4"></i> 많이 함 <span class="muted">· 30분 / 1시간 / 2시간 기준</span></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><h3>최근 기록</h3></div>
-        <div class="list" id="logList"></div>
-      </div>
     </section>
 
     <!-- 돈 관리 -->
@@ -366,6 +348,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261011h"></script>
+<script type="module" src="app.js?v=20261011i"></script>
 </body>
 </html>

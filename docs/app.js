@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261011h";
+import { firebaseConfig } from "./firebase-config.js?v=20261011i";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts"];
@@ -690,39 +690,6 @@ function renderGoalDlg() {
   if (c && c.tasks) $("gTemplate").innerHTML = `<button class="btn ghost small" type="button" data-act="addTemplate">추천 할 일 ${c.tasks.length}개 넣기</button><span class="small muted">${esc(c.tasks.map((z) => z.t).slice(0, 3).join(", "))} 등</span>`;
 }
 
-function renderLog() {
-  const t = today(), days = practiceMinutes(), WEEKS = 26;
-  const start = addDays(mondayOf(t), -7 * (WEEKS - 1));
-  let html = "";
-  for (let i = 0; i < WEEKS * 7; i++) {
-    const d = addDays(start, i), m = days[d] || 0;
-    let cls = "tile";
-    if (d > t) cls += " future";
-    else if (m >= 120) cls += " l4"; else if (m >= 60) cls += " l3"; else if (m >= 30) cls += " l2"; else if (m > 0) cls += " l1";
-    if (d === t) cls += " today";
-    html += `<div class="${cls}" title="${esc(shortDate(d) + (m ? " · " + fmtMin(m) : ""))}"></div>`;
-  }
-  $("wall").innerHTML = html;
-
-  const wk = mondayOf(t); let cnt = 0, total = 0;
-  for (let i = 0; i < 7; i++) if (days[addDays(wk, i)]) cnt++;
-  Object.keys(days).forEach((d) => { if (d >= start && d <= t) total++; });
-  $("logStats").innerHTML =
-    statTile("연속 실천", streak(days) + "일") +
-    statTile("이번 주 실천한 날", cnt + "/7") +
-    statTile("이번 주 기록 시간", fmtMin(logMinutes(wk, addDays(wk, 6)))) +
-    statTile("최근 26주 실천한 날", total + "일");
-
-  const ls = rows(S.logs).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 50);
-  $("logList").innerHTML = !S.loaded ? '<div class="empty">불러오는 중…</div>' : ls.length ? ls.map((l) => {
-    const g = l.goalId ? S.goals.get(l.goalId) : null;
-    return `<div class="item"><span class="mono small muted" style="padding-top:2px">${shortDate(l.date)}</span>` +
-      `<div class="body"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div>` +
-      `<div class="meta">${l.minutes ? `<span class="tag mono">${fmtMin(Number(l.minutes))}</span>` : ""}${g ? `<span class="tag">${esc(g.title)}</span>` : ""}</div></div>` +
-      `<div class="actions"><button class="icon-btn" type="button" data-act="del" data-col="logs" data-id="${esc(l.id)}">삭제</button></div></div>`;
-  }).join("") : '<div class="empty">아직 기록이 없어요. <a href="#calendar">달력</a>에서 날짜를 누르고 실천 기록을 남기면 첫 타일이 붙어요.</div>';
-}
-
 function monthTotals(m) {
   const r = { inc: 0, out: 0, exp: 0, byCat: {}, items: [] };
   S.money.forEach((x, id) => {
@@ -946,12 +913,12 @@ async function loadBackups() {
 }
 
 function render() {
-  refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderLog(); renderMoney(); renderCerts(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
+  refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   if ($("settingsDlg").open) renderGcalBox();
 }
 
 // ---------- 동작 ----------
-const PAGES = ["calendar", "goals", "log", "money", "certs"];
+const PAGES = ["calendar", "goals", "money", "certs"];
 function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; renderHeader(); window.scrollTo(0, 0); }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
