@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261011b">
+<link rel="stylesheet" href="style.css?v=20261011c">
 <style>
   body { padding-left: 0; }
   .guide { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
@@ -38,7 +38,7 @@
   <a class="brand" href="./"><span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><b>욱진 실천 보드</b></a>
   <div style="display:grid;gap:6px">
     <h1>구글 캘린더 자동 동기화 설정</h1>
-    <p class="muted">욱진이 구글 계정에서 <b>딱 한 번</b>만 하면 돼요. 그 뒤로는 5분마다 알아서 보드 할 일·시험일이 구글 캘린더에 들어가고, 구글 일정도 보드 달력에 보여요. 사이트에서 구글 로그인은 필요 없어요. PC에서 하는 걸 추천해요 (10분 정도).</p>
+    <p class="muted">욱진이 구글 계정에서 <b>딱 한 번</b>만 하면 돼요. 붙여넣는 코드는 <b>자동 업데이트 버전</b>이라, 나중에 기능이 바뀌어도 다시 붙여넣을 필요가 없어요. 그 뒤로는 5분마다 알아서 보드 할 일·시험일이 구글 캘린더에 들어가고, 구글 일정도 보드 달력에 보여요. 사이트에서 구글 로그인은 필요 없어요. PC에서 하는 걸 추천해요 (10분 정도).</p>
   </div>
 
   <ol class="steps">
@@ -93,13 +93,13 @@
     예전에 할 일 옆 '캘린더' 버튼으로 직접 넣었던 보드 일정은 첫 동기화 때 같이 정리돼요.</div>
 
   <section class="fix" style="gap:8px">
-    <h2 style="font-size:22px">코드가 바뀌었다고 하면 (업데이트)</h2>
-    <p class="small">이미 설정했다면 setup은 다시 안 해도 돼요. 코드만 바꿔 넣어요.</p>
+    <h2 style="font-size:22px">예전 코드를 넣어 둔 경우 (딱 한 번 바꾸기)</h2>
+    <p class="small">Apps Script 코드 맨 위 설명에 <b>"자동 업데이트 버전"</b>이라는 글이 없으면 예전 코드예요. 아래처럼 한 번만 바꾸면 그다음부터는 바꿀 일이 없어요. setup은 다시 안 해도 돼요.</p>
     <ol style="margin:0;padding-left:20px;display:grid;gap:4px">
-      <li>위 3번의 <b>코드 복사</b>를 눌러요.</li>
+      <li>위 3번의 <b>코드 복사</b>를 눌러요. ("자동 업데이트 버전이에요"가 보이는지 확인)</li>
       <li>Apps Script 편집기에서 <code>Ctrl + A</code> → <code>Ctrl + V</code>로 통째로 바꿔요.</li>
       <li>맨 위 <code>BOARD_PASSWORD</code> 따옴표 사이에 비밀번호를 <b>다시</b> 넣고 <code>Ctrl + S</code> 저장.</li>
-      <li>바로 확인하고 싶으면 함수 칸을 <b>sync</b>로 바꾸고 ▷ 실행. 아니면 5분 안에 알아서 돌아요.</li>
+      <li>함수 칸을 <b>sync</b>로 바꾸고 ▷ 실행. 권한을 다시 물어보면 6번처럼 허락해요.</li>
     </ol>
   </section>
 
@@ -110,6 +110,8 @@
     <div><b>"Calendar is not defined"</b>5번(서비스에 Google Calendar API 추가)이 빠졌어요.</div>
     <div><b>사이트에 "구글 동기화 멈춤"이 떠요</b>Apps Script 왼쪽 <b>트리거</b>(시계 아이콘)에 <code>sync</code>가 있는지 봐요. 없으면 <b>setup</b>을 다시 실행해요. <b>실행</b> 메뉴(목록 아이콘)에서 빨간 실패 기록을 누르면 이유가 보여요.</div>
     <div><b>보드 비밀번호를 바꿨어요</b>4번처럼 새 비밀번호로 고치고 저장하면 다음 5분부터 새 보드로 맞춰요.</div>
+    <div><b>"동기화 코드를 받아오지 못했어요"</b>사이트가 잠깐 안 열린 거예요. 몇 분 뒤 자동으로 다시 돌아요.</div>
+    <div><b>바뀐 기능을 지금 바로 받고 싶어요</b>함수 칸에서 <b>refresh</b>를 골라 실행해요. (그냥 두면 15분 안에 알아서 바뀌어요)</div>
     <div><b>그만 쓰고 싶어요</b>함수 칸에서 <b>stop</b>을 골라 실행하면 자동 동기화가 멈춰요.</div>
   </section>
 </main>
@@ -118,7 +120,7 @@
   (function () {
     var pre = document.getElementById("code"), btn = document.getElementById("copyBtn");
     fetch("apps-script/Code.gs?t=" + Date.now(), { cache: "no-store" }).then(function (r) { if (!r.ok) throw 0; return r.text(); })
-      .then(function (t) { pre.textContent = t; var v = (t.match(/^const COLOR = .*$/m) || [""])[0]; document.getElementById("codeVer").textContent = /log:/.test(v) && /🔥/.test(t) ? "최신 코드예요 (🔥 실천 표시 포함)." : ""; })
+      .then(function (t) { pre.textContent = t; document.getElementById("codeVer").textContent = /CORE_URL/.test(t) ? "자동 업데이트 버전이에요. 한 번 넣으면 끝!" : ""; })
       .catch(function () { pre.textContent = "코드를 불러오지 못했어요. 새로고침해 주세요."; });
     btn.addEventListener("click", function () {
       var text = pre.textContent;
