@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261011j">
+<link rel="stylesheet" href="style.css?v=20261011k">
 </head>
 <body>
 
@@ -189,13 +189,8 @@
       </div>
       <form class="panel form" id="reqForm" autocomplete="off">
         <label class="f">무엇이 있으면 좋겠어요?<textarea id="reqText" maxlength="1000" placeholder="예: 할 일에 사진 붙이기 / 돈 관리에서 카드 결제일 알림" required></textarea></label>
-        <div class="row" style="align-items:center;flex:0 0 auto">
-          <div class="seg" id="reqWho" style="grid-template-columns:1fr 1fr;min-width:200px">
-            <button type="button" data-act="reqWho" data-k="욱진">욱진</button>
-            <button type="button" data-act="reqWho" data-k="여자친구">여자친구</button>
-          </div>
-          <button class="btn" type="submit">요청 남기기</button>
-        </div>
+        <div class="f"><span class="small muted">어느 탭에 대한 요청이에요?</span><div class="chips" id="reqArea"></div></div>
+        <div><button class="btn" type="submit">요청 남기기</button></div>
       </form>
       <div class="chips" id="reqFilter"></div>
       <div class="reqs" id="reqList"></div>
@@ -369,6 +364,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261011j"></script>
+<script type="module" src="app.js?v=20261011k"></script>
 </body>
 </html>

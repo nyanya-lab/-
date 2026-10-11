@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261011j";
+import { firebaseConfig } from "./firebase-config.js?v=20261011k";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -68,7 +68,7 @@ const CERT_TAGS = ["전체", "도면·CAD", "인테리어", "타일·마감", "�
 
 // ---------- 상태 ----------
 const S = { goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), requests: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null };
-const ui = { reqWho: (() => { try { return localStorage.getItem("ukjin-reqwho") || "욱진"; } catch (e) { return "욱진"; } })(), reqFilter: "open", mEdit: null, acctFilter: "all", page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "expense", certTag: "전체", certQ: "" };
+const ui = { reqArea: "달력", reqFilter: "open", mEdit: null, acctFilter: "all", page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "expense", certTag: "전체", certQ: "" };
 let backend = null;
 
 // 저장 상태: 서버에 아직 안 올라간 쓰기 수 + 연결 여부. 옆 메뉴 점과 설정 창에 표시
@@ -866,9 +866,10 @@ function saveCats(kind, list) {
 
 // ---------- 기능 요청 ----------
 const REQ_STATUS = { todo: "요청", doing: "진행 중", done: "완료" };
+const REQ_AREAS = ["달력", "목표", "돈 관리", "자격증 찾기", "구글 캘린더", "기타"];
 const REQ_NEXT = { todo: "doing", doing: "done", done: "todo" };
 function renderRequests() {
-  document.querySelectorAll("#reqWho button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === ui.reqWho)));
+  $("reqArea").innerHTML = REQ_AREAS.map((a2) => `<button class="chip" type="button" data-act="reqArea" data-k="${a2}" aria-pressed="${ui.reqArea === a2}">${a2}</button>`).join("");
   const all = rows(S.requests).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const open = all.filter((r) => r.status !== "done");
   const badge = $("reqBadge"); badge.hidden = !open.length; badge.textContent = open.length;
@@ -882,7 +883,7 @@ function renderRequests() {
     const st = r.status || "todo";
     return `<article class="req st-${st}"><div class="req-head">` +
       `<button class="req-status" type="button" data-act="reqStatus" data-id="${esc(r.id)}" title="눌러서 상태 바꾸기">${REQ_STATUS[st]}</button>` +
-      `<span class="muted small">${esc(r.who || "")} · ${r.createdAt ? fmtTime(r.createdAt) : ""}</span>` +
+      `<span class="tag">${esc(r.area || "기타")}</span><span class="muted small">${r.createdAt ? fmtTime(r.createdAt) : ""}</span>` +
       `<button class="icon-btn" type="button" data-act="del" data-col="requests" data-id="${esc(r.id)}">삭제</button></div>` +
       `<p class="req-text">${esc(r.text || "")}</p>` +
       `<label class="f">메모·답변<textarea data-req-note="${esc(r.id)}" maxlength="1000" rows="2" placeholder="예: 10/12에 넣었어요">${esc(r.note || "")}</textarea></label></article>`;
@@ -892,7 +893,7 @@ function requestsText() {
   const open = rows(S.requests).filter((r) => r.status !== "done").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   if (!open.length) return "";
   return "욱진 실천 보드 기능 요청 (" + today() + ")\n" + open.map((r, i) =>
-    `${i + 1}. [${r.who || "?"}] ${(r.text || "").trim()} (${REQ_STATUS[r.status || "todo"]}${r.createdAt ? ", " + fmtTime(r.createdAt) : ""})${r.note ? "\n   메모: " + r.note.trim() : ""}`).join("\n");
+    `${i + 1}. [${r.area || "기타"}] ${(r.text || "").trim()} (${REQ_STATUS[r.status || "todo"]}${r.createdAt ? ", " + fmtTime(r.createdAt) : ""})${r.note ? "\n   메모: " + r.note.trim() : ""}`).join("\n");
 }
 
 function searchLinks(q) {
@@ -992,7 +993,7 @@ document.addEventListener("click", (ev) => {
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return; }
   if (a === "kind") { ui.kind = el.dataset.k; if (!ui.mEdit) { $("mAcct").value = ""; $("mTo").value = ""; } renderMoneyForm(); return; }
   if (a === "editMoney") { editMoney(id); return; }
-  if (a === "reqWho") { ui.reqWho = el.dataset.k; try { localStorage.setItem("ukjin-reqwho", ui.reqWho); } catch (e) { /* 무시 */ } renderRequests(); return; }
+  if (a === "reqArea") { ui.reqArea = el.dataset.k; renderRequests(); return; }
   if (a === "reqFilter") { ui.reqFilter = el.dataset.k; renderRequests(); return; }
   if (a === "reqStatus") { if (!ready()) return; const r = S.requests.get(id); if (r) act(backend.update("requests", id, { status: REQ_NEXT[r.status || "todo"] })).catch(() => {}); return; }
   if (a === "copyReqs") {
@@ -1161,7 +1162,7 @@ $("reqForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
   const text = $("reqText").value.trim(); if (!text) return;
-  act(backend.add("requests", { text, who: ui.reqWho, status: "todo", note: "", createdAt: Date.now() }), "요청을 남겼어요.")
+  act(backend.add("requests", { text, area: ui.reqArea, status: "todo", note: "", createdAt: Date.now() }), "요청을 남겼어요.")
     .then(() => { $("reqText").value = ""; ui.reqFilter = "open"; }).catch(() => {});
 });
 // 메모·답변은 입력을 멈추면 저장
