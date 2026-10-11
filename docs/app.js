@@ -1,7 +1,7 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261011i";
+import { firebaseConfig } from "./firebase-config.js?v=20261011j";
 
 const FB_VER = "10.12.2";
-const COLS = ["goals", "tasks", "logs", "money", "accounts"];
+const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
 const GOAL_CATS = ["자격증", "타일", "현장", "공부", "생활", "기타"];
 // 목표마다 색 하나씩 (만든 순서대로 돌아가며). 달력에서 어느 목표 일인지 한눈에 보이게
 const GOAL_COLORS = ["c-blue", "c-coral", "c-mint", "c-sun", "c-grape"];
@@ -67,8 +67,8 @@ const CERTS = [
 const CERT_TAGS = ["전체", "도면·CAD", "인테리어", "타일·마감", "목공·가구", "시공·관리"];
 
 // ---------- 상태 ----------
-const S = { goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null };
-const ui = { mEdit: null, acctFilter: "all", page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "expense", certTag: "전체", certQ: "" };
+const S = { goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), requests: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null };
+const ui = { reqWho: (() => { try { return localStorage.getItem("ukjin-reqwho") || "욱진"; } catch (e) { return "욱진"; } })(), reqFilter: "open", mEdit: null, acctFilter: "all", page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "expense", certTag: "전체", certQ: "" };
 let backend = null;
 
 // 저장 상태: 서버에 아직 안 올라간 쓰기 수 + 연결 여부. 옆 메뉴 점과 설정 창에 표시
@@ -864,6 +864,37 @@ function saveCats(kind, list) {
   act(backend.saveSettings({ moneyCats: kind ? all : null }), "분류를 저장했어요.").then(() => { renderCatEditor(); renderMoneyForm(); }).catch(() => {});
 }
 
+// ---------- 기능 요청 ----------
+const REQ_STATUS = { todo: "요청", doing: "진행 중", done: "완료" };
+const REQ_NEXT = { todo: "doing", doing: "done", done: "todo" };
+function renderRequests() {
+  document.querySelectorAll("#reqWho button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === ui.reqWho)));
+  const all = rows(S.requests).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const open = all.filter((r) => r.status !== "done");
+  const badge = $("reqBadge"); badge.hidden = !open.length; badge.textContent = open.length;
+  const counts = { open: open.length, done: all.length - open.length, all: all.length };
+  $("reqFilter").innerHTML = [["open", "진행 전·중"], ["done", "완료"], ["all", "전체"]].map(([k, l]) =>
+    `<button class="chip" type="button" data-act="reqFilter" data-k="${k}" aria-pressed="${ui.reqFilter === k}">${l} ${counts[k]}</button>`).join("");
+  // 메모를 쓰는 중이면 목록을 다시 그리지 않음 (쓰던 칸이 사라지지 않게)
+  if (document.activeElement && document.activeElement.dataset && document.activeElement.dataset.reqNote) return;
+  const list = all.filter((r) => ui.reqFilter === "all" || (ui.reqFilter === "done" ? r.status === "done" : r.status !== "done"));
+  $("reqList").innerHTML = !S.loaded ? '<div class="panel muted">불러오는 중…</div>' : list.length ? list.map((r) => {
+    const st = r.status || "todo";
+    return `<article class="req st-${st}"><div class="req-head">` +
+      `<button class="req-status" type="button" data-act="reqStatus" data-id="${esc(r.id)}" title="눌러서 상태 바꾸기">${REQ_STATUS[st]}</button>` +
+      `<span class="muted small">${esc(r.who || "")} · ${r.createdAt ? fmtTime(r.createdAt) : ""}</span>` +
+      `<button class="icon-btn" type="button" data-act="del" data-col="requests" data-id="${esc(r.id)}">삭제</button></div>` +
+      `<p class="req-text">${esc(r.text || "")}</p>` +
+      `<label class="f">메모·답변<textarea data-req-note="${esc(r.id)}" maxlength="1000" rows="2" placeholder="예: 10/12에 넣었어요">${esc(r.note || "")}</textarea></label></article>`;
+  }).join("") : `<div class="panel muted">${ui.reqFilter === "done" ? "아직 완료된 요청이 없어요." : "아직 요청이 없어요. 위에 적어 보세요."}</div>`;
+}
+function requestsText() {
+  const open = rows(S.requests).filter((r) => r.status !== "done").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if (!open.length) return "";
+  return "욱진 실천 보드 기능 요청 (" + today() + ")\n" + open.map((r, i) =>
+    `${i + 1}. [${r.who || "?"}] ${(r.text || "").trim()} (${REQ_STATUS[r.status || "todo"]}${r.createdAt ? ", " + fmtTime(r.createdAt) : ""})${r.note ? "\n   메모: " + r.note.trim() : ""}`).join("\n");
+}
+
 function searchLinks(q) {
   const enc = encodeURIComponent;
   return [
@@ -913,12 +944,12 @@ async function loadBackups() {
 }
 
 function render() {
-  refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
+  refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   if ($("settingsDlg").open) renderGcalBox();
 }
 
 // ---------- 동작 ----------
-const PAGES = ["calendar", "goals", "money", "certs"];
+const PAGES = ["calendar", "goals", "money", "certs", "requests"];
 function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; renderHeader(); window.scrollTo(0, 0); }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
@@ -961,6 +992,17 @@ document.addEventListener("click", (ev) => {
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return; }
   if (a === "kind") { ui.kind = el.dataset.k; if (!ui.mEdit) { $("mAcct").value = ""; $("mTo").value = ""; } renderMoneyForm(); return; }
   if (a === "editMoney") { editMoney(id); return; }
+  if (a === "reqWho") { ui.reqWho = el.dataset.k; try { localStorage.setItem("ukjin-reqwho", ui.reqWho); } catch (e) { /* 무시 */ } renderRequests(); return; }
+  if (a === "reqFilter") { ui.reqFilter = el.dataset.k; renderRequests(); return; }
+  if (a === "reqStatus") { if (!ready()) return; const r = S.requests.get(id); if (r) act(backend.update("requests", id, { status: REQ_NEXT[r.status || "todo"] })).catch(() => {}); return; }
+  if (a === "copyReqs") {
+    const text = requestsText();
+    if (!text) { toast("열린 요청이 없어요."); return; }
+    const done = () => toast("복사했어요. Claude와 대화할 때 붙여넣으면 돼요.");
+    const fallback = () => { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch (e) { toast("복사하지 못했어요."); } ta.remove(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+    return;
+  }
   if (a === "mCancel") { resetMoneyForm(); return; }
   if (a === "mDelete") {
     if (!ready() || !ui.mEdit) return;
@@ -1113,6 +1155,21 @@ $("budgetForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
   act(backend.saveSettings({ budget: parseInt($("budgetIn").value, 10) || 0 }), "예산을 저장했어요.").catch(() => {});
+});
+
+$("reqForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  if (!ready()) return;
+  const text = $("reqText").value.trim(); if (!text) return;
+  act(backend.add("requests", { text, who: ui.reqWho, status: "todo", note: "", createdAt: Date.now() }), "요청을 남겼어요.")
+    .then(() => { $("reqText").value = ""; ui.reqFilter = "open"; }).catch(() => {});
+});
+// 메모·답변은 입력을 멈추면 저장
+let reqNoteTimer = null;
+document.addEventListener("input", (ev) => {
+  const id = ev.target.dataset && ev.target.dataset.reqNote; if (!id) return;
+  clearTimeout(reqNoteTimer);
+  reqNoteTimer = setTimeout(() => { if (ready() && S.requests.has(id)) act(backend.update("requests", id, { note: ev.target.value })).catch(() => {}); }, 800);
 });
 
 $("dsForm").addEventListener("submit", (ev) => { ev.preventDefault(); saveTaskTime(parseInt($("dsMin").value, 10) || 0); });
