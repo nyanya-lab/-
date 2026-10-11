@@ -1,0 +1,47 @@
+# 욱진 실천 보드 — 작업 안내 (Claude용)
+
+욱진이(남자친구)의 자격증·현장 실천, 할 일, 돈 관리를 보는 개인 웹사이트. 여자친구(저장소 주인, nyanya-lab)가 Claude와 대화하며 기능을 만든다.
+사이트: https://nyanya-lab.github.io/-/ (GitHub Pages, `main` 브랜치의 `docs/` 폴더)
+
+## 작업 규칙
+
+- 한국어 **반말**로, 쉽게 설명하기 (개발 용어는 풀어서).
+- PR은 **물어보지 말고 만든 뒤 바로 합치기** (주인이 요청함).
+- 고칠 때마다 브라우저(Playwright 등)로 PC·폰 너비 둘 다 확인하고, 확인한 것과 못 한 것을 솔직히 말하기.
+- 정적 파일을 바꾸면 `docs/index.html`·`docs/app.js`·`docs/google-sync.html` 안의 `?v=날짜문자` 값을 같이 올리기 (브라우저 캐시 때문).
+- 빌드 도구 없음. 순수 HTML/CSS/JS (ES 모듈). 로컬 확인은 `cd docs && python -m http.server` → http://localhost:8000
+  (모듈이라 파일을 더블클릭해서 열면 안 됨)
+- 비밀번호·API 키 같은 비밀값은 저장소(공개)에 절대 넣지 않기.
+
+## 파일
+
+```
+docs/index.html        화면 마크업 + 작은 창(dialog)들
+docs/style.css         색 토큰(밝은 타일 색: 파랑·코랄·민트·노랑·보라), 다크 모드
+docs/app.js            모든 화면 로직 (상태 S, 저장소 backend, render 함수들)
+docs/firebase-config.js  Firebase 웹 설정 (공개돼도 되는 값)
+docs/google-sync.html  구글 캘린더 동기화 설정 안내 페이지
+docs/apps-script/Code.gs       욱진이 Apps Script에 넣는 짧은 로더 (한 번만 붙여넣음)
+docs/apps-script/sync-core.js  실제 구글 동기화 코드. 로더가 5분마다 받아서 실행 → 여기만 고치면 자동 적용
+docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
+```
+
+## 데이터 (Firebase Realtime Database `ukjin-207a3`)
+
+- 로그인 없음. **비밀번호 = 저장 위치**: `ukjin/{SHA-256("ukjin-board:"+비밀번호)}` 아래에 저장 (watch-log 방식).
+  규칙: `ukjin/$room` 은 `$room.length === 64` 일 때만 읽기/쓰기.
+- 모음(`COLS`): `goals`, `tasks`, `logs`(실천 기록), `money`, `accounts`(통장·카드·현금), `requests`(기능 요청). 그 외 `settings`, `_backup/{prev,daily,undo}`, `gevents`·`gsync`(Apps Script가 씀).
+- 항목·칸 단위로 따로 저장해서 여러 기기가 서로 덮어쓰지 않음. 업데이트는 `flattenPaths`로 경로별 update.
+- 할 일: `repeat` = `none`(date, done, doneDate) / `daily` / `weekly`(days 0=일…6=토, start, end, doneDates{날짜:true}).
+- 실천 기록 `logs`: 할 일 체크 때 기록한 시간은 `taskId`로 연결 (달력·구글에서 할 일 옆에 시간으로 표시).
+- 돈 `money.kind`: `income` / `expense` / `transfer`(여자친구에게 보낸 돈) / `move`(내 자산끼리 이체, 수입·지출 아님). `account`, `toAccount`.
+
+## 화면
+
+메뉴: 달력(첫 화면) · 목표 · 돈 관리 · 자격증 찾기 · 기능 요청 · ⚙ 설정(작은 창: 저장 상태, 백업 되돌리기, 구글 캘린더, 잠그기)
+- 달력: 칸 안 할 일 체크박스, 글자 누르면 편집 창, 빈 곳 누르면 그날 창([할 일]/[실천한 일]), 실천한 날 초록·안 한 지난 날 연한 빨강, 🔥 실천 목록, 구글 일정.
+- 구글 캘린더 표시: 📌 할 일(파랑) · ✅ 끝낸 일(초록, 시간 있으면 `· 1시간`) · 🎯 D-DAY(빨강) · 🔥 실천(노랑). 반복은 반복 일정 하나.
+
+## 기능 요청 받는 법
+
+주인이 사이트 '기능 요청' 탭의 **열린 요청 복사하기** 글을 붙여넣으면, 그 목록대로 작업하고 끝나면 상태를 '완료'로 바꾸라고 안내하기.
