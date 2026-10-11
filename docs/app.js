@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012d";
+import { firebaseConfig } from "./firebase-config.js?v=20261012e";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -464,7 +464,7 @@ function calTask(x, d, repeat) {
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
       : `<button type="button" class="mini-check${done ? " on" : ""}" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="${done}" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
-    `<span>${esc(x.title)}${min ? ` · ${fmtMin(min)}` : ""}</span></div>`;
+    `<span>${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtMin(min)}</span>` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
@@ -528,13 +528,25 @@ function recordTaskTime(x, taskId, day, min, msg) {
     await backend.add("logs", { date: day, minutes: min, text: x.title, goalId: x.goalId || null, taskId, createdAt: Date.now() });
   })(), msg).catch(() => {});
 }
-// 할 시간 빠른 버튼 (data-min-for="입력칸 id")
-const MIN_QUICK = [30, 60, 90, 120];
+// 시간 입력: 숨은 칸(id)에 총 분, 보이는 칸은 [시간][분] (data-hm="id")
+// 빠른 버튼 (data-min-for="id"): ＋30분은 더하기, 나머지는 그 시간으로 (한 번 더 누르면 지움)
+const MIN_QUICK = [60, 90, 120];
 function renderMinChips(id) {
   const box = document.querySelector(`[data-min-for="${id}"]`), v = parseInt($(id).value, 10) || 0;
-  if (box) box.innerHTML = MIN_QUICK.map((m) => `<button class="chip" type="button" data-act="setMin" data-for="${id}" data-m="${m}" aria-pressed="${v === m}">${fmtMin(m)}</button>`).join("");
+  if (box) box.innerHTML = `<button class="chip" type="button" data-act="addMin" data-for="${id}">＋30분</button>` +
+    MIN_QUICK.map((m) => `<button class="chip" type="button" data-act="setMin" data-for="${id}" data-m="${m}" aria-pressed="${v === m}">${fmtMin(m)}</button>`).join("");
 }
-function setMinInput(id, v) { $(id).value = v || ""; renderMinChips(id); }
+function setMinInput(id, v) {
+  v = parseInt(v, 10) || 0; $(id).value = v || "";
+  document.querySelectorAll(`[data-hm="${id}"]`).forEach((el) => { const n = el.dataset.u === "h" ? Math.floor(v / 60) : v % 60; el.value = n || ""; });
+  renderMinChips(id);
+}
+document.querySelectorAll("[data-hm]").forEach((el) => el.addEventListener("input", () => {
+  const id = el.dataset.hm, part = (u) => Math.max(0, parseInt(document.querySelector(`[data-hm="${id}"][data-u="${u}"]`).value, 10) || 0);
+  $(id).value = part("h") * 60 + part("m") || ""; renderMinChips(id);
+}));
+// 달력 칸 시간: PC는 "· 1시간", 폰은 앞에 짧게 "1h"
+function fmtShort(m) { const h = Math.floor(m / 60), r = m % 60; return !h ? r + "m" : !r ? h + "h" : r === 30 ? h + ".5h" : h + "h" + r; }   // 폰 칸이 좁아서 최대한 짧게
 
 // ---------- 할 일 편집 작은 창 ----------
 const tk = { id: null, rep: "none", days: new Set() };
@@ -545,7 +557,7 @@ function openTask(id) {
   $("tkDate").value = (isRep(x) ? x.start : x.date) || today();
   $("tkEnd").value = x.end || "";
   $("tkDone").checked = !!x.done;
-  $("tkMin").value = x.done ? (taskMinutes(id, x.doneDate) || "") : "";
+  setMinInput("tkMin", x.done ? taskMinutes(id, x.doneDate) : 0);
   setMinInput("tkPlan", x.minutes);
   const sel = $("tkGoal");
   sel.innerHTML = '<option value="">없음</option>' + rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
@@ -1018,6 +1030,7 @@ document.addEventListener("click", (ev) => {
     $("gtTitle").value = ""; $("gtDate").value = today(); $("gtEnd").value = ""; setMinInput("gtMin", "");
     renderGoalDlg(); $("goalTaskForm").scrollIntoView({ block: "nearest", behavior: "smooth" }); $("gtTitle").focus({ preventScroll: true }); return;
   }
+  if (a === "addMin") { const k = el.dataset.for; setMinInput(k, (parseInt($(k).value, 10) || 0) + 30); return; }
   if (a === "setMin") { const k = el.dataset.for, m = +el.dataset.m; setMinInput(k, (parseInt($(k).value, 10) || 0) === m ? "" : m); return; }
   if (a === "gtClose") { gt.open = null; renderGoalDlg(); return; }
   if (a === "gtEnd") { $("gtEnd").value = el.dataset.d; renderGoalDlg(); return; }
@@ -1140,7 +1153,7 @@ document.addEventListener("click", (ev) => {
 
 document.addEventListener("change", (ev) => {
   const el = ev.target;
-  if (el.id === "tkDone") { if (el.checked && !$("tkMin").value && $("tkPlan").value) $("tkMin").value = $("tkPlan").value; renderTaskForm(); return; }
+  if (el.id === "tkDone") { if (el.checked && !$("tkMin").value && $("tkPlan").value) setMinInput("tkMin", $("tkPlan").value); renderTaskForm(); return; }
   if (el.dataset && el.dataset.act === "due") {
     if (!ready()) return;
     act(backend.update("goals", el.dataset.id, { due: el.value || null }), "목표일을 바꿨어요.").catch(() => {});
@@ -1245,7 +1258,7 @@ $("goalEditForm").addEventListener("submit", (ev) => {
   act(backend.update("goals", ui.goalId, { title, cat: $("geCat").value, due: $("geDue").value || null }), "목표를 저장했어요.").catch(() => {});
 });
 ["gtDate", "gtEnd"].forEach((k) => $(k).addEventListener("change", renderGoalDlg));
-["gtMin", "dtMin", "tkPlan"].forEach((k) => { $(k).addEventListener("input", () => renderMinChips(k)); renderMinChips(k); });
+["gtMin", "dtMin", "tkPlan"].forEach(renderMinChips);
 $("goalTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready() || !ui.goalId) return;
