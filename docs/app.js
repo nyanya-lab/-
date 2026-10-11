@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261011b";
+import { firebaseConfig } from "./firebase-config.js?v=20261011c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];

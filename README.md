@@ -47,7 +47,8 @@ Firebase 연결값은 `docs/firebase-config.js`에 있어요 (공개돼도 되�
 
 ## 구글 캘린더 동기화 (Apps Script)
 
-- 코드: `docs/apps-script/Code.gs`. 욱진이 구글 계정의 script.google.com 프로젝트에 붙여넣고 `BOARD_PASSWORD`를 넣은 뒤 `setup` 실행 (안내: 사이트의 `google-sync.html`).
+- `docs/apps-script/Code.gs`: 욱진이 Apps Script에 넣는 **짧은 로더**(비밀번호 + 최신 코드 받아오기). 한 번 넣으면 끝 (안내: 사이트의 `google-sync.html`).
+- `docs/apps-script/sync-core.js`: 실제 동기화 코드. 로더가 실행할 때마다 GitHub Pages에서 받아와요(10분 캐시, 실패하면 6시간 안의 마지막 코드). **동기화를 고칠 땐 이 파일만 고치면** 다시 붙여넣을 필요 없이 15분 안에 적용돼요. 바로 적용하려면 Apps Script에서 `refresh` 실행.
 - 5분마다 `sync`가 돌아요:
   - 보드의 할 일 → `📌` 파랑 / 끝내면 `✅` 초록, 반복하는 일 → `📌` 파랑 반복 일정(한 날 칸만 `✅` 초록), 목표일 → `🎯 D-DAY` 빨강, 실천한 일(최근 1년) → `🔥 1시간 · 메모` 노랑. 모두 종일 일정이고 `ukjinApp=1`, `ukjinRef=task:/rep:/goal:/log:…` 표시. 보드에서 고치면 수정, 지우면 삭제, 중복은 정리.
   - 설명이 "실천 보드"로 끝나고 표시가 없는 일정(예전 '캘린더' 버튼으로 넣은 것) 정리.
