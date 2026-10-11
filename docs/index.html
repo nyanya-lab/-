@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261011e">
+<link rel="stylesheet" href="style.css?v=20261011g">
 </head>
 <body>
 
@@ -148,7 +148,7 @@
             </div>
             <form class="form" id="moneyForm" autocomplete="off">
               <div class="row">
-                <label class="f">금액 (원)<input type="number" id="mAmount" min="0" step="1000" inputmode="numeric" placeholder="0" required></label>
+                <label class="f">금액 (원)<input type="number" id="mAmount" min="0" step="1" inputmode="numeric" placeholder="0" required></label>
                 <label class="f">날짜<input type="date" id="mDate"></label>
               </div>
               <label class="f">분류<select id="mCat"></select></label>
@@ -164,7 +164,7 @@
             <div class="bar" id="budgetBar"><i style="width:0%"></i></div>
             <div class="catbars" id="catBars"></div>
             <form class="row" id="budgetForm" autocomplete="off" style="align-items:end">
-              <label class="f">한 달 생활비 예산 (원)<input type="number" id="budgetIn" min="0" step="10000" inputmode="numeric" placeholder="예: 1500000"></label>
+              <label class="f">한 달 생활비 예산 (원)<input type="number" id="budgetIn" min="0" step="1" inputmode="numeric" placeholder="예: 1500000"></label>
               <div style="flex:0 0 auto"><button class="btn ghost" type="submit">예산 저장</button></div>
             </form>
           </div>
@@ -251,7 +251,7 @@
     <div class="dlg-sec"><div class="list" id="dayLogs"></div></div>
     <form class="dlg-sec" id="dayLogForm" autocomplete="off">
       <h4>실천한 일 기록</h4>
-      <div class="mini-row"><input type="number" id="dayLogMin" min="0" step="5" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="예: CAD 벽체 연습, 현장에서 줄눈 맞추는 법 배움" aria-label="메모"><button class="btn small" type="submit">기록</button></div>
+      <div class="mini-row"><input type="number" id="dayLogMin" min="0" step="1" placeholder="분" style="max-width:76px" aria-label="몇 분"><input type="text" id="dayLogText" maxlength="300" placeholder="예: CAD 벽체 연습, 현장에서 줄눈 맞추는 법 배움" aria-label="메모"><button class="btn small" type="submit">기록</button></div>
       <div class="chips" id="dayMinQuick"></div>
     </form>
   </div>
@@ -305,6 +305,7 @@
     </div>
     <label class="f">목표<select id="tkGoal"></select></label>
     <label class="inline-check" id="tkDoneWrap"><input type="checkbox" id="tkDone"> 다 했어요</label>
+    <label class="f" id="tkMinWrap" hidden>걸린 시간 (분, 비우면 기록 안 함)<input type="number" id="tkMin" min="0" step="1" inputmode="numeric" placeholder="예: 60"></label>
     <div class="row" style="align-items:center;flex:0 0 auto">
       <button class="btn" type="submit">저장</button>
       <button class="icon-btn" type="button" data-act="delTask" id="tkDel">삭제</button>
@@ -312,7 +313,17 @@
   </form>
 </dialog>
 
+<div class="done-sheet" id="doneSheet" hidden role="dialog" aria-labelledby="dsTitle">
+  <p id="dsTitle"></p>
+  <div class="chips" id="dsQuick"></div>
+  <form class="mini-row" id="dsForm" autocomplete="off">
+    <input type="number" id="dsMin" min="1" step="1" inputmode="numeric" placeholder="직접 입력 (분)" aria-label="걸린 시간(분)">
+    <button class="btn small" type="submit">기록</button>
+    <button class="btn ghost small" type="button" data-act="dsSkip">건너뛰기</button>
+  </form>
+</div>
+
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261011e"></script>
+<script type="module" src="app.js?v=20261011g"></script>
 </body>
 </html>

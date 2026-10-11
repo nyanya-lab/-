@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261011e";
+import { firebaseConfig } from "./firebase-config.js?v=20261011g";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money"];
@@ -374,13 +374,17 @@ function practiceMinutes() {
   // 날짜별 실천량. 기록 시간 + 완료한 할 일 1개당 15분으로 쳐서 타일 진하기에 씀
   const m = {};
   const add = (d, v) => { m[d] = (m[d] || 0) + v; };
-  S.logs.forEach((l) => { if (l.date) add(l.date, Math.max(Number(l.minutes) || 0, 1)); });
-  S.tasks.forEach((t) => {
-    if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v) add(d, 15); });
-    else if (t.done && t.doneDate) add(t.doneDate, 15);
+  const timed = new Set();   // 시간을 같이 기록한 할 일 (그 시간이 이미 기록으로 들어감)
+  S.logs.forEach((l) => { if (l.date) add(l.date, Math.max(Number(l.minutes) || 0, 1)); if (l.taskId) timed.add(l.taskId + "|" + l.date); });
+  S.tasks.forEach((t, id) => {
+    if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v && !timed.has(id + "|" + d)) add(d, 15); });
+    else if (t.done && t.doneDate && !timed.has(id + "|" + t.doneDate)) add(t.doneDate, 15);
   });
   return m;
 }
+// 할 일을 체크할 때 같이 기록한 시간 (실천 기록에 taskId로 연결)
+function taskLogs(taskId, day) { return rows(S.logs).filter((l) => l.taskId === taskId && (!day || l.date === day)); }
+function taskMinutes(taskId, day) { return taskLogs(taskId, day).reduce((s, l) => s + (Number(l.minutes) || 0), 0); }
 function streak(days) {
   const t = today(); let d = days[t] ? t : addDays(t, -1), n = 0;
   while (days[d]) { n++; d = addDays(d, -1); }
@@ -402,6 +406,8 @@ function taskItem(x, day, upcoming) {
   const done = isDone(x, day), g = x.goalId ? S.goals.get(x.goalId) : null, meta = [];
   if (isRep(x)) meta.push(`<span class="tag daily">${esc(repeatLabel(x))}</span>`);
   if (g) meta.push(`<span class="tag cat ${catCls(x.goalId)}">${esc(g.title)}</span>`);
+  const tm = done ? taskMinutes(x.id, isRep(x) ? day : x.doneDate) : 0;
+  if (tm) meta.push(`<span class="tag mono">⏱ ${fmtMin(tm)}</span>`);
   if (upcoming) meta.push(`<span class="mono">${shortDate(x.date)}</span>`);
   else if (!isRep(x) && x.date < day && !done) meta.push(`<span class="tag late">${diffDays(day, x.date)}일 밀림</span>`);
   return `<div class="item${done ? " done" : ""}">` +
@@ -448,7 +454,7 @@ function calTask(x, d, repeat) {
   const done = isDone(x, d), color = x.goalId && S.goals.has(x.goalId) ? catCls(x.goalId) : "c-blue";
   return `<div class="ev task ${color}${done ? " done" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
     `<button type="button" class="mini-check${done ? " on" : ""}" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="${done}" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>` +
-    `<span>${esc(x.title)}</span></div>`;
+    `<span>${esc(x.title)}${done && taskMinutes(x.id, repeat ? d : x.doneDate) ? ` · ${fmtMin(taskMinutes(x.id, repeat ? d : x.doneDate))}` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
@@ -463,7 +469,7 @@ function renderCalendar() {
   const habits = rows(S.tasks).filter(isRep);
   // 보드를 쓰기 시작한 날 (그 전 날짜는 '안 한 날'로 칠하지 않음)
   const startedAt = boardStart();
-  const logsByDay = {}; rows(S.logs).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((l) => { if (l.date) (logsByDay[l.date] ||= []).push(l); });
+  const logsByDay = {}; rows(S.logs).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((l) => { if (l.date && !l.taskId) (logsByDay[l.date] ||= []).push(l); });   // 할 일에 붙은 시간은 그 할 일 옆에 보임
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
@@ -489,6 +495,28 @@ function renderCalendar() {
   renderGcalChip();
   renderDaySide();
 }
+// ---------- 체크하면 "얼마나 했어요?" ----------
+let doneFor = null, doneTimer = null;
+function showDoneSheet(taskId, day) {
+  const x = S.tasks.get(taskId); if (!x) return;
+  doneFor = { taskId, day };
+  $("dsTitle").textContent = `✅ '${x.title}' 끝! 얼마나 했어요?`;
+  $("dsMin").value = "";
+  $("doneSheet").hidden = false;
+  clearTimeout(doneTimer); doneTimer = setTimeout(hideDoneSheet, 20000);   // 20초 동안 안 누르면 그냥 닫힘
+}
+function hideDoneSheet() { $("doneSheet").hidden = true; doneFor = null; clearTimeout(doneTimer); }
+function saveTaskTime(min) {
+  if (!doneFor || !ready()) return;
+  const x = S.tasks.get(doneFor.taskId); if (!x) { hideDoneSheet(); return; }
+  const { taskId, day } = doneFor; hideDoneSheet();
+  if (!(min > 0)) return;
+  act((async () => {
+    for (const l of taskLogs(taskId, day)) await backend.remove("logs", l.id);   // 같은 날 다시 기록하면 바꿔치기
+    await backend.add("logs", { date: day, minutes: min, text: x.title, goalId: x.goalId || null, taskId, createdAt: Date.now() });
+  })(), `${fmtMin(min)} 기록했어요.`).catch(() => {});
+}
+
 // ---------- 할 일 편집 작은 창 ----------
 const tk = { id: null, rep: "none", days: new Set() };
 function openTask(id) {
@@ -498,6 +526,7 @@ function openTask(id) {
   $("tkDate").value = (isRep(x) ? x.start : x.date) || today();
   $("tkEnd").value = x.end || "";
   $("tkDone").checked = !!x.done;
+  $("tkMin").value = x.done ? (taskMinutes(id, x.doneDate) || "") : "";
   const sel = $("tkGoal");
   sel.innerHTML = '<option value="">없음</option>' + rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
   sel.value = x.goalId && S.goals.has(x.goalId) ? x.goalId : "";
@@ -511,6 +540,7 @@ function renderTaskForm() {
   $("tkDateLabel").firstChild.textContent = tk.rep === "none" ? "날짜" : "시작일";
   $("tkEndLabel").hidden = tk.rep === "none";
   $("tkDoneWrap").hidden = tk.rep !== "none";
+  $("tkMinWrap").hidden = tk.rep !== "none" || !$("tkDone").checked;
   const x = S.tasks.get(tk.id);
   $("tkSub").textContent = x ? (isRep(x) ? repeatLabel(x) : shortDate(x.date || today())) : "";
 }
@@ -827,6 +857,8 @@ document.addEventListener("click", (ev) => {
   if (a === "closeSettings") { closeSettings(); return; }
   if (a === "lock") { if (lockAction) lockAction(); return; }
   if (a === "selDay") { openDay(el.dataset.day); return; }
+  if (a === "dsMin") { saveTaskTime(+el.dataset.m); return; }
+  if (a === "dsSkip") { hideDoneSheet(); return; }
   if (a === "editTask") { openTask(id); return; }
   if (a === "closeTask") { closeDlg($("taskDlg")); return; }
   if (a === "tkRep") { tk.rep = el.dataset.k; renderTaskForm(); return; }
@@ -858,8 +890,12 @@ document.addEventListener("click", (ev) => {
     if (!ready()) return;
     const x = S.tasks.get(id); if (!x) return;
     const day = el.dataset.day && el.dataset.day <= t ? el.dataset.day : t; // 지난 날짜에서 체크하면 그 날 한 걸로
-    if (isRep(x)) act(backend.update("tasks", id, { doneDates: { [day]: !isDone(x, day) } })).catch(() => {});
-    else { const nd = !x.done; act(backend.update("tasks", id, { done: nd, doneDate: nd ? day : null })).catch(() => {}); }
+    const nd = !isDone(x, day), doneDay = isRep(x) ? day : (nd ? day : x.doneDate);
+    const patch = isRep(x) ? { doneDates: { [day]: nd } } : { done: nd, doneDate: nd ? day : null };
+    act(backend.update("tasks", id, patch)).then(async () => {
+      if (nd) showDoneSheet(id, day);
+      else { hideDoneSheet(); for (const l of taskLogs(id, doneDay)) await backend.remove("logs", l.id); }   // 체크를 풀면 같이 기록한 시간도 지움
+    }).catch(() => {});
     return;
   }
   if (a === "del") {
@@ -925,6 +961,7 @@ document.addEventListener("click", (ev) => {
 
 document.addEventListener("change", (ev) => {
   const el = ev.target;
+  if (el.id === "tkDone") { renderTaskForm(); return; }
   if (el.dataset && el.dataset.act === "due") {
     if (!ready()) return;
     act(backend.update("goals", el.dataset.id, { due: el.value || null }), "목표일을 바꿨어요.").catch(() => {});
@@ -955,23 +992,33 @@ $("budgetForm").addEventListener("submit", (ev) => {
   act(backend.saveSettings({ budget: parseInt($("budgetIn").value, 10) || 0 }), "예산을 저장했어요.").catch(() => {});
 });
 
+$("dsForm").addEventListener("submit", (ev) => { ev.preventDefault(); saveTaskTime(parseInt($("dsMin").value, 10) || 0); });
+$("dsQuick").innerHTML = [30, 60, 90, 120].map((m) => `<button class="chip" type="button" data-act="dsMin" data-m="${m}">${fmtMin(m)}</button>`).join("");
+
 $("taskEditForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready() || !tk.id) return;
   const x = S.tasks.get(tk.id); if (!x) { closeDlg($("taskDlg")); return; }
   const title = $("tkTitle").value.trim(); if (!title) { toast("할 일을 적어 주세요."); return; }
   const date = $("tkDate").value || today(), goalId = $("tkGoal").value || null;
-  let patch;
+  let patch, timeOps = null;
   if (tk.rep === "none") {
     const done = $("tkDone").checked;
     patch = { title, goalId, repeat: "none", date, done, doneDate: done ? (x.doneDate || today()) : null, start: null, end: null, days: null, doneDates: null };
+    // 걸린 시간: 연결된 실천 기록을 고치거나 만들거나 지움
+    const min = parseInt($("tkMin").value, 10) || 0, doneDay = patch.doneDate || x.doneDate;
+    const old = x.doneDate ? taskLogs(tk.id, x.doneDate) : [];
+    timeOps = async () => {
+      for (const l of old) await backend.remove("logs", l.id);
+      if (done && min > 0) await backend.add("logs", { date: doneDay, minutes: min, text: title, goalId, taskId: tk.id, createdAt: Date.now() });
+    };
   } else {
     if (tk.rep === "weekly" && !tk.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
     const end = $("tkEnd").value || null;
     if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
     patch = { title, goalId, repeat: tk.rep, start: date, end, days: tk.rep === "weekly" ? [...tk.days].sort() : null, date: null, done: null, doneDate: null };
   }
-  act(backend.update("tasks", tk.id, patch), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
+  act((async () => { await backend.update("tasks", tk.id, patch); if (timeOps) await timeOps(); })(), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
 });
 
 $("goalEditForm").addEventListener("submit", (ev) => {
