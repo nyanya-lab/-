@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012g";
+import { firebaseConfig } from "./firebase-config.js?v=20261012h";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -674,7 +674,7 @@ function sortedGoals() {
 }
 // 달력 아래: 목표 → 세부목표 → 할 일 (끝낸 할 일·끝난 반복은 빼고)
 function renderHomeGoals() {
-  const box = $("homeGoals"), t = today(), tasks = rows(S.tasks);
+  const box = $("homeGoals"), t = today(), tasks = rows(S.tasks).filter((x) => x.title);   // 이름 없는 건 지운 할 일의 남은 조각
   if (!S.loaded) { box.innerHTML = '<div class="muted">불러오는 중…</div>'; return; }
   const live = (x) => isRep(x) ? !(x.end && x.end < t) : !x.done;
   const order = (a, b) => (isRep(b) - isRep(a)) || (a.date || "").localeCompare(b.date || "") || (a.createdAt || 0) - (b.createdAt || 0);
