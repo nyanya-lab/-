@@ -264,6 +264,24 @@ table.t tr.cur td { background: var(--sunk); }
 .hm input { width: 72px; flex: 0 0 auto; text-align: right; }
 .hm-sm input { width: 56px; }
 .ds-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+/* 달력 아래 목표 */
+.home-goal-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; margin-top: 10px; }
+.hgoals { display: grid; gap: 14px; margin-top: 12px; }
+.hgoal { border: 1px solid var(--line); border-left: 5px solid var(--cat, var(--blue)); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 10px; background: var(--surface); }
+.hgoal-head { display: grid; gap: 6px; cursor: pointer; }
+.hgoal-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.hgoal-title b { font-size: 16px; min-width: 0; overflow-wrap: anywhere; }
+.hgoal-title .dd { font-weight: 600; color: var(--cat, var(--blue)); white-space: nowrap; }
+.hgoal-prog { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.hsub { display: grid; gap: 6px; }
+.hsub-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
+.hsub-head b::before { content: "▸ "; color: var(--cat, var(--muted)); }
+.hsub-empty { padding-left: 14px; }
+.hsub-add { justify-self: start; font-size: 13px; }
+.sub-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 6px; align-items: center; }
+.sub-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; margin-top: 6px; }
+.grp-label { padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--sunk); border-top: 1px solid var(--line); }
+.grp-label:first-child { border-top: 0; }
 .ev-short { display: none; font-family: var(--f-mono); font-weight: 600; margin-right: 2px; }
 .link-btn { border: 0; background: none; padding: 0 2px; color: var(--ink); font-size: 12px; cursor: pointer; text-decoration: underline; }
 tr.clickable { cursor: pointer; }
@@ -402,6 +420,15 @@ tr.clickable:hover td { background: var(--sunk); }
   .side { transition: transform 0.2s ease; }
 }
 @media (max-width: 720px) {
+  .home-goal-form { grid-template-columns: 1fr 1fr; }
+  .sub-form { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .home-goal-form > input[type="text"], .sub-form > input[type="text"] { grid-column: 1 / -1; }
+  #todayStats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  #todayStats .stat { padding: 8px 6px; border-radius: 12px; text-align: center; gap: 0; box-shadow: none; }
+  #todayStats .stat span { font-size: 10.5px; justify-content: center; letter-spacing: 0; white-space: nowrap; }
+  #todayStats .stat span svg { display: none; }
+  #todayStats .stat b { font-size: 16px; }
+  #todayStats .stat small { display: none; }
   .ev-short { display: inline; }
   .ev-long { display: none; }
   .wrap { padding: 16px 16px 48px; }

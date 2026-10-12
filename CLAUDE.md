@@ -33,6 +33,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 - 모음(`COLS`): `goals`, `tasks`, `logs`(실천 기록), `money`, `accounts`(통장·카드·현금), `requests`(기능 요청). 그 외 `settings`, `_backup/{prev,daily,undo}`, `gevents`·`gsync`(Apps Script가 씀).
 - 항목·칸 단위로 따로 저장해서 여러 기기가 서로 덮어쓰지 않음. 업데이트는 `flattenPaths`로 경로별 update.
 - 할 일: `repeat` = `none`(date, done, doneDate) / `daily` / `weekly`(days 0=일…6=토, start, end, doneDates{날짜:true}).
+  `subId` = 세부목표(선택). 목표 `goals/{id}/subs/{subId}` = {title, due, createdAt}. 진행률은 큰 목표만.
   `minutes` = 할 시간(선택). 있으면 체크할 때 묻지 않고 그 시간으로 `logs`에 기록.
 - 실천 기록 `logs`: 할 일 체크 때 기록한 시간은 `taskId`로 연결 (달력·구글에서 할 일 옆에 시간으로 표시).
 - 돈 `money.kind`: `income` / `expense` / `transfer`(여자친구에게 보낸 돈) / `move`(내 자산끼리 이체, 수입·지출 아님). `account`, `toAccount`.
@@ -40,7 +41,8 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 ## 화면
 
 메뉴: 달력(첫 화면) · 목표 · 돈 관리 · 자격증 찾기 · 기능 요청 · ⚙ 설정(작은 창: 저장 상태, 백업 되돌리기, 구글 캘린더, 잠그기)
-- 달력: 칸 안 할 일 체크박스, 글자 누르면 편집 창, 빈 곳 누르면 그날 창([할 일]/[실천한 일]), 실천한 날 초록·안 한 지난 날 연한 빨강, 🔥 실천 목록, 구글 일정.
+- 달력: 위 요약 4칸(폰은 한 줄), 아래는 목표 → 세부목표 → 할 일 (＋ 목표, ＋ 세부목표). 로고 = 강력 새로고침. 시간은 화면에 `1h 30m`, 입력은 [시간][분].
+  칸 안 할 일 체크박스, 글자 누르면 편집 창, 빈 곳 누르면 그날 창([할 일]/[실천한 일]), 실천한 날 초록·안 한 지난 날 연한 빨강, 🔥 실천 목록, 구글 일정.
 - 구글 캘린더 표시: 📌 할 일(파랑, 할 시간 있으면 `· 1시간`) · ✅ 끝낸 일(초록, 시간 있으면 `· 1시간`) · 🎯 D-DAY(빨강) · 🔥 실천(노랑). 반복은 반복 일정 하나.
 
 ## 기능 요청 받는 법
