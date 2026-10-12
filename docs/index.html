@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261012i">
+<link rel="stylesheet" href="style.css?v=20261012j">
 </head>
 <body>
 
@@ -127,6 +127,22 @@
       </div>
       <div class="stats" id="moneyStats"></div>
 
+      <div class="panel" id="planPanel">
+        <div class="panel-head">
+          <div><h3>한 달 예산</h3><span class="muted small" id="planSub"></span></div>
+          <button class="btn ghost small" type="button" data-act="planCopy" id="planCopy" hidden>지난달 예산 가져오기</button>
+        </div>
+        <div class="plan-tiles" id="planTiles"></div>
+        <label class="f plan-income">예상 수입 (월급 등, 원)<input type="number" id="planIncome" min="0" step="1" inputmode="numeric" placeholder="예: 2500000"></label>
+        <div class="plan-rows" id="planRows"></div>
+        <form class="plan-add" id="planAddForm" autocomplete="off">
+          <input type="text" id="planCat" list="planCatList" maxlength="20" placeholder="분류 (예: 식비)" aria-label="예산 분류">
+          <datalist id="planCatList"></datalist>
+          <input type="number" id="planAmt" min="0" step="1" inputmode="numeric" placeholder="금액 (원)" aria-label="예산 금액">
+          <button class="btn small" type="submit">＋ 추가</button>
+        </form>
+      </div>
+
       <div class="panel">
         <div class="panel-head">
           <div><h3>내 자산</h3><span class="muted small" id="assetTotal"></span></div>
@@ -169,6 +185,7 @@
             <div class="panel-head"><h3>지출</h3><span class="muted small" id="budgetLeft"></span></div>
             <div class="bar" id="budgetBar"><i style="width:0%"></i></div>
             <div class="catbars" id="catBars"></div>
+            <p class="small muted" id="budgetFromPlan" hidden style="margin:0">예산은 위 '한 달 예산' 합계로 계산해요.</p>
             <form class="row" id="budgetForm" autocomplete="off" style="align-items:end">
               <label class="f">한 달 지출 예산 (원)<input type="number" id="budgetIn" min="0" step="1" inputmode="numeric" placeholder="예: 1500000"></label>
               <div style="flex:0 0 auto"><button class="btn ghost" type="submit">예산 저장</button></div>
@@ -384,6 +401,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261012i"></script>
+<script type="module" src="app.js?v=20261012j"></script>
 </body>
 </html>

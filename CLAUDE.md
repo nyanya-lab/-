@@ -36,6 +36,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
   `subId` = 세부목표(선택). 목표 `goals/{id}/subs/{subId}` = {title, due, createdAt}. 진행률은 큰 목표만.
   `minutes` = 할 시간(선택). 있으면 체크할 때 묻지 않고 그 시간으로 `logs`에 기록.
 - 실천 기록 `logs`: 할 일 체크 때 기록한 시간은 `taskId`로 연결 (달력·구글에서 할 일 옆에 시간으로 표시).
+- 한 달 예산: `settings.budgets[YYYY-MM]` = {income, items{id:{cat, amount}}}. 예상 수입 − 예산 합계 = 여자친구에게 줄 돈(예상). `saveSettingsDeep`로 칸 하나씩 저장.
 - 돈 `money.kind`: `income` / `expense` / `transfer`(여자친구에게 보낸 돈) / `move`(내 자산끼리 이체, 수입·지출 아님). `account`, `toAccount`.
 
 ## 화면

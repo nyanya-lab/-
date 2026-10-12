@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012i";
+import { firebaseConfig } from "./firebase-config.js?v=20261012j";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -164,7 +164,8 @@ function localBackend() {
     async add(c, obj) { const id = rid(); data[c][id] = obj; persist(); load(); return id; },
     async update(c, id, patch) { if (data[c][id]) { data[c][id] = deepMerge(clone(data[c][id]), patch); persist(); load(); } },
     async remove(c, id) { delete data[c][id]; persist(); load(); },
-    async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; persist(); load(); }
+    async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; persist(); load(); },
+    async saveSettingsDeep(patch) { data.settings = deepMerge(clone(data.settings || {}), patch); persist(); load(); }
   };
 }
 
@@ -226,6 +227,7 @@ async function firebaseStart() {
       update: tracked((c, id, patch) => rt.update(path(room, c, id), flattenPaths(patch))),
       remove: tracked((c, id) => rt.remove(path(room, c, id))),
       saveSettings: tracked((patch) => rt.update(path(room, "settings"), patch)), // 바뀐 칸만
+      saveSettingsDeep: tracked((patch) => rt.update(path(room, "settings"), flattenPaths(patch))), // 깊은 칸 하나만 (예: 예산 항목)
       // 서버 백업 (watch-log 방식): 1시간짜리 prev, 하루짜리 daily. 실수로 지운 걸 어느 기기에서든 되돌릴 수 있게
       async backups() { return (await rt.get(path(room, "_backup"))).val() || {}; },
       restore: tracked(async (kind) => {
@@ -799,6 +801,42 @@ function renderGoalDlg() {
   if (c && c.tasks) $("gTemplate").innerHTML = `<button class="btn ghost small" type="button" data-act="addTemplate">추천 할 일 ${c.tasks.length}개 넣기</button><span class="small muted">${esc(c.tasks.map((z) => z.t).slice(0, 3).join(", "))} 등</span>`;
 }
 
+// ---------- 한 달 예산: settings.budgets[월] = { income, items: {id: {cat, amount, createdAt}} } ----------
+// 쓸 돈을 분류별로 미리 정해 두면, 예상 수입에서 빼서 여자친구에게 줄 수 있는 돈이 얼마쯤인지 보임
+function planOf(m) {
+  const b = (S.settings.budgets && S.settings.budgets[m]) || {};
+  const items = Object.entries(b.items || {}).filter(([, v]) => v && v.cat).map(([id, v]) => ({ id, ...v }))
+    .sort((a, b2) => (a.createdAt || 0) - (b2.createdAt || 0));
+  return { income: Number(b.income) || 0, items, total: items.reduce((t, v) => t + (Number(v.amount) || 0), 0) };
+}
+function savePlan(m, patch, msg) {
+  if (!ready()) return Promise.resolve();
+  return act(backend.saveSettingsDeep({ budgets: { [m]: patch } }), msg).catch(() => {});
+}
+function renderPlan(m, r) {
+  const pl = planOf(m), give = pl.income - pl.total;
+  const prev = planOf(shiftMonth(m, -1));
+  $("planSub").textContent = `${monthLabel(m)} · 쓸 돈을 분류별로 정해 두는 곳`;
+  $("planCopy").hidden = !!pl.items.length || !prev.items.length;
+  $("planTiles").innerHTML =
+    `<div class="plan-tile"><span>예상 수입</span><b>${won(pl.income)}</b><small>${r.inc ? `실제 ${won(r.inc)}` : "아래에 넣어요"}</small></div>` +
+    `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
+    `<div class="plan-tile give${give < 0 ? " minus" : ""}"><span>${esc(partner())}에게 줄 돈 (예상)</span><b>${pl.income ? won(give) : "-"}</b><small>${r.out ? `실제 ${won(r.out)} 보냄` : "예상 수입 − 쓸 돈"}</small></div>`;
+  if (document.activeElement !== $("planIncome")) $("planIncome").value = pl.income || "";
+  const planned = new Set(pl.items.map((v) => v.cat));
+  const extra = Object.entries(r.byCat).filter(([c]) => !planned.has(c)).reduce((t, [, v]) => t + v, 0);
+  $("planRows").innerHTML = pl.items.map((v) => {
+    const used = r.byCat[v.cat] || 0, amt = Number(v.amount) || 0, over = used > amt;
+    return `<div class="plan-row"><span class="plan-cat">${esc(v.cat)}</span>` +
+      `<input type="number" min="0" step="1" inputmode="numeric" value="${amt || ""}" data-plan-amt="${esc(v.id)}" aria-label="${esc(v.cat)} 예산">` +
+      `<div class="plan-use"><div class="bar${over ? " over" : ""}"><i style="width:${amt ? Math.min(100, Math.round(used / amt * 100)) : used ? 100 : 0}%"></i></div>` +
+      `<span class="small muted">${won(used)} 씀 · ${over ? `<span class="won minus">${won(used - amt)} 초과</span>` : `<span class="won plus">${won(amt - used)} 남음</span>`}</span></div>` +
+      `<button class="icon-btn" type="button" data-act="planDel" data-id="${esc(v.id)}" aria-label="${esc(v.cat)} 예산 빼기">빼기</button></div>`;
+  }).join("") + (pl.items.length && extra ? `<div class="plan-row extra"><span class="plan-cat">예산 밖</span><span class="won">${won(extra)}</span><span class="small">예산에 없는 분류로 쓴 돈</span><span></span></div>` : "") +
+    (pl.items.length ? "" : '<p class="small muted" style="margin:0">예: 식비 300,000 · 교통·차량 150,000 · 통신 60,000. 분류는 돈 기록의 지출 분류와 같게 쓰면 실제로 쓴 돈이 같이 보여요.</p>');
+  $("planCatList").innerHTML = moneyCats("expense").filter((c) => !planned.has(c)).map((c) => `<option value="${esc(c)}">`).join("");
+}
+
 function monthTotals(m) {
   const r = { inc: 0, out: 0, exp: 0, byCat: {}, items: [] };
   S.money.forEach((x, id) => {
@@ -851,8 +889,12 @@ function renderMoney() {
       `<small>${card ? "갚을 카드값" : ACCT_TYPES[a.type] || "통장"}</small></button>`;
   }).join("") + (accts.length ? "" : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>');
 
-  // 지출 예산·분류
-  const budget = Number(S.settings.budget) || 0;
+  renderPlan(m, r);
+
+  // 지출 예산·분류 (한 달 예산을 짰으면 그 합계, 아니면 예전 '한 달 지출 예산')
+  const planTotal = planOf(m).total;
+  const budget = planTotal || Number(S.settings.budget) || 0;
+  $("budgetForm").hidden = !!planTotal; $("budgetFromPlan").hidden = !planTotal;
   const bar = $("budgetBar");
   bar.classList.toggle("over", budget > 0 && r.exp > budget);
   bar.firstElementChild.style.width = (budget ? Math.min(100, Math.round(r.exp / budget * 100)) : 0) + "%";
@@ -1116,6 +1158,13 @@ document.addEventListener("click", (ev) => {
       mine.length ? `세부목표를 지웠어요. 그 할 일 ${mine.length}개는 '세부목표 없음'으로 옮겼어요.` : "세부목표를 지웠어요.").catch(() => {});
     return;
   }
+  if (a === "planDel") { const v = planOf(ui.month).items.find((z) => z.id === id); savePlan(ui.month, { items: { [id]: null } }, v ? `${v.cat} 예산을 뺐어요.` : ""); return; }
+  if (a === "planCopy") {
+    const prev = planOf(shiftMonth(ui.month, -1)), items = {}, now = Date.now();
+    prev.items.forEach((v, i) => { items["b" + (now + i).toString(36) + i] = { cat: v.cat, amount: Number(v.amount) || 0, createdAt: now + i }; });
+    savePlan(ui.month, { income: prev.income, items }, `지난달 예산 ${prev.items.length}개를 가져왔어요.`);
+    return;
+  }
   if (a === "addMin") { const k = el.dataset.for; setMinInput(k, (parseInt($(k).value, 10) || 0) + 30); return; }
   if (a === "setMin") { const k = el.dataset.for, m = +el.dataset.m; setMinInput(k, (parseInt($(k).value, 10) || 0) === m ? "" : m); return; }
   if (a === "gtClose") { gt.open = null; renderGoalDlg(); return; }
@@ -1319,6 +1368,19 @@ $("catEditor").addEventListener("submit", (ev) => {
   list.push(v); saveCats(k, list);
 });
 
+$("planAddForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const m = ui.month, cat = $("planCat").value.trim(), amount = parseInt($("planAmt").value, 10) || 0;
+  if (!cat) { toast("분류를 적어 주세요. 예: 식비"); return; }
+  if (planOf(m).items.some((v) => v.cat === cat)) { toast("이미 있는 분류예요. 금액 칸을 고쳐 주세요."); return; }
+  const id = "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  savePlan(m, { items: { [id]: { cat, amount, createdAt: Date.now() } } }, `${cat} 예산을 넣었어요.`).then(() => { $("planCat").value = ""; $("planAmt").value = ""; $("planCat").focus(); });
+});
+$("planIncome").addEventListener("change", () => savePlan(ui.month, { income: parseInt($("planIncome").value, 10) || 0 }, "예상 수입을 저장했어요."));
+$("planRows").addEventListener("change", (ev) => {
+  const id = ev.target.dataset && ev.target.dataset.planAmt; if (!id) return;
+  savePlan(ui.month, { items: { [id]: { amount: parseInt(ev.target.value, 10) || 0 } } }, "예산을 고쳤어요.");
+});
 $("budgetForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
