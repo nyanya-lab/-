@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012j";
+import { firebaseConfig } from "./firebase-config.js?v=20261012k";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -803,21 +803,34 @@ function renderGoalDlg() {
 
 // ---------- 한 달 예산: settings.budgets[월] = { income, items: {id: {cat, amount, createdAt}} } ----------
 // 쓸 돈을 분류별로 미리 정해 두면, 예상 수입에서 빼서 여자친구에게 줄 수 있는 돈이 얼마쯤인지 보임
+// 예산이 없는 달은 그 전 가장 가까운 달 예산을 그대로 이어서 씀 (고치는 순간 그 달 것으로 저장)
+function planSource(m) {
+  const all = S.settings.budgets || {};
+  if (all[m]) return m;
+  const ks = Object.keys(all).filter((k) => k < m && all[k]).sort();
+  return ks.length ? ks[ks.length - 1] : null;
+}
 function planOf(m) {
-  const b = (S.settings.budgets && S.settings.budgets[m]) || {};
+  const src = planSource(m), b = (src && S.settings.budgets[src]) || {};
   const items = Object.entries(b.items || {}).filter(([, v]) => v && v.cat).map(([id, v]) => ({ id, ...v }))
     .sort((a, b2) => (a.createdAt || 0) - (b2.createdAt || 0));
-  return { income: Number(b.income) || 0, items, total: items.reduce((t, v) => t + (Number(v.amount) || 0), 0) };
+  return { income: Number(b.income) || 0, items, total: items.reduce((t, v) => t + (Number(v.amount) || 0), 0), from: src && src !== m ? src : null };
 }
 function savePlan(m, patch, msg) {
   if (!ready()) return Promise.resolve();
+  const pl = planOf(m);
+  if (pl.from) {   // 이어서 쓰던 예산을 이 달 것으로 옮겨 적고 바꿀 칸만 덮어씀
+    const base = { income: pl.income, items: {} };
+    pl.items.forEach((v) => { base.items[v.id] = { cat: v.cat, amount: Number(v.amount) || 0, createdAt: v.createdAt || Date.now() }; });
+    patch = deepMerge(base, patch);
+  }
   return act(backend.saveSettingsDeep({ budgets: { [m]: patch } }), msg).catch(() => {});
 }
 function renderPlan(m, r) {
   const pl = planOf(m), give = pl.income - pl.total;
-  const prev = planOf(shiftMonth(m, -1));
-  $("planSub").textContent = `${monthLabel(m)} · 쓸 돈을 분류별로 정해 두는 곳`;
-  $("planCopy").hidden = !!pl.items.length || !prev.items.length;
+  $("planSub").textContent = pl.from
+    ? `${monthLabel(m)} · ${monthLabel(pl.from)} 예산을 이어서 쓰는 중 (고치면 이 달 것만 바뀌어요)`
+    : `${monthLabel(m)} · 쓸 돈을 분류별로 정해 두는 곳 (다음 달로 그대로 이어져요)`;
   $("planTiles").innerHTML =
     `<div class="plan-tile"><span>예상 수입</span><b>${won(pl.income)}</b><small>${r.inc ? `실제 ${won(r.inc)}` : "아래에 넣어요"}</small></div>` +
     `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
@@ -1159,12 +1172,6 @@ document.addEventListener("click", (ev) => {
     return;
   }
   if (a === "planDel") { const v = planOf(ui.month).items.find((z) => z.id === id); savePlan(ui.month, { items: { [id]: null } }, v ? `${v.cat} 예산을 뺐어요.` : ""); return; }
-  if (a === "planCopy") {
-    const prev = planOf(shiftMonth(ui.month, -1)), items = {}, now = Date.now();
-    prev.items.forEach((v, i) => { items["b" + (now + i).toString(36) + i] = { cat: v.cat, amount: Number(v.amount) || 0, createdAt: now + i }; });
-    savePlan(ui.month, { income: prev.income, items }, `지난달 예산 ${prev.items.length}개를 가져왔어요.`);
-    return;
-  }
   if (a === "addMin") { const k = el.dataset.for; setMinInput(k, (parseInt($(k).value, 10) || 0) + 30); return; }
   if (a === "setMin") { const k = el.dataset.for, m = +el.dataset.m; setMinInput(k, (parseInt($(k).value, 10) || 0) === m ? "" : m); return; }
   if (a === "gtClose") { gt.open = null; renderGoalDlg(); return; }
