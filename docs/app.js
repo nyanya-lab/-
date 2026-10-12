@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261012h";
+import { firebaseConfig } from "./firebase-config.js?v=20261012i";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -734,11 +734,14 @@ function renderGoals() {
 
 // 지운 목표에 딸려 있던 할 일 (예전 버전은 목표를 지워도 할 일이 남았음)
 function orphanTasks() { return rows(S.tasks).filter((x) => x.goalId && !S.goals.has(x.goalId)); }
+// 이름 없는 할 일 조각 (지운 할 일에 다른 기기가 체크 같은 걸 늦게 써서 남은 것)
+function scrapTasks() { return rows(S.tasks).filter((x) => !x.title); }
 function renderOrphanNote() {
-  const n = S.loaded ? orphanTasks().length : 0;
+  const n = S.loaded ? orphanTasks().filter((x) => x.title).length : 0, k = S.loaded ? scrapTasks().length : 0;
   document.querySelectorAll("[data-orphans]").forEach((box) => {
-    box.hidden = !n;
-    if (n) box.innerHTML = `<span>지운 목표에 딸려 있던 할 일이 <b>${n}개</b> 남아 있어요.</span><button class="btn small" type="button" data-act="cleanOrphans">모두 지우기</button>`;
+    box.hidden = !n && !k;
+    box.innerHTML = (n ? `<span>지운 목표에 딸려 있던 할 일이 <b>${n}개</b> 남아 있어요.</span><button class="btn small" type="button" data-act="cleanOrphans">모두 지우기</button>` : "") +
+      (k ? `<span>지운 할 일의 남은 조각(이름 없음)이 <b>${k}개</b> 있어요.</span><button class="btn small" type="button" data-act="cleanScraps">조각 지우기</button>` : "");
   });
 }
 
@@ -1192,10 +1195,17 @@ document.addEventListener("click", (ev) => {
     act(backend.remove(el.dataset.col, id), "삭제했어요.").catch(() => {});
     return;
   }
+  if (a === "cleanScraps") {
+    if (!ready()) return;
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 지울까요?"; return; }
+    const scraps = scrapTasks(); el.disabled = true;
+    act((async () => { for (const x of scraps) await backend.remove("tasks", x.id); })(), `조각 ${scraps.length}개를 지웠어요.`).catch(() => {});
+    return;
+  }
   if (a === "cleanOrphans") {
     if (!ready()) return;
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 지울까요?"; return; }
-    const orphans = orphanTasks(); el.disabled = true;
+    const orphans = orphanTasks().filter((x) => x.title); el.disabled = true;
     act((async () => { for (const x of orphans) await backend.remove("tasks", x.id); })(), `할 일 ${orphans.length}개를 지웠어요.`).catch(() => {});
     return;
   }
