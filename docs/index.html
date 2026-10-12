@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261012f">
+<link rel="stylesheet" href="style.css?v=20261012g">
 </head>
 <body>
 
@@ -85,8 +85,14 @@
           </div>
         </div>
         <div class="panel">
-          <div class="panel-head"><h3>다가오는 할 일</h3><span class="muted small">앞으로 14일</span></div>
-          <div class="list" id="upcomingList"></div>
+          <div class="panel-head"><h3>목표</h3><button class="btn ghost small" type="button" data-act="homeGoalOpen">＋ 목표</button></div>
+          <form class="home-goal-form" id="homeGoalForm" autocomplete="off" hidden>
+            <input type="text" id="hgTitle" maxlength="80" placeholder="예: 전산응용건축제도기능사" aria-label="목표 이름">
+            <select id="hgCat" aria-label="분류"></select>
+            <input type="date" id="hgDue" aria-label="목표일 / 시험일">
+            <div style="display:flex;gap:8px"><button class="btn small" type="submit">추가</button><button class="btn ghost small" type="button" data-act="homeGoalClose">취소</button></div>
+          </form>
+          <div class="hgoals" id="homeGoals"></div>
         </div>
       </div>
     </section>
@@ -260,6 +266,7 @@
       <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
       <div class="row" style="align-items:end">
         <label class="f">목표 (선택)<select id="dtGoal"></select></label>
+        <label class="f" id="dtSubWrap" hidden>세부목표<select id="dtSubGoal"></select></label>
         <div style="flex:0 0 auto"><button class="btn small" type="submit">추가</button></div>
       </div>
     </form>
@@ -288,12 +295,14 @@
     </div>
     <div style="display:flex;gap:8px"><button class="btn small" type="submit">저장</button></div>
   </form>
+  <div class="dlg-sec" id="gSubSec"><div class="sec-head"><h4>세부목표</h4><button class="btn ghost small" type="button" data-act="gSubOpen" aria-label="세부목표 추가">＋ 추가</button></div><div id="gSubs"></div></div>
   <div class="dlg-sec" id="gRepSec"><div class="sec-head"><h4>반복하는 일</h4><button class="btn ghost small" type="button" data-act="gtOpen" data-k="rep" aria-label="반복하는 일 추가">＋ 추가</button></div><div class="list" id="gRepeats"></div></div>
   <div class="dlg-sec" id="gOnceSec"><div class="sec-head"><h4>할 일</h4><button class="btn ghost small" type="button" data-act="gtOpen" data-k="once" aria-label="할 일 추가">＋ 추가</button></div><div class="list" id="gTasks"></div></div>
   <div class="dlg-sec" id="gTemplate" hidden style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"></div>
   <form class="dlg-sec add-form" id="goalTaskForm" autocomplete="off" hidden>
     <h4 id="gtHead">할 일 추가</h4>
     <input type="text" id="gtTitle" maxlength="120" placeholder="예: 필기 기출 20문제, CAD 평면도 연습" aria-label="할 일">
+    <label class="f" id="gtSubWrap" hidden>세부목표<select id="gtSubGoal"></select></label>
     <div class="seg seg2" id="gtRepSeg">
       <button type="button" data-act="gtRep" data-k="daily">매일</button>
       <button type="button" data-act="gtRep" data-k="weekly">매주 요일</button>
@@ -330,6 +339,7 @@
     <div class="chips" data-min-for="tkPlan"></div>
     <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
     <label class="f">목표<select id="tkGoal"></select></label>
+    <label class="f" id="tkSubWrap" hidden>세부목표<select id="tkSubGoal"></select></label>
     <label class="inline-check" id="tkDoneWrap"><input type="checkbox" id="tkDone"> 다 했어요</label>
     <div class="f" id="tkMinWrap" hidden>걸린 시간 (비우면 기록 안 함)<input type="hidden" id="tkMin"><div class="hm"><input type="number" data-hm="tkMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="tkMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="row" style="align-items:center;flex:0 0 auto">
@@ -374,6 +384,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261012f"></script>
+<script type="module" src="app.js?v=20261012g"></script>
 </body>
 </html>
