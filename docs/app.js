@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014h";
-import { CHANGES } from "./changes.js?v=20261014h";
-import { firebaseConfig } from "./firebase-config.js?v=20261014h";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014i";
+import { CHANGES } from "./changes.js?v=20261014i";
+import { firebaseConfig } from "./firebase-config.js?v=20261014i";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -969,6 +969,7 @@ function commitWin(res, at) {
   if (res.kind === "pen") Object.assign(doc, { days: res.days, left: 1, deadline: addDays(t, res.days) });
   return quietly(() => backend.add("wins", doc));
 }
+function luckyHtml(n) { const c = ["var(--coral)", "var(--blue)", "var(--mint)"]; return `<div class="lucky">No.${String(n).padStart(3, "0")} 행운 번호 ${luckyNums(n).map((v, i) => `<i style="background:${c[i]}">${v}</i>`).join("")}</div>`; }
 function resHtml(res) {
   if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="lv">${res.tier === "big" ? "대박!!" : res.tier === "mid" ? "쿠폰 당첨!" : "작은 쿠폰"}</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.days}일 안에 쓰기</div>`;
   if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.days}일 안에 못 하면 ×2</div>`;
@@ -980,7 +981,7 @@ function openScratch() {
   if (!left) { toast("긁을 복권이 없어요. 실천해서 포인트를 모아요!"); return; }
   scratch = { res: drawLotto(), committed: false, revealed: false, at: Date.now() };
   $("scSub").textContent = `남은 복권 ${left}장`;
-  $("scratchUnder").innerHTML = resHtml(scratch.res);
+  $("scratchUnder").innerHTML = resHtml(scratch.res) + luckyHtml(S.wins.size + 1);
   $("scBtns").innerHTML = '<button class="btn ghost" type="button" data-act="scReveal">한 번에 열기</button>';
   $("scHint").hidden = false;
   openDlg($("scratchDlg"));
@@ -1201,7 +1202,8 @@ const LOTTO_MOVE = { 6: "tk-w1", 7: "tk-w2", 8: "tk-hop", 9: "tk-glow" };
 let tkUid = 0;
 // fill/stroke="var(--…)"를 style로 옮김 (아이폰 사파리에서도 색이 나오게)
 function svgVars(h) { return h.replace(/<(\w+)([^>]*?)(\/?)>/g, (m, tag, at, sl) => { let st = ""; at = at.replace(/\s(fill|stroke)="(var\([^"]+\))"/g, (x, k, v) => { st += `${k}:${v};`; return ""; }); return st ? `<${tag}${at} style="${st}"${sl}>` : m; }); }
-function ticketSvg(stage, n) {
+function luckyNums(n) { return [(n * 7 + 3) % 9 + 1, (n * 5 + 1) % 9 + 1, (n * 3 + 5) % 9 + 1]; }
+function ticketSvg(stage, n, since) {
   const k = "tk" + (tkUid++), full = stage >= 9, P = "M4 6h92v17a7 7 0 0 0 0 14v19H4V37a7 7 0 0 0 0-14z";
   let g = `<defs><pattern id="${k}f" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="6" height="6" fill="var(--tk-foil)"/><rect width="2" height="6" fill="var(--tk-foil-hi)"/></pattern><clipPath id="${k}c"><path d="${P}"/></clipPath></defs>`;
   if (stage <= 1) {   // 청바지 주머니에서 빼꼼
@@ -1214,7 +1216,8 @@ function ticketSvg(stage, n) {
   g += `<text x="37" y="14" text-anchor="middle" font-size="7.5" fill="#FFFFFF" font-family="Do Hyeon, sans-serif" letter-spacing=".5">실천 복권</text>`;
   g += `<path d="M71 16v40" stroke="var(--sun)" stroke-width="1.3" stroke-dasharray="2.5 2.5"/>`;
   g += `<text x="83" y="13.6" text-anchor="middle" font-size="5.6" fill="#FFFFFF" font-family="IBM Plex Mono, monospace">No.${String(n || 1).padStart(3, "0")}</text>`;
-  const nums = [(n * 7 + 3) % 9 + 1, (n * 5 + 1) % 9 + 1, (n * 3 + 5) % 9 + 1], cols = ["var(--coral)", "var(--blue)", "var(--mint)"];
+  if (since) g += `<text x="80" y="26" text-anchor="middle" font-size="5.6" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${since.slice(5).replace("-", ".")}~</text>`;
+  const nums = luckyNums(n), cols = ["var(--coral)", "var(--blue)", "var(--mint)"];
   const balls = nums.map((v, i) => `<circle cx="${22 + i * 15}" cy="34" r="6.5" fill="${cols[i]}"/><text x="${22 + i * 15}" y="37.5" text-anchor="middle" font-size="9" fill="#FFFFFF" font-family="IBM Plex Mono, monospace" font-weight="600">${v}</text>`).join("");
   if (stage === 2) g += `<path d="M30 16l-6 40M62 18l8 36M4 40l92 -6" stroke="var(--tk-line)" stroke-width="1.2" fill="none"/><path d="M14 30h40M14 40h26" stroke="var(--tk-line)" stroke-width="2.4" stroke-linecap="round"/>`;
   if (stage === 3) g += `<path d="M14 34h46M14 44h30" stroke="var(--tk-line)" stroke-width="2.4" stroke-linecap="round"/>`;
@@ -1233,12 +1236,19 @@ function ticketSvg(stage, n) {
   if (full) g += spark(-6, 50, .8);
   return svgVars(g);
 }
-function lottoStage(L) {   // { stage 1~9, n 몇 번째 복권, left 긁을 장 수, prog }
+function ticketSince(L, n) {   // n번째 복권을 모으기 시작한 날
+  const need = (n - 1) * PT_TICKET; let sum = 0;
+  for (const d of Object.keys(L.day).sort()) { if (!L.day[d].sum) continue; sum += L.day[d].sum; if (n === 1 || sum > need) return n === 1 ? d : d; }
+  return null;
+}
+function lottoStage(L) {   // { stage 1~9, n 몇 번째 복권, left 긁을 장 수, prog, since 시작 날짜 }
   const used = S.wins.size, earned = Math.floor(L.total / PT_TICKET), left = Math.max(0, earned - used), prog = L.total % PT_TICKET;
-  return left ? { stage: 9, n: used + 1, left, prog } : { stage: Math.min(8, Math.floor(prog / (PT_TICKET / 8)) + 1), n: earned + 1, left, prog };
+  const st = left ? { stage: 9, n: used + 1, left, prog } : { stage: Math.min(8, Math.floor(prog / (PT_TICKET / 8)) + 1), n: earned + 1, left, prog };
+  st.since = st.stage >= 2 ? ticketSince(L, st.n) : null;
+  return st;
 }
 function paintTicket(el, st) {
-  el.innerHTML = ticketSvg(st.stage, st.n);
+  el.innerHTML = ticketSvg(st.stage, st.n, st.since);
   el.classList.remove("tk-w1", "tk-w2", "tk-hop", "tk-glow");
   if (LOTTO_MOVE[st.stage]) el.classList.add(LOTTO_MOVE[st.stage]);
 }
