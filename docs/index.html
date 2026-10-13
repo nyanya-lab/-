@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261013c">
+<link rel="stylesheet" href="style.css?v=20261013d">
 </head>
 <body>
 
@@ -80,6 +80,7 @@
             <span><i style="background:color-mix(in srgb, var(--mint) 30%, var(--surface));border:1px solid var(--mint)"></i>초록 칸 = 실천한 날 (오래 할수록 진함)</span>
             <span><i style="background:color-mix(in srgb, var(--coral) 18%, var(--surface));border:1px solid var(--coral)"></i>연한 빨강 칸 = 실천 안 한 날</span>
             <span><i style="background:var(--sun)"></i>🔥 실천한 일 · 끝낸 할 일</span>
+            <span><i style="background:var(--sunk);border:1px solid var(--muted)"></i>❌ 지난 날 못 한 할 일</span>
             <span><i style="background:var(--mint-soft);border:1px solid var(--mint)"></i>월급·수입</span>
             <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
           </div>
@@ -375,6 +376,23 @@
   </form>
 </div>
 
+<dialog class="dlg" id="moveDlg" aria-labelledby="mvTitle">
+  <div class="dlg-head"><h3 id="mvTitle"></h3><button class="icon-round" type="button" data-act="mvClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec"><div class="mv-text" id="mvText"></div></div>
+  <div class="dlg-sec mv-btns" id="mvBtns"></div>
+</dialog>
+
+<dialog class="dlg" id="logDlg" aria-labelledby="lgTitle">
+  <div class="dlg-head"><h3 id="lgTitle">🔥 실천한 일 편집</h3><button class="icon-round" type="button" data-act="lgClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <form class="dlg-sec form" id="logForm" autocomplete="off">
+    <label class="f">날짜<input type="date" id="lgDate"></label>
+    <div class="f">한 시간<input type="hidden" id="lgMin"><div class="hm"><input type="number" data-hm="lgMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="lgMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
+    <div class="chips" data-min-for="lgMin"></div>
+    <label class="f">메모<input type="text" id="lgText" maxlength="300" placeholder="예: CAD 벽체 연습"></label>
+    <div style="display:flex;gap:8px;align-items:center"><button class="btn" type="submit">저장</button><button class="icon-btn" type="button" data-act="lgDel">삭제</button></div>
+  </form>
+</dialog>
+
 <dialog class="dlg" id="acctDlg" aria-labelledby="acTitle">
   <div class="dlg-head"><h3 id="acTitle">자산</h3><button class="icon-round" type="button" data-act="closeAcct" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <form class="dlg-sec form" id="acctForm" autocomplete="off">
@@ -400,6 +418,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261013c"></script>
+<script type="module" src="app.js?v=20261013d"></script>
 </body>
 </html>

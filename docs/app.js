@@ -1,4 +1,4 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261013c";
+import { firebaseConfig } from "./firebase-config.js?v=20261013d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -373,7 +373,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -464,11 +464,12 @@ function calTask(x, d, repeat) {
   // 시간: 끝냈으면 기록한 시간, 아니면 정해 둔 '할 시간'
   const min = (done && taskMinutes(x.id, repeat ? d : x.doneDate)) || (Number(x.minutes) || 0);
   const later = repeat && d > today();   // 반복하는 일의 앞으로의 날은 그 날이 되면 체크
-  return `<div class="ev task ${color}${done ? " done" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
+  const missed = !done && d < today();     // 지난 날 못 한 일 ❌
+  return `<div class="ev task ${color}${done ? " done" : missed ? " miss" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
       : `<button type="button" class="mini-check${done ? " on" : ""}" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="${done}" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
-    `<span>${done ? '<span class="ev-long">🔥 </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
+    `<span>${done ? '<span class="ev-long">🔥 </span>' : missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
@@ -490,9 +491,13 @@ function renderCalendar() {
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
     // 할 일은 칸 안에서 바로 체크 (반복하는 일도 날마다 하나씩, 앞으로의 날은 체크만 막음)
     rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => evs.push(calTask(x, d, false)));
+    // 늦게 한 할 일: 원래 날짜에는 ❌ 흔적만 (실천은 한 날로 옮김)
+    rows(S.tasks).filter((x) => !isRep(x) && x.lateFrom === d && x.title).forEach((x) => evs.push(`<div class="ev missed" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)} · ${shortDate(x.date)}에 했어요">❌ ${esc(x.title)}</div>`));
     const hs = habits.filter((h) => activeOn(h, d));
     hs.forEach((h) => evs.push(calTask(h, d, true)));
-    (logsByDay[d] || []).forEach((l) => evs.push(`<div class="ev log" data-act="openDayLogs" data-day="${d}" title="실천한 일 · 눌러서 보기">🔥 ${esc([l.minutes ? fmtHM(l.minutes) : "", l.text || ""].filter(Boolean).join(" · ") || "기록")}</div>`));
+    (logsByDay[d] || []).forEach((l) => evs.push(`<div class="ev log" data-act="editLog" data-id="${esc(l.id)}" title="실천한 일 · 글자를 누르면 편집">` +
+      `<button type="button" class="log-fire" data-act="logFire" data-id="${esc(l.id)}" aria-label="실천한 일 편집·삭제">🔥</button>` +
+      `<span>${esc([l.minutes ? fmtHM(l.minutes) : "", l.text || ""].filter(Boolean).join(" · ") || "기록")}</span></div>`));
     gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
@@ -551,6 +556,63 @@ document.querySelectorAll("[data-hm]").forEach((el) => el.addEventListener("inpu
 }));
 // 달력 칸 시간: PC는 "· 1시간", 폰은 앞에 짧게 "1h"
 function fmtShort(m) { const h = Math.floor(m / 60), r = m % 60; return !h ? r + "m" : !r ? h + "h" : r === 30 ? h + ".5h" : h + "h" + r; }   // 폰 칸이 좁아서 최대한 짧게
+
+// ---------- 날짜가 다른 할 일을 체크할 때 확인 창 ----------
+// 지난 일: 원래 날짜는 ❌(못 함)로 남기고 오늘 한 걸로 옮기거나, 그 날 한 걸로 체크
+// 앞으로 할 일: 오늘로 당겨서 🔥, 원래 날짜에서는 없어짐
+let moveFor = null;
+function openMove(id) {
+  const x = S.tasks.get(id); if (!x) return;
+  const t = today(), past = x.date < t, title = esc(x.title), from = shortDate(x.date), now = shortDate(t);
+  moveFor = id;
+  $("mvTitle").textContent = past ? "지난 할 일이에요" : "앞당겨서 했어요?";
+  $("mvText").innerHTML = past
+    ? `<p>'<b>${title}</b>'은(는) ${from} 할 일이었어요. 언제 했어요?</p><ul>` +
+      `<li><b>오늘 했어요</b> · ${from} 칸은 ❌(못 한 날)로 남고, 오늘 ${now} 칸에 🔥 실천으로 옮겨요.</li>` +
+      `<li><b>그날 했어요</b> · 깜빡하고 늦게 체크한 거면 ${from}에 한 걸로 체크해요.</li></ul>`
+    : `<p>'<b>${title}</b>'은(는) ${from} 할 일이에요. 오늘 미리 했어요?</p><ul>` +
+      `<li>오늘 ${now} 칸으로 당겨서 🔥 실천으로 표시하고, ${from} 칸에서는 없어져요.</li>` +
+      `<li>체크를 다시 풀면 ${from}로 돌아가요.</li></ul>`;
+  $("mvBtns").innerHTML = past
+    ? '<button class="btn" type="button" data-act="mvDo" data-k="late">오늘 했어요</button><button class="btn ghost" type="button" data-act="mvDo" data-k="that">그날 했어요</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>'
+    : '<button class="btn" type="button" data-act="mvDo" data-k="early">오늘로 당기기</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>';
+  openDlg($("moveDlg"));
+}
+function doMove(kind) {
+  const id = moveFor, x = id && S.tasks.get(id); closeDlg($("moveDlg")); moveFor = null;
+  if (!x || !ready()) return;
+  const t = today(), day = kind === "that" ? x.date : t;
+  const patch = kind === "that" ? { done: true, doneDate: x.date }
+    : { date: t, done: true, doneDate: t, [kind === "late" ? "lateFrom" : "earlyFrom"]: x.date };
+  const msg = kind === "late" ? `오늘로 옮겼어요. ${shortDate(x.date)}은 ❌로 남아요.` : kind === "early" ? "오늘로 당겨서 체크했어요." : `${shortDate(x.date)}에 한 걸로 체크했어요.`;
+  act(backend.update("tasks", id, patch), x.minutes > 0 ? "" : msg).then(() => {
+    if (x.minutes > 0) recordTaskTime(x, id, day, x.minutes, `🔥 ${fmtMin(x.minutes)} 기록했어요. ` + msg);
+    else showDoneSheet(id, day);
+  }).catch(() => {});
+}
+
+// ---------- 실천한 일: 🔥 누르면 편집/삭제 묻기, 글자 누르면 편집 창 ----------
+let logFor = null;
+function logLabel(l) { return [l.minutes ? fmtHM(l.minutes) : "", l.text || ""].filter(Boolean).join(" · ") || "기록"; }
+function askLog(id) {
+  const l = S.logs.get(id); if (!l) return;
+  moveFor = null; logFor = id;
+  $("mvTitle").textContent = "🔥 실천한 일";
+  $("mvText").innerHTML = `<p><b>${esc(logLabel(l))}</b> <span class="muted">(${shortDate(l.date)})</span></p><p class="small muted">이 기록을 고치거나 지울 수 있어요.</p>`;
+  $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="logEditGo">편집하기</button><button class="btn ghost danger-txt" type="button" data-act="logDelGo">삭제하기</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>';
+  openDlg($("moveDlg"));
+}
+function openLog(id) {
+  const l = S.logs.get(id); if (!l) return;
+  logFor = id;
+  $("lgDate").value = l.date || today(); setMinInput("lgMin", l.minutes); $("lgText").value = l.text || "";
+  openDlg($("logDlg"));
+}
+function delLog(id) {
+  const l = S.logs.get(id); if (!l || !ready()) return;
+  const x = l.taskId && S.tasks.get(l.taskId);
+  act(backend.remove("logs", id), x ? "시간 기록을 지웠어요. (할 일 체크는 그대로)" : "실천한 일을 지웠어요.").catch(() => {});
+}
 
 // ---------- 할 일 편집 작은 창 ----------
 const tk = { id: null, rep: "none", days: new Set() };
@@ -613,7 +675,7 @@ function renderDaySide() {
   $("dayTasks").innerHTML = exams.map((g) => `<div class="item"><span class="tag cat c-coral">D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div></div>`).join("") +
     (ts.length ? ts.map((x) => taskItem(x, d)).join("") : (exams.length ? "" : '<div class="empty">이 날 할 일이 없어요.</div>'));
   const ls = rows(S.logs).filter((l) => l.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  $("dayLogs").innerHTML = ls.length ? ls.map((l) => `<div class="item"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "기록"}</span><div class="body"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div></div>` +
+  $("dayLogs").innerHTML = ls.length ? ls.map((l) => `<div class="item"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "기록"}</span><div class="body" data-act="editLog" data-id="${esc(l.id)}" style="cursor:pointer" title="눌러서 편집"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div></div>` +
     `<div class="actions"><button class="icon-btn" type="button" data-act="del" data-col="logs" data-id="${esc(l.id)}">삭제</button></div></div>`).join("") : '<div class="empty">아직 기록이 없어요.</div>';
   const gs = gcalEventsOn(d);
   $("dayGcalSec").hidden = !gs.length;
@@ -1172,6 +1234,18 @@ document.addEventListener("click", (ev) => {
     return;
   }
   if (a === "planDel") { const v = planOf(ui.month).items.find((z) => z.id === id); savePlan(ui.month, { items: { [id]: null } }, v ? `${v.cat} 예산을 뺐어요.` : ""); return; }
+  if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; return; }
+  if (a === "logFire") { askLog(id); return; }
+  if (a === "editLog") { openLog(id); return; }
+  if (a === "logEditGo") { closeDlg($("moveDlg")); openLog(logFor); return; }
+  if (a === "logDelGo") { closeDlg($("moveDlg")); delLog(logFor); logFor = null; return; }
+  if (a === "lgClose") { closeDlg($("logDlg")); logFor = null; return; }
+  if (a === "lgDel") {
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 삭제?"; setTimeout(() => { el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "삭제"; }, 3000); return; }
+    el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "삭제";
+    closeDlg($("logDlg")); delLog(logFor); logFor = null; return;
+  }
+  if (a === "mvDo") { doMove(el.dataset.k); return; }
   if (a === "addMin") { const k = el.dataset.for; setMinInput(k, (parseInt($(k).value, 10) || 0) + 30); return; }
   if (a === "setMin") { const k = el.dataset.for, m = +el.dataset.m; setMinInput(k, (parseInt($(k).value, 10) || 0) === m ? "" : m); return; }
   if (a === "gtClose") { gt.open = null; renderGoalDlg(); return; }
@@ -1222,11 +1296,20 @@ document.addEventListener("click", (ev) => {
   if (a === "toggle") {
     if (!ready()) return;
     const x = S.tasks.get(id); if (!x) return;
+    if (!isRep(x) && !x.done && x.date && x.date !== t) { openMove(id); return; }   // 지난 일·앞으로 할 일을 오늘 체크 → 어떻게 할지 묻기
+    if (!isRep(x) && x.done && (x.lateFrom || x.earlyFrom)) {   // 옮겨서 체크했던 걸 풀면 원래 날짜로 돌려놓기
+      const back = x.lateFrom || x.earlyFrom, old = taskLogs(id, x.doneDate);
+      act((async () => {
+        await backend.update("tasks", id, { done: false, doneDate: null, date: back, lateFrom: null, earlyFrom: null });
+        for (const l of old) await backend.remove("logs", l.id);
+      })(), `체크를 풀고 원래 날짜(${shortDate(back)})로 돌려놨어요.`).catch(() => {});
+      hideDoneSheet(); return;
+    }
     const day = el.dataset.day && el.dataset.day <= t ? el.dataset.day : t; // 지난 날짜에서 체크하면 그 날 한 걸로
     const nd = !isDone(x, day), doneDay = isRep(x) ? day : (nd ? day : x.doneDate);
     const patch = isRep(x) ? { doneDates: { [day]: nd } } : { done: nd, doneDate: nd ? day : null };
     act(backend.update("tasks", id, patch)).then(async () => {
-      if (nd && x.minutes > 0) { hideDoneSheet(); recordTaskTime(x, id, day, x.minutes, `✅ ${fmtMin(x.minutes)} 기록했어요.`); }
+      if (nd && x.minutes > 0) { hideDoneSheet(); recordTaskTime(x, id, day, x.minutes, `🔥 ${fmtMin(x.minutes)} 기록했어요.`); }
       else if (nd) showDoneSheet(id, day);
       else { hideDoneSheet(); for (const l of taskLogs(id, doneDay)) await backend.remove("logs", l.id); }   // 체크를 풀면 같이 기록한 시간도 지움
     }).catch(() => {});
@@ -1318,6 +1401,14 @@ document.addEventListener("change", (ev) => {
   }
 });
 
+$("logForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  if (!ready() || !logFor || !S.logs.get(logFor)) return;
+  const minutes = parseInt($("lgMin").value, 10) || 0, text = $("lgText").value.trim();
+  if (!minutes && !text) { toast("시간이나 메모 중 하나는 적어 주세요."); return; }
+  act(backend.update("logs", logFor, { date: $("lgDate").value || today(), minutes, text }), "실천한 일을 고쳤어요.")
+    .then(() => { closeDlg($("logDlg")); logFor = null; }).catch(() => {});
+});
 $("homeGoalForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
@@ -1422,7 +1513,7 @@ $("taskEditForm").addEventListener("submit", (ev) => {
   let patch, timeOps = null;
   if (tk.rep === "none") {
     const done = $("tkDone").checked;
-    patch = { title, goalId, subId, minutes, repeat: "none", date, done, doneDate: done ? (x.doneDate || today()) : null, start: null, end: null, days: null, doneDates: null };
+    patch = { title, goalId, subId, minutes, repeat: "none", date, done, ...(done ? {} : { lateFrom: null, earlyFrom: null }), doneDate: done ? (x.doneDate || today()) : null, start: null, end: null, days: null, doneDates: null };
     // 걸린 시간: 연결된 실천 기록을 고치거나 만들거나 지움
     const min = parseInt($("tkMin").value, 10) || 0, doneDay = patch.doneDate || x.doneDate;
     const old = x.doneDate ? taskLogs(tk.id, x.doneDate) : [];
@@ -1446,7 +1537,7 @@ $("goalEditForm").addEventListener("submit", (ev) => {
   act(backend.update("goals", ui.goalId, { title, cat: $("geCat").value, due: $("geDue").value || null }), "목표를 저장했어요.").catch(() => {});
 });
 ["gtDate", "gtEnd"].forEach((k) => $(k).addEventListener("change", renderGoalDlg));
-["gtMin", "dtMin", "tkPlan", "dayLogMin"].forEach(renderMinChips);
+["gtMin", "dtMin", "tkPlan", "dayLogMin", "lgMin"].forEach(renderMinChips);
 $("goalTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready() || !ui.goalId) return;

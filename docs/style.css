@@ -379,6 +379,18 @@ tr.clickable:hover td { background: var(--sunk); }
 .ev.task.done > span { color: var(--fg); }
 .ev.task.done .mini-check { border-color: var(--sun); }
 .ev.task.done .mini-check.on { background: var(--sun); }
+.ev.task.miss { background: var(--sunk); border-left-color: var(--muted); }   /* 지난 날 못 한 할 일 ❌ */
+.ev.task.miss > span { color: var(--muted); }
+.ev.missed { background: var(--sunk); border-left-color: var(--muted); color: var(--muted); text-decoration: line-through; cursor: pointer; }
+.mv-text { display: grid; gap: 8px; font-size: 15px; line-height: 1.5; }
+.mv-text p { margin: 0; }
+.mv-text ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--muted); font-size: 14px; }
+.ev.log { display: flex; align-items: center; gap: 3px; cursor: pointer; }
+.ev.log > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.log-fire { flex-shrink: 0; border: 0; background: none; padding: 0; font-size: inherit; line-height: 1; cursor: pointer; }
+.log-fire:hover { transform: scale(1.2); }
+.btn.danger-txt { color: var(--danger); }
+.mv-btns { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 18px; }
 .mini-check {
   flex-shrink: 0; width: 15px; height: 15px; padding: 0; border-radius: 4px; display: grid; place-items: center;
   border: 1.5px solid var(--cat, var(--blue)); background: var(--surface); cursor: pointer;

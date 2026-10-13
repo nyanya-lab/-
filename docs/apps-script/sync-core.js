@@ -7,7 +7,7 @@
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  */
-const CORE_VERSION = "2026-10-13d";
+const CORE_VERSION = "2026-10-13e";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
@@ -59,6 +59,8 @@ function pushToGoogle_(tasks, goals, logs) {
     }
     if (!t.date) return;
     const missed = !t.done && t.date < today;   // 날짜가 지났는데 못 한 일
+    // 늦게 한 일: 원래 날짜에는 ❌ 흔적, 한 날에는 🔥
+    if (t.done && t.lateFrom) items["late:" + id] = { summary: MARK.miss + withPlan(t), colorId: COLOR.miss, date: t.lateFrom };
     items["task:" + id] = {
       summary: t.done ? MARK.done + withTime(id, t.doneDate, t.title) : (missed ? MARK.miss : MARK.plan) + withPlan(t),
       colorId: t.done ? COLOR.done : missed ? COLOR.miss : COLOR.plan, date: t.date
