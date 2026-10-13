@@ -375,8 +375,10 @@ tr.clickable:hover td { background: var(--sunk); }
 .ev.done { text-decoration: line-through; color: var(--muted); }
 .ev.task { display: flex; align-items: center; gap: 5px; padding: 2px 5px; white-space: nowrap; }
 .ev.task > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.ev.task.done { text-decoration: none; }
-.ev.task.done > span { text-decoration: line-through; color: var(--muted); }
+.ev.task.done { text-decoration: none; background: var(--sun-soft); border-left-color: var(--sun); }   /* 끝낸 할 일 = 실천 (🔥 노랑) */
+.ev.task.done > span { color: var(--fg); }
+.ev.task.done .mini-check { border-color: var(--sun); }
+.ev.task.done .mini-check.on { background: var(--sun); }
 .mini-check {
   flex-shrink: 0; width: 15px; height: 15px; padding: 0; border-radius: 4px; display: grid; place-items: center;
   border: 1.5px solid var(--cat, var(--blue)); background: var(--surface); cursor: pointer;

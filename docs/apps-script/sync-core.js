@@ -2,19 +2,19 @@
  * 욱진 실천 보드 ↔ 구글 캘린더 동기화 본체
  * 욱진이 Apps Script의 짧은 코드(Code.gs)가 5분마다 이 파일을 받아서 실행해요.
  * 여기를 고쳐서 main에 합치면, 다시 붙여넣지 않아도 늦어도 15분 안에 적용돼요.
- *   · 보드 할 일·반복하는 일·시험일 → 구글 캘린더 (📌 파랑 / ✅ 초록 / 🎯 D-DAY 빨강)
+ *   · 보드 할 일·반복하는 일·시험일 → 구글 캘린더 (📌 파랑 / 끝내면 🔥 노랑 / 🎯 D-DAY 빨강)
  *   · 실천한 일(최근 1년) → 🔥 노랑
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  */
-const CORE_VERSION = "2026-10-13a";
+const CORE_VERSION = "2026-10-13b";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
 const CAL = "primary";       // 욱진이 기본 캘린더
-const COLOR = { plan: "9", done: "10", dday: "11", log: "5" };   // 구글 일정 색: 파랑, 초록, 빨강, 노랑
+const COLOR = { plan: "9", done: "5", dday: "11", log: "5" };   // 구글 일정 색: 파랑, 노랑(끝낸 일도 실천), 빨강, 노랑
 const DOW = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-const MARK = { plan: "📌 ", done: "✅ ", dday: "🎯 D-DAY ", log: "🔥 " };   // 구글 일정 제목 앞 이모지
+const MARK = { plan: "📌 ", done: "🔥 ", dday: "🎯 D-DAY ", log: "🔥 " };   // 끝낸 할 일은 실천으로 보이게 🔥   // 구글 일정 제목 앞 이모지
 
 function ukjinSync(BOARD_PASSWORD) {
   const base = DB_URL + "/ukjin/" + roomOf_(BOARD_PASSWORD);
