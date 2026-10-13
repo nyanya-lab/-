@@ -7,14 +7,14 @@
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  */
-const CORE_VERSION = "2026-10-13c";
+const CORE_VERSION = "2026-10-13d";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
 const CAL = "primary";       // 욱진이 기본 캘린더
-const COLOR = { plan: "9", done: "5", dday: "11", log: "5" };   // 구글 일정 색: 파랑, 노랑(끝낸 일도 실천), 빨강, 노랑
+const COLOR = { plan: "9", done: "5", dday: "11", log: "5", miss: "8" };   // 구글 일정 색: 파랑, 노랑(끝낸 일도 실천), 빨강, 노랑, 회색(못 한 일)
 const DOW = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-const MARK = { plan: "📌 ", done: "🔥 ", dday: "🎯 D-DAY ", log: "🔥 " };   // 끝낸 할 일은 실천으로 보이게 🔥   // 구글 일정 제목 앞 이모지
+const MARK = { plan: "📌 ", done: "🔥 ", dday: "🎯 D-DAY ", log: "🔥 ", miss: "❌ " };   // 제목 앞 이모지. 끝낸 할 일은 실천 🔥, 지난 날 못 한 일은 ❌
 
 function ukjinSync(BOARD_PASSWORD) {
   const base = DB_URL + "/ukjin/" + roomOf_(BOARD_PASSWORD);
@@ -36,6 +36,7 @@ function ukjinSync(BOARD_PASSWORD) {
 // ---------- 보드 → 구글 ----------
 function pushToGoogle_(tasks, goals, logs) {
   const items = {};
+  const today = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd");
   // 할 일을 체크하면서 기록한 시간: "✅ 제목 · 1시간"으로 할 일에 붙이고 🔥 일정은 따로 안 만듦
   const timed = {};
   Object.keys(logs || {}).forEach(function (id) {
@@ -57,7 +58,11 @@ function pushToGoogle_(tasks, goals, logs) {
       return;
     }
     if (!t.date) return;
-    items["task:" + id] = { summary: t.done ? MARK.done + withTime(id, t.doneDate, t.title) : MARK.plan + withPlan(t), colorId: t.done ? COLOR.done : COLOR.plan, date: t.date };
+    const missed = !t.done && t.date < today;   // 날짜가 지났는데 못 한 일
+    items["task:" + id] = {
+      summary: t.done ? MARK.done + withTime(id, t.doneDate, t.title) : (missed ? MARK.miss : MARK.plan) + withPlan(t),
+      colorId: t.done ? COLOR.done : missed ? COLOR.miss : COLOR.plan, date: t.date
+    };
   });
   Object.keys(goals).forEach(function (id) {
     const g = goals[id];
@@ -104,8 +109,7 @@ function pushToGoogle_(tasks, goals, logs) {
     res.added++;
   });
 
-  // 반복하는 일: 한 날은 그 날 칸만 ✅ 초록으로 (최근 45일~오늘)
-  const today = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd");
+  // 반복하는 일: 한 날은 🔥, 지난 날 못 한 날은 ❌ (최근 45일~오늘, 오늘은 아직 📌)
   const since = Utilities.formatDate(new Date(Date.now() - 45 * 864e5), TZ, "yyyy-MM-dd");
   Object.keys(items).forEach(function (ref) {
     const it = items[ref];
@@ -119,7 +123,9 @@ function pushToGoogle_(tasks, goals, logs) {
       const d = inst.originalStartTime && inst.originalStartTime.date;
       if (!d) return;
       const done = !!it.doneDates[d];
-      const summary = done ? MARK.done + withTime(it.taskId, d, it.title) : MARK.plan + it.plan, colorId = done ? COLOR.done : COLOR.plan;
+      const missed = !done && d < today;
+      const summary = done ? MARK.done + withTime(it.taskId, d, it.title) : (missed ? MARK.miss : MARK.plan) + it.plan;
+      const colorId = done ? COLOR.done : missed ? COLOR.miss : COLOR.plan;
       const gone = inst.status === "cancelled";   // 예전 코드가 잘못 지운 날은 되살림
       if (gone || inst.summary !== summary || (inst.colorId || "") !== colorId) {
         const body = { summary: summary, colorId: colorId };
