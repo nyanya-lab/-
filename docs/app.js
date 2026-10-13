@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261014d";
-import { firebaseConfig } from "./firebase-config.js?v=20261014d";
+import { CHANGES } from "./changes.js?v=20261014e";
+import { firebaseConfig } from "./firebase-config.js?v=20261014e";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -530,12 +530,21 @@ function renderCalendar() {
     const cls = ["day", lv ? "p" + lv : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
     // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
     const pts = ptsDay && ptsDay[d] && ptsDay[d].sum;
+    // 폰 칸: 대표 아이콘 두 개까지 (🎯 > 🔥 > ❌ > 📌 > 📅 > 💰) + 남은 할 일 수
+    const dayTs = rows(S.tasks).filter((x) => x.title && activeOn(x, d)), doneN = dayTs.filter((x) => isDone(x, d)).length, openN = dayTs.length - doneN;
+    const ics = [];
+    if ((exams[d] || []).length) ics.push("🎯");
+    if (doneN || (logsByDay[d] || []).length) ics.push("🔥");
+    if (openN) ics.push(d < t ? "❌" : "📌");
+    if (gcalEventsOn(d).length) ics.push("📅");
+    if (income[d]) ics.push("💰");
+    const cellIc = ics.length ? `<span class="cell-ic" aria-hidden="true">${ics.slice(0, 2).join("")}${openN > 1 && ics.slice(0, 2).some((c) => c === "📌" || c === "❌") ? `<small>${openN}</small>` : ""}</span>` : "";
     html += `<div class="${cls}${pts ? " has-pts" : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span></span>${shown.join("")}${pts ? `<span class="day-pts">+${pts}</span>` : ""}</div>`;
+      `<span class="top"><span class="num">${dt.getDate()}</span></span>${shown.join("")}${cellIc}${pts ? `<span class="day-pts">+${pts}</span>` : ""}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
-  renderDaySide();
+  renderDaySide(); renderDayPanel();
 }
 // ---------- 체크하면 "얼마나 했어요?" ----------
 let doneFor = null, doneTimer = null;
@@ -938,7 +947,7 @@ let scratch = null;   // { res, committed, revealed }
 function ticketsLeft() { return Math.max(0, Math.floor(pointsLedger().total / PT_TICKET) - S.wins.size); }
 function drawLotto() {
   const o = lottoOdds(), pm = practiceMinutes();
-  if (streak(pm) >= 7) { o.big += 1; o.mid += 2; o.miss = Math.max(0, o.miss - 2); o.pen = Math.max(0, o.pen - 1); }   // 연속 7일+ 덤
+  if (streak(pm) >= 30) { o.big += 1; o.mid += 2; o.miss = Math.max(0, o.miss - 2); o.pen = Math.max(0, o.pen - 1); }   // 연속 30일+ 덤
   const keys = Object.keys(ODDS_DEF), tot = keys.reduce((t, k) => t + (Number(o[k]) || 0), 0) || 1;
   let r = Math.random() * tot, pick = "miss";
   for (const k of keys) { r -= Number(o[k]) || 0; if (r < 0) { pick = k; break; } }
@@ -1094,6 +1103,28 @@ $("cpReqForm").addEventListener("submit", (ev) => {
   const id = "q" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   saveLotto({ reqs: { [id]: { text, at: Date.now(), status: "new" } } }, "💌 쿠폰 요청을 보냈어요!").then(() => { $("cpReqText").value = ""; });
 });
+
+// ---------- 📱 폰: 달력 아래 고른 날 자세히 (처음엔 오늘) ----------
+function isPhone() { return window.matchMedia("(max-width: 720px)").matches; }
+function renderDayPanel() {
+  const box = $("dayPanel"); if (!box || !S.loaded) return;
+  const d = ui.selDay || today(), t = today(), n = diffDays(d, t);
+  const exams = rows(S.goals).filter((g) => g.due === d), ts = tasksOn(d).filter((x) => x.title);
+  const ls = rows(S.logs).filter((l) => l.date === d && !l.taskId).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const gs = gcalEventsOn(d), ms = rows(S.money).filter((x) => x.date === d);
+  const pd = lottoVisible() && pointsLedger().day[d];
+  const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출", move: "이체" };
+  let h = `<div class="dp-head"><div><h3>${esc(prettyDate(d))}</h3><span class="muted small">${n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`}</span></div>${pd && pd.sum ? `<span class="dp-pts">+${pd.sum} ⭐</span>` : ""}</div>`;
+  if (exams.length) h += `<div class="dp-sec">${exams.map((g) => `<div class="item"><span class="tag cat c-coral">🎯 D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div></div>`).join("")}</div>`;
+  h += `<div class="dp-sec"><h4>할 일</h4>${ts.length ? `<div class="list">${ts.map((x) => taskItem(x, d)).join("")}</div>` : '<div class="small muted">이 날 할 일이 없어요.</div>'}</div>`;
+  if (ls.length) h += `<div class="dp-sec"><h4>🔥 실천한 일</h4><div class="list">${ls.map((l) => `<div class="item"><button type="button" class="log-fire" data-act="logFire" data-id="${esc(l.id)}" aria-label="실천한 일 편집·삭제">🔥</button>` +
+    `<div class="body" data-act="editLog" data-id="${esc(l.id)}" style="cursor:pointer"><div class="title">${esc(l.text || "기록")}</div><div class="meta"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "-"}</span></div></div><div class="actions"></div></div>`).join("")}</div></div>`;
+  if (gs.length) h += `<div class="dp-sec"><h4>📅 구글 일정</h4><div class="list">${gs.map((g) => `<div class="item"><span class="tag mono">${esc(g.time || "종일")}</span><div class="body"><div class="title">${esc(g.title)}</div></div>${g.link ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("")}</div></div>`;
+  if (ms.length) h += `<div class="dp-sec"><h4>💰 돈</h4><div class="list">${ms.map((x) => `<div class="item" data-act="searchMoney" data-id="${esc(x.id)}" style="cursor:pointer"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : x.kind === "move" ? "" : "minus"}">${x.kind === "income" ? "+" : x.kind === "move" ? "" : "-"}${won(x.amount)}</span></div>`).join("")}</div></div>`;
+  h += `<div class="dp-btns"><button class="btn ghost small" type="button" data-act="dpAddTask" data-day="${d}">＋ 할 일</button><button class="btn ghost small" type="button" data-act="openDayLogs" data-day="${d}">＋ 실천한 일</button></div>`;
+  box.innerHTML = h;
+}
+window.matchMedia("(max-width: 720px)").addEventListener("change", () => renderCalendar());
 
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
 // 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 7일 30 / 15일 100 / 30일 250 / 90일 1000 / 그 뒤 30일마다 300 · 돈 기록 1 (월급 30)
@@ -1804,7 +1835,11 @@ document.addEventListener("click", (ev) => {
   if (a === "openSettings") { openSettings(); return; }
   if (a === "closeSettings") { closeSettings(); return; }
   if (a === "lock") { if (lockAction) lockAction(); return; }
-  if (a === "selDay") { openDay(el.dataset.day); return; }
+  if (a === "selDay") {
+    if (isPhone()) { ui.selDay = el.dataset.day; renderCalendar(); const p = $("dayPanel"); if (p.getBoundingClientRect().top > innerHeight - 120) p.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    openDay(el.dataset.day); return;
+  }
+  if (a === "dpAddTask") { openDay(el.dataset.day); return; }
   if (a === "dsMin") { saveTaskTime(+el.dataset.m); return; }
   if (a === "dsSkip") { hideDoneSheet(); return; }
   if (a === "editTask") { openTask(id); return; }

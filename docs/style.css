@@ -115,6 +115,16 @@ button { cursor: pointer; }
 #scratchCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; transition: opacity .5s; }
 #scratchCanvas.gone { opacity: 0; pointer-events: none; }
 .la-list { display: grid; gap: 6px; }
+.cell-ic { display: none; }
+.cal-legend-phone { display: none; margin: 0; text-align: center; }
+.panel.day-panel { display: none; }
+.dp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dp-head h3 { margin: 0; font-size: 18px; }
+.dp-pts { font-family: var(--f-mono); font-weight: 700; color: var(--sun); white-space: nowrap; }
+.dp-sec { display: grid; gap: 6px; margin-top: 12px; }
+.dp-sec h4 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
+.dp-btns { display: flex; gap: 8px; margin-top: 14px; }
+.dp-btns .btn { flex: 1; }
 .admin-n { margin-left: auto; }
 .side-settings .admin-n + .sync-dot { margin-left: 8px; }
 .req-new { box-shadow: inset 3px 0 0 var(--danger); }
@@ -557,6 +567,17 @@ tr.clickable:hover td { background: var(--sunk); }
   .test-bar { top: 54px; }
 }
 @media (max-width: 720px) {
+  /* 폰 달력: 칸엔 숫자 + 아이콘만, 고른 날은 아래 칸에 자세히 */
+  .day .ev, .day .ev.more { display: none !important; }
+  .day { min-height: 54px; align-content: start; justify-items: center; text-align: center; }
+  .day .top { justify-content: center; }
+  .cell-ic { display: block; font-size: 13px; line-height: 1.2; letter-spacing: -1px; }
+  .cell-ic small { font-size: 10px; color: var(--muted); letter-spacing: 0; margin-left: 1px; }
+  .day.has-pts { padding-bottom: 14px; }
+  .day-pts { right: 0; left: 0; text-align: center; font-size: 9.5px; }
+  .panel.day-panel { display: block; }
+  .cal-legend { display: none; }
+  .cal-legend-phone { display: block; }
   .cp-ticket { grid-template-columns: auto minmax(0, 1fr); }
   .cp-ticket .btn { grid-column: 1 / -1; }
   .la-row { grid-template-columns: 128px minmax(0, 1fr) auto; }
