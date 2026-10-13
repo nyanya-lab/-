@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261014d">
+<link rel="stylesheet" href="style.css?v=20261014e">
 </head>
 <body>
 
@@ -103,6 +103,8 @@
             <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
           </div>
         </div>
+        <p class="cal-legend-phone small muted">🎯 시험일 · 🔥 실천 · ❌ 못 한 일 · 📌 할 일 · 📅 구글 · 💰 수입 · 초록 칸 = 실천한 날</p>
+        <div class="panel day-panel" id="dayPanel"></div>
         <div class="panel">
           <div class="panel-head"><h3>목표</h3><button class="btn ghost small" type="button" data-act="homeGoalOpen">＋ 목표</button></div>
           <form class="home-goal-form" id="homeGoalForm" autocomplete="off" hidden>
@@ -270,6 +272,7 @@
         <h3>달력 (첫 화면)</h3>
         <ul>
           <li>맨 위 4칸: 오늘 할 일 · 오늘 실천 · 이번 주 실천 · 연속 실천한 날.</li>
+          <li><b>폰</b>에서는 달력 칸에 아이콘만 보여요 (🎯 시험일 · 🔥 실천 · ❌ 못 한 일 · 📌 할 일 · 📅 구글 일정 · 💰 수입). 날짜를 누르면 <b>달력 바로 아래</b>에 그 날이 자세히 나와요 (처음엔 오늘). 거기서 체크·편집·추가해요.</li>
           <li>달력 위 <b>‹ ›</b>로 달을 넘기고 <b>[오늘]</b>로 돌아와요. <b>🔍 검색</b>에 글자를 치면 할 일·실천·목표·돈 기록을 날짜별로 찾아 줘요 (누르면 바로 열려요).</li>
           <li><b>↶ 되돌리기 · ↷ 다시 하기</b>: 최근 30개까지, 폰·PC 어디서 한 것이든 같이 기억해요. 누르면 무엇을 되돌리는지 확인 창이 떠요. 그 뒤에 바뀐 게 있으면 알려 줘요.</li>
           <li>칸 안 <b>네모</b>를 누르면 체크(🔥로 바뀜), <b>🔥</b>를 누르면 체크가 풀려 다시 네모로, <b>글자</b>를 누르면 편집 창, 칸의 <b>빈 곳</b>을 누르면 그 날 창([할 일]/[실천한 일])이 열려요.</li>
@@ -572,6 +575,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261014d"></script>
+<script type="module" src="app.js?v=20261014e"></script>
 </body>
 </html>
