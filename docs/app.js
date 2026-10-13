@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261013f";
-import { firebaseConfig } from "./firebase-config.js?v=20261013f";
+import { CHANGES } from "./changes.js?v=20261013g";
+import { firebaseConfig } from "./firebase-config.js?v=20261013g";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -143,6 +143,17 @@ function toast(msg) {
   const t = $("toast"); t.textContent = msg; t.hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
+// 알림 + [되돌리기] (실수로 체크를 풀거나 지웠을 때 8초 안에 원래대로)
+function toastUndo(msg, undo) {
+  const t = $("toast"); t.textContent = ""; t.hidden = false;
+  const span = document.createElement("span"); span.textContent = msg;
+  const b = document.createElement("button"); b.type = "button"; b.className = "toast-undo"; b.textContent = "되돌리기";
+  b.addEventListener("click", () => { t.hidden = true; clearTimeout(toastTimer); act(Promise.resolve().then(undo), "되돌렸어요.").catch(() => {}); });
+  t.append(span, b);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 8000);
+}
+// 지울 실천 기록을 다시 넣을 수 있게 복사 (id 빼고)
+function logCopies(ls) { return ls.map((l) => { const c = { ...l }; delete c.id; return c; }); }
 
 // ---------- 저장소 ----------
 // 1) Firebase 설정이 있으면: 구글 로그인 + Firestore (어느 기기에서든 같은 데이터)
@@ -646,8 +657,8 @@ function openLog(id) {
 }
 function delLog(id) {
   const l = S.logs.get(id); if (!l || !ready()) return;
-  const x = l.taskId && S.tasks.get(l.taskId);
-  act(backend.remove("logs", id), x ? "시간 기록을 지웠어요. (할 일 체크는 그대로)" : "실천한 일을 지웠어요.").catch(() => {});
+  const x = l.taskId && S.tasks.get(l.taskId), saved = logCopies([{ id, ...l }]);
+  act(backend.remove("logs", id)).then(() => toastUndo(x ? "시간 기록을 지웠어요. (할 일 체크는 그대로)" : "실천한 일을 지웠어요.", () => backend.add("logs", saved[0]))).catch(() => {});
 }
 
 // ---------- 할 일 편집 작은 창 ----------
@@ -1340,20 +1351,34 @@ document.addEventListener("click", (ev) => {
     if (!isRep(x) && !x.done && x.date && x.date !== t) { openMove(id); return; }   // 지난 일·앞으로 할 일을 오늘 체크 → 어떻게 할지 묻기
     if (isRep(x) && el.dataset.day && el.dataset.day < t && !isDone(x, el.dataset.day)) { openMove(id, el.dataset.day); return; }   // 반복하는 일의 지난 날
     if (!isRep(x) && x.done && (x.lateFrom || x.earlyFrom)) {   // 옮겨서 체크했던 걸 풀면 원래 날짜로 돌려놓기
-      const back = x.lateFrom || x.earlyFrom, old = taskLogs(id, x.doneDate);
+      const back = x.lateFrom || x.earlyFrom, old = taskLogs(id, x.doneDate), saved = logCopies(old);
+      const prev = { done: true, doneDate: x.doneDate, date: x.date, lateFrom: x.lateFrom || null, earlyFrom: x.earlyFrom || null };
       act((async () => {
         await backend.update("tasks", id, { done: false, doneDate: null, date: back, lateFrom: null, earlyFrom: null });
         for (const l of old) await backend.remove("logs", l.id);
-      })(), `체크를 풀고 원래 날짜(${shortDate(back)})로 돌려놨어요.`).catch(() => {});
+      })()).then(() => toastUndo(`체크를 풀고 원래 날짜(${shortDate(back)})로 돌려놨어요.`, async () => {
+        await backend.update("tasks", id, prev);
+        for (const l of saved) await backend.add("logs", l);
+      })).catch(() => {});
       hideDoneSheet(); return;
     }
     const day = el.dataset.day && el.dataset.day <= t ? el.dataset.day : t; // 지난 날짜에서 체크하면 그 날 한 걸로
     const nd = !isDone(x, day), doneDay = isRep(x) ? day : (nd ? day : x.doneDate);
     const patch = isRep(x) ? { doneDates: { [day]: nd } } : { done: nd, doneDate: nd ? day : null };
+    // 체크를 풀 때: 원래 상태와 같이 지워지는 시간 기록을 챙겨 두고 [되돌리기]로 그대로 복구
+    const prev = isRep(x) ? { doneDates: { [day]: true } } : { done: true, doneDate: x.doneDate };
+    const old = nd ? [] : taskLogs(id, doneDay), saved = logCopies(old), oldMin = old.reduce((m, l) => m + (Number(l.minutes) || 0), 0);
     act(backend.update("tasks", id, patch)).then(async () => {
       if (nd && x.minutes > 0) { hideDoneSheet(); recordTaskTime(x, id, day, x.minutes, `🔥 ${fmtMin(x.minutes)} 기록했어요.`); }
       else if (nd) showDoneSheet(id, day);
-      else { hideDoneSheet(); for (const l of taskLogs(id, doneDay)) await backend.remove("logs", l.id); }   // 체크를 풀면 같이 기록한 시간도 지움
+      else {
+        hideDoneSheet();
+        for (const l of old) await backend.remove("logs", l.id);   // 체크를 풀면 같이 기록한 시간도 지움
+        toastUndo(`'${x.title}' 체크를 풀었어요.` + (oldMin ? ` (기록한 ${fmtHM(oldMin)}도 지움)` : ""), async () => {
+          await backend.update("tasks", id, prev);
+          for (const l of saved) await backend.add("logs", l);
+        });
+      }
     }).catch(() => {});
     return;
   }
