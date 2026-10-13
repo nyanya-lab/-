@@ -12,6 +12,8 @@
 - 빌드 도구 없음. 순수 HTML/CSS/JS (ES 모듈). 로컬 확인은 `cd docs && python -m http.server` → http://localhost:8000
   (모듈이라 파일을 더블클릭해서 열면 안 됨)
 - 비밀번호·API 키 같은 비밀값은 저장소(공개)에 절대 넣지 않기.
+- 욱진이가 보는 걸 바꾸면 `docs/changes.js` 맨 위(오늘 날짜 묶음)에 쉬운 말로 한 줄 추가하기 → 사이트 '설명서 → 업데이트 내역'과 새 버전 알림 창에 보임.
+  쓰는 법이 바뀌면 `docs/index.html`의 사용 설명서(`#helpGuide`)도 같이 고치기.
 
 ## 파일
 
@@ -20,6 +22,7 @@ docs/index.html        화면 마크업 + 작은 창(dialog)들
 docs/style.css         색 토큰(밝은 타일 색: 파랑·코랄·민트·노랑·보라), 다크 모드
 docs/app.js            모든 화면 로직 (상태 S, 저장소 backend, render 함수들)
 docs/firebase-config.js  Firebase 웹 설정 (공개돼도 되는 값)
+docs/changes.js        업데이트 내역 CHANGES (설명서 탭 + 새 버전 알림)
 docs/google-sync.html  구글 캘린더 동기화 설정 안내 페이지
 docs/apps-script/Code.gs       욱진이 Apps Script에 넣는 짧은 로더 (한 번만 붙여넣음)
 docs/apps-script/sync-core.js  실제 구글 동기화 코드. 로더가 5분마다 받아서 실행 → 여기만 고치면 자동 적용

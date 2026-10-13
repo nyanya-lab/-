@@ -390,6 +390,14 @@ tr.clickable:hover td { background: var(--sunk); }
 .log-fire { flex-shrink: 0; border: 0; background: none; padding: 0; font-size: inherit; line-height: 1; cursor: pointer; }
 .log-fire:hover { transform: scale(1.2); }
 .btn.danger-txt { color: var(--danger); }
+/* 설명서 */
+.help-seg { max-width: 360px; grid-template-columns: repeat(2, 1fr); margin-bottom: 12px; }
+.help h3 { margin: 18px 0 6px; font-size: 16px; }
+.help h3:first-child { margin-top: 0; }
+.help ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.55; }
+.help .chg-date { font-family: var(--f-mono); font-size: 13px; color: var(--muted); margin: 16px 0 6px; }
+.help .chg-date:first-child { margin-top: 0; }
+#newsDlg .help ul { font-size: 15px; }
 .mv-btns { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 18px; }
 .mini-check {
   flex-shrink: 0; width: 15px; height: 15px; padding: 0; border-radius: 4px; display: grid; place-items: center;
