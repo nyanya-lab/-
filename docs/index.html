@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261014b">
+<link rel="stylesheet" href="style.css?v=20261014c">
 </head>
 <body>
 
@@ -37,6 +37,7 @@
       <a href="#money"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg><span>돈 관리</span></a>
       <a href="#certs"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><span>자격증 찾기</span></a>
       <a href="#requests"><svg viewBox="0 0 24 24"><path d="M5 4h14v12H9l-4 4z"/><path d="M9 9h6M9 12h4"/></svg><span>기능 요청</span><b class="nav-badge" id="reqBadge" hidden></b></a>
+      <a href="#coupons" id="navCoupons" hidden><svg viewBox="0 0 24 24"><path d="M3 7h18v3.5a1.8 1.8 0 0 0 0 3.6V17.5H3v-3.4a1.8 1.8 0 0 0 0-3.6z"/><path d="M14.5 7v10.5"/></svg><span>쿠폰함</span><b class="nav-badge" id="navTickets" hidden></b></a>
       <a href="#help"><svg viewBox="0 0 24 24"><path d="M5 4.5h9a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h9M9 8.5h5"/></svg><span>설명서</span><b class="nav-badge" id="newsBadge" hidden>N</b></a>
   </nav>
   <button class="side-lotto" type="button" data-act="openPoints" id="sideLotto" hidden><svg class="ticket" viewBox="0 0 40 24" aria-hidden="true" id="sideTicket"></svg><span class="lotto-txt"><b id="sidePts">0</b><small>/ 1000</small></span><b class="lotto-badge" id="sideTickets" hidden></b></button>
@@ -222,6 +223,17 @@
     </section>
 
     <!-- 기능 요청 -->
+    <section class="page" data-page="coupons" hidden>
+      <div class="page-head">
+        <div><h2>🎟️ 쿠폰함</h2><p>실천하고 받은 포인트 1000점마다 복권 한 장. 긁어서 나온 쿠폰을 모아 둬요.</p></div>
+        <button class="btn ghost small" type="button" data-act="openPtsDlg">⭐ 포인트 내역</button>
+      </div>
+      <div class="panel cp-ticket" id="cpTicket"></div>
+      <div class="panel"><div class="panel-head"><h3>사용 가능 쿠폰</h3><span class="muted small" id="cpAvailN"></span></div><div class="list" id="cpAvail"></div></div>
+      <div class="panel"><div class="panel-head"><h3>😈 벌칙</h3><span class="muted small">기한 안에 다 못 하면 남은 장 수가 두 배</span></div><div class="list" id="cpPens"></div></div>
+      <div class="panel"><div class="panel-head"><h3>지난 쿠폰</h3><span class="muted small">사용함 · 기한 만료 · 꽝</span></div><div class="list" id="cpPast"></div></div>
+    </section>
+
     <section class="page" data-page="requests" hidden>
       <div class="page-head">
         <div><h2>기능 요청</h2><p>있으면 좋겠는 기능, 불편한 점을 적어 두면 모아서 만들어요.</p></div>
@@ -274,6 +286,15 @@
           <li>달력 칸의 빈 곳 → <b>[실천한 일]</b> → 시간·메모 넣고 기록. 예: 1시간 · 현장에서 줄눈 배움.</li>
           <li>달력의 🔥를 누르면 <b>[편집하기]·[삭제하기]</b>, 글자를 누르면 바로 편집 창.</li>
         </ul>
+        <div id="helpLotto" hidden>
+        <h3>🎟️ 포인트 · 복권</h3>
+        <ul>
+          <li>⭐ 포인트: 실천 1분 = 1점 · 세부목표 달성 50 · 목표 달성 300 · 연속 실천 7일 30 / 15일 100 / 30일 250 / 90일 1000, 그 뒤 30일마다 300 · 돈 기록 1건 1 (월급 30). 지난 기록도 다 쳐요.</li>
+          <li>달력 칸 오른쪽 아래 <b>+75</b> = 그 날 받은 포인트 (달력 위 ⭐로 켜고 꺼요). 날짜를 누르면 어디서 받았는지 보여요.</li>
+          <li><b>1000점마다 복권 한 장.</b> 🎟️ 아이콘이 125점마다 한 칸씩 8칸 차올라요.</li>
+          <li>메뉴 <b>쿠폰함</b>에서 긁어요. 쿠폰은 기한 안에 [쓰기], 벌칙은 기한 안에 [했어요] — 못 하면 남은 장 수가 두 배가 되고 기한이 다시 생겨요.</li>
+        </ul>
+        </div>
         <h3>목표</h3>
         <ul>
           <li>＋ 목표로 추가하고 시험일을 넣으면 D-day가 보여요. 진행률은 큰 목표의 할 일 기준이에요.</li>
@@ -461,6 +482,27 @@
   </form>
 </div>
 
+<dialog class="dlg" id="scratchDlg" aria-labelledby="scTitle">
+  <div class="dlg-head"><div><h3 id="scTitle">🎟️ 복권 긁기</h3><span class="muted small" id="scSub"></span></div><button class="icon-round" type="button" data-act="scClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec">
+    <div class="scratch" id="scratchCard"><div class="scratch-under" id="scratchUnder"></div><canvas id="scratchCanvas" aria-label="손가락이나 마우스로 문질러 긁어요"></canvas></div>
+    <p class="small muted" id="scHint" style="margin:0;text-align:center">은색 부분을 손가락이나 마우스로 문질러요</p>
+  </div>
+  <div class="dlg-sec mv-btns" id="scBtns"></div>
+</dialog>
+
+<dialog class="dlg" id="lottoIntroDlg" aria-labelledby="liTitle">
+  <div class="dlg-head"><h3 id="liTitle">🎟️ 새 기능: 실천 복권!</h3><button class="icon-round" type="button" data-act="liClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec help"><ul>
+    <li>실천하면 <b>⭐ 포인트</b>가 쌓여요. 실천 1분 = 1점, 세부목표 달성 50, 목표 달성 300, 연속 실천 보너스, 돈 기록 1 (월급 30).</li>
+    <li><b>1000점마다 복권 한 장!</b> 왼쪽 아래(폰은 위쪽) 🎟️ 아이콘이 8칸으로 차올라요.</li>
+    <li>메뉴 <b>쿠폰함</b>에서 문질러 긁으면 🥇 대박 · 🥈 쿠폰 · 🥉 작은 쿠폰 · 😐 꽝 · 😈 벌칙 중 하나가 나와요.</li>
+    <li>쿠폰은 기한 안에 [쓰기]. 벌칙은 기한 안에 다 못 하면 남은 장 수가 <b>두 배</b>!</li>
+    <li>지난 기록도 포인트로 쳤어요. 벌써 복권이 있을지도?</li>
+  </ul></div>
+  <div class="dlg-sec mv-btns"><a class="btn" href="#coupons" data-act="liClose">쿠폰함 가기</a><button class="btn ghost" type="button" data-act="liClose">닫기</button></div>
+</dialog>
+
 <dialog class="dlg dlg-day" id="lottoAdminDlg" aria-labelledby="laTitle">
   <div class="dlg-head"><div><h3 id="laTitle">🎟️ 복권 관리</h3><span class="muted small">관리자만 보여요. 욱진이 화면엔 긁어서 나온 것만 보여요.</span></div><button class="icon-round" type="button" data-act="laClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="dlg-sec"><h4>욱진이에게 공개</h4><div id="laOn"></div></div>
@@ -526,6 +568,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261014b"></script>
+<script type="module" src="app.js?v=20261014c"></script>
 </body>
 </html>

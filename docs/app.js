@@ -1,8 +1,8 @@
-import { CHANGES } from "./changes.js?v=20261014b";
-import { firebaseConfig } from "./firebase-config.js?v=20261014b";
+import { CHANGES } from "./changes.js?v=20261014c";
+import { firebaseConfig } from "./firebase-config.js?v=20261014c";
 
 const FB_VER = "10.12.2";
-const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
+const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
 const GOAL_CATS = ["자격증", "타일", "현장", "공부", "생활", "기타"];
 // 목표마다 색 하나씩 (만든 순서대로 돌아가며). 달력에서 어느 목표 일인지 한눈에 보이게
 const GOAL_COLORS = ["c-blue", "c-coral", "c-mint", "c-sun", "c-grape"];
@@ -68,7 +68,7 @@ const CERTS = [
 const CERT_TAGS = ["전체", "도면·CAD", "인테리어", "타일·마감", "목공·가구", "시공·관리"];
 
 // ---------- 상태 ----------
-const S = { goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), requests: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null, history: [] };
+const S = { wins: new Map(), goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), requests: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null, history: [] };
 const ui = { reqArea: "달력", reqFilter: "open", mEdit: null, acctFilter: "all", page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "expense", certTag: "전체", certQ: "" };
 let backend = null;
 
@@ -393,7 +393,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoAdminDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoAdminDlg", "lottoIntroDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -631,7 +631,7 @@ function doMove(kind) {
 
 // ---------- 되돌리기 ↶ / 다시 하기 ↷ ----------
 // 저장할 때마다 바뀌는 문서의 '전'과 '후'를 모아 두고(1.5초 안의 변경은 한 묶음), 모든 기기가 같이 쓰는 기록(최근 30개)에 넣음
-const HIST_COLS = ["goals", "tasks", "logs", "money", "accounts"];
+const HIST_COLS = ["goals", "tasks", "logs", "money", "accounts", "wins"];
 const DEV = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "폰" : "PC";
 let histGroup = null, histApplying = false, histTimer = null, histFor = null;
 function histNorm(o) {   // 비교용: 빈 칸 빼고 키 순서 맞추기 (Firebase는 null·빈 묶음을 저장 안 함)
@@ -705,6 +705,11 @@ function histDescribe(e) {
     return { label: `목표 '${d.title || ""}' ${verb}`, date: null };
   }
   if (c === "accounts") return { label: `자산 '${d.name || ""}' ${verb}`, date: null };
+  if (c === "wins") {
+    if (a && b && !b.usedAt && a.usedAt) return { label: `쿠폰 '${d.title}' 쓰기`, date: a.usedAt };
+    if (a && b && (a.left || 0) < (b.left || 0)) return { label: `벌칙 '${d.title}' 했어요`, date: a.doneAt || null };
+    return { label: `쿠폰함 '${d.title}' ${verb}`, date: null };
+  }
   return { label: "변경", date: null };
 }
 function histTargets() {
@@ -923,6 +928,137 @@ $("lottoAdminDlg").addEventListener("change", (ev) => {
   saveLotto({ [el.dataset.la]: { [el.dataset.id]: { [el.dataset.f]: v } } }, "고쳤어요.");
 });
 
+// ---------- 🎟️ 복권 긁기 · 쿠폰함 (wins 모음: kind coupon|pen|miss) ----------
+// 쿠폰: expires(받은 날+기한), usedAt. 벌칙: left(남은 장), deadline, days, doneAt — 기한 지나면 남은 장 ×2, 기한 다시 (끝없이)
+let scratch = null;   // { res, committed, revealed }
+function ticketsLeft() { return Math.max(0, Math.floor(pointsLedger().total / PT_TICKET) - S.wins.size); }
+function drawLotto() {
+  const o = lottoOdds(), pm = practiceMinutes();
+  if (streak(pm) >= 7) { o.big += 1; o.mid += 2; o.miss = Math.max(0, o.miss - 2); o.pen = Math.max(0, o.pen - 1); }   // 연속 7일+ 덤
+  const keys = Object.keys(ODDS_DEF), tot = keys.reduce((t, k) => t + (Number(o[k]) || 0), 0) || 1;
+  let r = Math.random() * tot, pick = "miss";
+  for (const k of keys) { r -= Number(o[k]) || 0; if (r < 0) { pick = k; break; } }
+  const cs = lottoItems("coupons"), ps = lottoItems("pens"), any = (list) => list[Math.floor(Math.random() * list.length)];
+  if (pick === "pen") { const v = any(ps); if (v) return { kind: "pen", title: v.title, days: Number(v.days) || 7 }; pick = "miss"; }
+  if (["big", "mid", "small"].includes(pick)) {
+    let list = cs.filter((v) => v.tier === pick);
+    if (!list.length) list = cs;   // 그 등급이 비었으면 아무 쿠폰
+    const v = any(list); if (v) return { kind: "coupon", tier: v.tier, title: v.title, days: Number(v.days) || 30 };
+  }
+  return { kind: "miss", title: "꽝" };
+}
+async function quietly(fn) { histApplying = true; try { return await fn(); } finally { histApplying = false; } }   // 되돌리기 기록에 안 남김
+function commitWin(res, at) {
+  const t = today(), doc = { kind: res.kind, title: res.title, wonAt: t, at };
+  if (res.kind === "coupon") Object.assign(doc, { tier: res.tier, days: res.days, expires: addDays(t, res.days) });
+  if (res.kind === "pen") Object.assign(doc, { days: res.days, left: 1, deadline: addDays(t, res.days) });
+  return quietly(() => backend.add("wins", doc));
+}
+function resHtml(res) {
+  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="lv">${res.tier === "big" ? "대박!!" : res.tier === "mid" ? "쿠폰 당첨!" : "작은 쿠폰"}</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.days}일 안에 쓰기</div>`;
+  if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.days}일 안에 못 하면 ×2</div>`;
+  return `<div class="big">😐</div><div class="lv">꽝</div><div class="tt">아쉽다! 다음 기회에</div>`;
+}
+function openScratch() {
+  if (!ready()) return;
+  const left = ticketsLeft();
+  if (!left) { toast("긁을 복권이 없어요. 실천해서 포인트를 모아요!"); return; }
+  scratch = { res: drawLotto(), committed: false, revealed: false, at: Date.now() };
+  $("scSub").textContent = `남은 복권 ${left}장`;
+  $("scratchUnder").innerHTML = resHtml(scratch.res);
+  $("scBtns").innerHTML = '<button class="btn ghost" type="button" data-act="scReveal">한 번에 열기</button>';
+  $("scHint").hidden = false;
+  openDlg($("scratchDlg"));
+  setTimeout(paintScratch, 30);
+}
+function paintScratch() {
+  if (!scratch || scratch.revealed || scratch.painted) return;
+  const cv = $("scratchCanvas"), r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.classList.remove("gone"); cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr);
+  const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.globalCompositeOperation = "source-over";
+  const g = c.createLinearGradient(0, 0, r.width, r.height); g.addColorStop(0, "#C9CED6"); g.addColorStop(.5, "#E9ECF1"); g.addColorStop(1, "#AEB4BE");
+  c.fillStyle = g; c.fillRect(0, 0, r.width, r.height);
+  c.fillStyle = "#6B7280"; c.font = "600 18px sans-serif"; c.textAlign = "center"; c.fillText("🪙 여기를 문질러요", r.width / 2, r.height / 2 + 6);
+  c.globalCompositeOperation = "destination-out";
+  scratch.painted = true;
+}
+async function scratchCommit() {
+  if (!scratch || scratch.committed) return;
+  scratch.committed = true;   // 긁기 시작하면 바로 저장 (닫았다 다시 뽑기 못 하게)
+  try { await commitWin(scratch.res, scratch.at); } catch (e) { scratch.committed = false; }
+}
+function scratchReveal() {
+  if (!scratch || scratch.revealed) return;
+  scratchCommit();
+  scratch.revealed = true; renderCoupons();
+  $("scratchCanvas").classList.add("gone"); $("scHint").hidden = true;
+  const res = scratch.res, left = ticketsLeft() - (scratch.committed ? 0 : 1);
+  toast(res.kind === "coupon" ? (res.tier === "big" ? "🥇 대박!! " : "🎉 ") + res.title : res.kind === "pen" ? "😈 벌칙: " + res.title : "😐 꽝! 다음 기회에");
+  $("scBtns").innerHTML = (left > 0 ? `<button class="btn" type="button" data-act="scAgain">한 장 더 긁기 (${left}장)</button>` : "") + '<button class="btn ghost" type="button" data-act="scClose">닫기</button>';
+}
+(() => {   // 문질러 긁기
+  const cv = $("scratchCanvas"); let down = false, n = 0;
+  const pos = (ev) => { const r = cv.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+  const rub = (ev) => {
+    if (!down || !scratch || scratch.revealed) return;
+    if (!scratch.painted) paintScratch();   // 아직 은색이 안 칠해졌으면 먼저
+    const c = cv.getContext("2d"), [x, y] = pos(ev); c.beginPath(); c.arc(x, y, 20, 0, Math.PI * 2); c.fill();
+    if (++n % 8 === 0) {   // 얼마나 긁혔는지 가끔 재기
+      const d = c.getImageData(0, 0, cv.width, cv.height).data; let clear = 0;
+      for (let i = 3; i < d.length; i += 64) if (d[i] === 0) clear++;
+      if (clear / (d.length / 64) > 0.5) scratchReveal();
+    }
+  };
+  cv.addEventListener("pointerdown", (ev) => { down = true; cv.setPointerCapture(ev.pointerId); scratchCommit(); rub(ev); });
+  cv.addEventListener("pointermove", rub);
+  ["pointerup", "pointercancel", "pointerleave"].forEach((e) => cv.addEventListener(e, () => { down = false; }));
+})();
+// 벌칙 기한: 지났으면 남은 장 ×2, 기한 다시 (어느 기기든 열면 맞춰 둠)
+let penSweeping = false;
+function sweepPens() {
+  if (penSweeping || !backend || !S.loaded) return;
+  const t = today(), jobs = [];
+  S.wins.forEach((w, id) => {
+    if (!w || w.kind !== "pen" || !(w.left > 0) || !w.deadline || w.deadline >= t) return;
+    let left = w.left, dl = w.deadline; const days = Number(w.days) || 7;
+    while (dl < t) { left *= 2; dl = addDays(dl, days); }
+    jobs.push([id, { left, deadline: dl }]);
+  });
+  if (!jobs.length) return;
+  penSweeping = true;
+  quietly(async () => { for (const [id, p] of jobs) await backend.update("wins", id, p); }).finally(() => { penSweeping = false; });
+}
+function renderCoupons() {
+  if (ui.page !== "coupons") return;
+  const t = today(), L = pointsLedger(), left = Math.max(0, Math.floor(L.total / PT_TICKET) - S.wins.size), prog = L.total % PT_TICKET;
+  $("cpTicket").innerHTML = `<svg class="ticket${left ? " full" : ""}" viewBox="0 0 40 24" aria-hidden="true">${ticketSvg(Math.floor(prog / (PT_TICKET / 8)), left > 0)}</svg>` +
+    `<div><div class="cp-n">${left ? `긁을 복권 ${left}장!` : "다음 복권까지 " + (PT_TICKET - prog) + "점"}</div><div class="small muted">⭐ ${prog} / ${PT_TICKET} · 모두 ${L.total.toLocaleString("ko-KR")}점</div></div>` +
+    `<button class="btn" type="button" data-act="openScratch"${left ? "" : ' aria-disabled="true"'}>🪙 긁기</button>`;
+  const hide = scratch && !scratch.revealed ? scratch.at : null;   // 긁는 중인 건 다 긁기 전까지 목록에 안 보이게
+  const ws = rows(S.wins).filter((w) => w.at !== hide).sort((a, b) => (b.at || 0) - (a.at || 0));
+  const tierIc = (w) => w.tier === "big" ? "🥇" : w.tier === "mid" ? "🥈" : "🥉";
+  const avail = ws.filter((w) => w.kind === "coupon" && !w.usedAt && (w.expires || "9999") >= t);
+  $("cpAvailN").textContent = avail.length ? avail.length + "장" : "";
+  $("cpAvail").innerHTML = avail.length ? avail.map((w) => `<div class="item cp-item"><span class="cp-tier">${tierIc(w)}</span><div class="body"><div class="title">${esc(w.title)}</div>` +
+    `<div class="meta"><span class="tag">${esc(shortDate(w.expires))}까지 · ${ddayText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음</span></div></div>` +
+    `<div class="actions"><button class="btn small" type="button" data-act="cpUse" data-id="${esc(w.id)}">쓰기</button></div></div>`).join("") : '<div class="empty">아직 쓸 쿠폰이 없어요.</div>';
+  const pens = ws.filter((w) => w.kind === "pen"), pOpen = pens.filter((w) => w.left > 0), pDone = pens.filter((w) => !(w.left > 0));
+  $("cpPens").innerHTML = (pOpen.length ? pOpen.map((w) => `<div class="item cp-item"><span class="cp-tier">😈</span><div class="body"><div class="title">${esc(w.title)}${w.left > 1 ? ` <b style="color:var(--danger)">×${w.left}</b>` : ""}</div>` +
+    `<div class="meta"><span class="tag late">${esc(shortDate(w.deadline))}까지 · ${ddayText(w.deadline)}</span><span class="small muted">못 하면 ×${w.left * 2}</span></div></div>` +
+    `<div class="actions"><button class="btn small" type="button" data-act="penDone" data-id="${esc(w.id)}">했어요${w.left > 1 ? " (1장)" : ""}</button></div></div>`).join("") : '<div class="empty">미완료 벌칙이 없어요. 👍</div>') +
+    pDone.map((w) => `<div class="item done"><span class="cp-tier">✅</span><div class="body"><div class="title">${esc(w.title)}</div><div class="meta"><span class="small muted">${esc(shortDate(w.doneAt || w.wonAt))} 완료</span></div></div><div class="actions"></div></div>`).join("");
+  const past = ws.filter((w) => (w.kind === "coupon" && (w.usedAt || (w.expires || "9999") < t)) || w.kind === "miss");
+  $("cpPast").innerHTML = past.length ? past.map((w) => {
+    const st = w.kind === "miss" ? "😐 꽝" : w.usedAt ? `${shortDate(w.usedAt)} 사용함` : `${shortDate(w.expires)} 기한 만료`;
+    return `<div class="item done"><span class="cp-tier">${w.kind === "miss" ? "😐" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions"></div></div>`;
+  }).join("") : '<div class="empty">아직 없어요.</div>';
+}
+function maybeLottoIntro() {   // 공개된 뒤 처음 여는 기기에 한 번 소개
+  if (!lottoOn() || isAdminDevice()) return;
+  try { if (localStorage.getItem("ukjin-lotto-intro")) return; localStorage.setItem("ukjin-lotto-intro", "1"); } catch (e) { return; }
+  openDlg($("lottoIntroDlg"));
+}
+
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
 // 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 7일 30 / 15일 100 / 30일 250 / 90일 1000 / 그 뒤 30일마다 300 · 돈 기록 1 (월급 30)
 const PT_GOAL = 300, PT_SUB = 50, PT_TICKET = 1000;
@@ -965,13 +1101,13 @@ function ticketSvg(stage, full) {   // 복권 그림: 1000점을 8칸으로 (125
 }
 function renderPoints() {
   const vis = lottoVisible() && S.loaded;
-  ["sideLotto", "topLotto", "ptsBtn"].forEach((id) => { $(id).hidden = !vis; });
+  ["sideLotto", "topLotto", "ptsBtn", "navCoupons", "helpLotto"].forEach((id) => { $(id).hidden = !vis; });
   if (!vis) return;
-  const L = pointsLedger(), used = Number((S.settings.lotto || {}).used) || 0;
+  const L = pointsLedger(), used = S.wins.size;
   const earned = Math.floor(L.total / PT_TICKET), left = Math.max(0, earned - used), prog = L.total % PT_TICKET, stage = Math.floor(prog / (PT_TICKET / 8));
   ["sideTicket", "topTicket"].forEach((id) => { const el = $(id); el.innerHTML = ticketSvg(stage, left > 0); el.classList.toggle("full", left > 0); });
   $("sidePts").textContent = prog.toLocaleString("ko-KR");
-  ["sideTickets", "topTickets"].forEach((id) => { $(id).hidden = !left; $(id).textContent = left; });
+  ["sideTickets", "topTickets", "navTickets"].forEach((id) => { $(id).hidden = !left; $(id).textContent = left; });
   $("sideLotto").title = $("topLotto").title = `⭐ 모두 ${L.total.toLocaleString("ko-KR")}점 · 다음 복권까지 ${PT_TICKET - prog}점${left ? ` · 긁을 복권 ${left}장` : ""}`;
   $("ptsBtn").classList.toggle("off", !ptsShown());
   $("ptsBtn").title = ptsShown() ? "달력에 포인트 숨기기" : "달력에 포인트 보이기";
@@ -980,7 +1116,7 @@ function renderPoints() {
 function ptsShown() { try { return localStorage.getItem("ukjin-pts-show") !== "0"; } catch (e) { return true; } }
 function renderPointsDlg(L) {
   L = L || pointsLedger();
-  const used = Number((S.settings.lotto || {}).used) || 0, earned = Math.floor(L.total / PT_TICKET), prog = L.total % PT_TICKET;
+  const used = S.wins.size, earned = Math.floor(L.total / PT_TICKET), prog = L.total % PT_TICKET;
   $("ptSub").textContent = `모두 ${L.total.toLocaleString("ko-KR")}점 · 복권 ${earned}장 받음`;
   $("ptHead").innerHTML = `<div class="pt-big">${prog.toLocaleString("ko-KR")} <small class="muted" style="font-size:14px">/ ${PT_TICKET}</small></div>` +
     `<div class="bar"><i style="width:${Math.round(prog / PT_TICKET * 100)}%;background:var(--sun)"></i></div>` +
@@ -1605,14 +1741,15 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); if (!$("searchResults").hidden) renderSearch();
+  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens();
+  if (S.loaded && $("newsDlg").open === false) maybeLottoIntro(); if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
 }
 
 // ---------- 동작 ----------
-const PAGES = ["calendar", "goals", "money", "certs", "requests", "help"];
-function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; renderHeader(); window.scrollTo(0, 0); }
+const PAGES = ["calendar", "goals", "money", "certs", "requests", "help", "coupons"];
+function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; if (ui.page === "coupons" && !lottoVisible()) ui.page = "calendar"; renderHeader(); renderCoupons(); window.scrollTo(0, 0); }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
 let armed = null, armTimer;
@@ -1675,6 +1812,16 @@ document.addEventListener("click", (ev) => {
   if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; return; }
   if (a === "testMode") { toggleTestMode(); return; }
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
+  if (a === "openScratch") { openScratch(); return; }
+  if (a === "scReveal") { scratchReveal(); return; }
+  if (a === "scAgain") { closeDlg($("scratchDlg")); setTimeout(openScratch, 150); return; }
+  if (a === "scClose") { if (scratch && scratch.committed && !scratch.revealed) scratchReveal(); else { closeDlg($("scratchDlg")); scratch = null; } return; }
+  if (a === "liClose") { closeDlg($("lottoIntroDlg")); return; }
+  if (a === "cpUse") { const w = S.wins.get(id); if (!w || !ready()) return; act(backend.update("wins", id, { usedAt: t }), `🎉 '${w.title}' 쿠폰을 썼어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return; }
+  if (a === "penDone") {
+    const w = S.wins.get(id); if (!w || !ready()) return; const left = Math.max(0, (w.left || 1) - 1);
+    act(backend.update("wins", id, left ? { left } : { left: 0, doneAt: t }), left ? `💪 한 장 했어요! ${left}장 남았어요. 기한 안에 다 해요.` : "✅ 벌칙 끝!").catch(() => {}); return;
+  }
   if (a === "laClose") { closeDlg($("lottoAdminDlg")); return; }
   if (a === "laDel") {
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말?"; setTimeout(() => { if (el.isConnected) { el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "삭제"; } }, 3000); return; }
@@ -1690,7 +1837,8 @@ document.addEventListener("click", (ev) => {
   if (a === "testPts") { testBonus += PT_TICKET; render(); toast("🧪 테스트 포인트 +1000점"); return; }
   if (a === "adminOff") { setAdminDevice(false); toast("이 기기에서 관리자를 껐어요."); return; }
   if (a === "adminChange") { const f = $("adminChangeForm"); if (f) { f.hidden = !f.hidden; } return; }
-  if (a === "openPoints") { closeMenu(); renderPointsDlg(); openDlg($("pointsDlg")); return; }
+  if (a === "openPoints") { closeMenu(); location.hash = "#coupons"; return; }
+  if (a === "openPtsDlg") { renderPointsDlg(); openDlg($("pointsDlg")); return; }
   if (a === "ptClose") { closeDlg($("pointsDlg")); return; }
   if (a === "ptsToggle") { try { localStorage.setItem("ukjin-pts-show", ptsShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); renderPoints(); toast(ptsShown() ? "달력에 포인트를 보여요." : "달력에서 포인트를 숨겼어요."); return; }
   if (a === "goalAchieve") {
