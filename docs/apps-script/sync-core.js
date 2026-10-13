@@ -7,7 +7,7 @@
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  */
-const CORE_VERSION = "2026-10-13b";
+const CORE_VERSION = "2026-10-13c";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
@@ -139,10 +139,10 @@ function pushToGoogle_(tasks, goals, logs) {
   return res;
 }
 
+// 보드 화면과 같은 짧은 시간: 1h 30m
 function fmtMin_(m) {
-  if (m < 60) return m + "분";
   const h = Math.floor(m / 60), r = m % 60;
-  return h + "시간" + (r ? " " + r + "분" : "");
+  return h ? h + "h" + (r ? " " + r + "m" : "") : r + "m";
 }
 
 // 반복 일정의 첫 날: 시작일부터 처음으로 요일이 맞는 날 (끝날 넘으면 없음)
