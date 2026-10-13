@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014g";
-import { CHANGES } from "./changes.js?v=20261014g";
-import { firebaseConfig } from "./firebase-config.js?v=20261014g";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014h";
+import { CHANGES } from "./changes.js?v=20261014h";
+import { firebaseConfig } from "./firebase-config.js?v=20261014h";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1047,9 +1047,11 @@ function sweepPens() {
 function renderCoupons() {
   if (ui.page !== "coupons") return;
   const t = today(), L = pointsLedger(), left = Math.max(0, Math.floor(L.total / PT_TICKET) - S.wins.size), prog = L.total % PT_TICKET;
-  $("cpTicket").innerHTML = `<svg class="ticket${left ? " full" : ""}" viewBox="0 0 40 24" aria-hidden="true">${ticketSvg(Math.floor(prog / (PT_TICKET / 8)), left > 0)}</svg>` +
-    `<div><div class="cp-n">${left ? `긁을 복권 ${left}장!` : "다음 복권까지 " + (PT_TICKET - prog) + "점"}</div><div class="small muted">⭐ ${prog} / ${PT_TICKET} · 모두 ${L.total.toLocaleString("ko-KR")}점</div></div>` +
+  const tst = lottoStage(L);
+  $("cpTicket").innerHTML = `<svg class="ticket" viewBox="-12 -16 124 92" aria-hidden="true" id="cpTicketSvg"></svg>` +
+    `<div><div class="cp-n">${left ? `긁을 복권 ${left}장!` : "다음 복권까지 " + (PT_TICKET - prog) + "점"}</div><div class="small muted">${esc(LOTTO_STAGES[tst.stage - 1])} · ⭐ ${prog} / ${PT_TICKET} · 모두 ${L.total.toLocaleString("ko-KR")}점</div></div>` +
     `<button class="btn" type="button" data-act="openScratch"${left ? "" : ' aria-disabled="true"'}>🪙 긁기</button>`;
+  paintTicket($("cpTicketSvg"), tst);
   const hide = scratch && !scratch.revealed ? scratch.at : null;   // 긁는 중인 건 다 긁기 전까지 목록에 안 보이게
   const ws = rows(S.wins).filter((w) => w.at !== hide).sort((a, b) => (b.at || 0) - (a.at || 0));
   const tierIc = (w) => w.tier === "big" ? "🥇" : w.tier === "mid" ? "🥈" : "🥉";
@@ -1192,10 +1194,53 @@ function pointsLedger() {
   const total = Object.values(day).reduce((t, x) => t + x.sum, 0);
   return { total, day };
 }
-function ticketSvg(stage, full) {   // 복권 그림: 1000점을 8칸으로 (125점마다 한 칸)
-  let segs = "";
-  for (let i = 0; i < 8; i++) segs += `<rect class="t-seg${full || i < stage ? " on" : ""}" x="${8 + i * 3.2}" y="8" width="2.4" height="8" rx="0.8"/>`;
-  return `<path class="t-body" d="M3 3h34v6.2a2.8 2.8 0 0 0 0 5.6V21H3v-6.2a2.8 2.8 0 0 0 0-5.6z"/>${segs}`;
+// 복권 그림 8단계 (125점마다) + 다 참(9). n = 몇 번째 복권 (No.001…, 번호 공도 복권마다 다름)
+const LOTTO_STAGES = ["작업복 주머니에서 빈 복권 발견", "꼬깃꼬깃 펴 보니 진짜 복권이네!", "오늘도 실천 도장 꾹!", "행운 번호가 하나씩 떠올라요",
+  "은박이 반짝반짝", "주머니 속에서 들썩들썩!", "행운의 동전 준비 완료", "두근두근!! 곧 긁어요", "긁을 복권 도착! 🎉"];
+const LOTTO_MOVE = { 6: "tk-w1", 7: "tk-w2", 8: "tk-hop", 9: "tk-glow" };
+let tkUid = 0;
+// fill/stroke="var(--…)"를 style로 옮김 (아이폰 사파리에서도 색이 나오게)
+function svgVars(h) { return h.replace(/<(\w+)([^>]*?)(\/?)>/g, (m, tag, at, sl) => { let st = ""; at = at.replace(/\s(fill|stroke)="(var\([^"]+\))"/g, (x, k, v) => { st += `${k}:${v};`; return ""; }); return st ? `<${tag}${at} style="${st}"${sl}>` : m; }); }
+function ticketSvg(stage, n) {
+  const k = "tk" + (tkUid++), full = stage >= 9, P = "M4 6h92v17a7 7 0 0 0 0 14v19H4V37a7 7 0 0 0 0-14z";
+  let g = `<defs><pattern id="${k}f" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="6" height="6" fill="var(--tk-foil)"/><rect width="2" height="6" fill="var(--tk-foil-hi)"/></pattern><clipPath id="${k}c"><path d="${P}"/></clipPath></defs>`;
+  if (stage <= 1) {   // 청바지 주머니에서 빼꼼
+    g += `<g transform="translate(0 6)"><path d="${P}" fill="var(--tk-paper)" stroke="var(--tk-line)" stroke-width="2"/><text x="37" y="34" text-anchor="middle" font-size="18" fill="var(--muted)" font-family="Do Hyeon, sans-serif">?</text></g>`;
+    g += `<path d="M-6 30h112v34q0 8-8 8H2q-8 0-8-8z" fill="var(--tk-denim)"/><path d="M-6 30h112" stroke="var(--tk-denim-d)" stroke-width="3"/><path d="M0 36h100" stroke="var(--tk-gold)" stroke-width="1.4" stroke-dasharray="4 3"/><path d="M46 42v24" stroke="var(--tk-gold)" stroke-width="1.2" stroke-dasharray="3 3"/>`;
+    return svgVars(g);
+  }
+  g += `<path d="${P}" fill="${full ? "var(--sun-soft)" : "var(--tk-paper)"}" stroke="var(--sun)" stroke-width="${full ? 3 : 2.2}"/>`;
+  g += `<g clip-path="url(#${k}c)"><rect x="0" y="6" width="100" height="10" fill="var(--tk-band)"/></g>`;
+  g += `<text x="37" y="14" text-anchor="middle" font-size="7.5" fill="#FFFFFF" font-family="Do Hyeon, sans-serif" letter-spacing=".5">실천 복권</text>`;
+  g += `<path d="M71 16v40" stroke="var(--sun)" stroke-width="1.3" stroke-dasharray="2.5 2.5"/>`;
+  g += `<text x="83" y="13.6" text-anchor="middle" font-size="5.6" fill="#FFFFFF" font-family="IBM Plex Mono, monospace">No.${String(n || 1).padStart(3, "0")}</text>`;
+  const nums = [(n * 7 + 3) % 9 + 1, (n * 5 + 1) % 9 + 1, (n * 3 + 5) % 9 + 1], cols = ["var(--coral)", "var(--blue)", "var(--mint)"];
+  const balls = nums.map((v, i) => `<circle cx="${22 + i * 15}" cy="34" r="6.5" fill="${cols[i]}"/><text x="${22 + i * 15}" y="37.5" text-anchor="middle" font-size="9" fill="#FFFFFF" font-family="IBM Plex Mono, monospace" font-weight="600">${v}</text>`).join("");
+  if (stage === 2) g += `<path d="M30 16l-6 40M62 18l8 36M4 40l92 -6" stroke="var(--tk-line)" stroke-width="1.2" fill="none"/><path d="M14 30h40M14 40h26" stroke="var(--tk-line)" stroke-width="2.4" stroke-linecap="round"/>`;
+  if (stage === 3) g += `<path d="M14 34h46M14 44h30" stroke="var(--tk-line)" stroke-width="2.4" stroke-linecap="round"/>`;
+  if (stage === 4) g += balls;
+  if (stage >= 5) {
+    g += `<rect x="11" y="21" width="53" height="29" rx="5" fill="url(#${k}f)" stroke="var(--tk-foil-lo)" stroke-width="1"/>`;
+    g += full ? `<text x="37.5" y="39.5" text-anchor="middle" font-size="12" fill="var(--fg)" font-family="Do Hyeon, sans-serif">긁어요!</text>`
+      : `<text x="37.5" y="39" text-anchor="middle" font-size="8" fill="var(--tk-foil-lo)" font-family="Do Hyeon, sans-serif">여기를 긁어요</text>`;
+  }
+  // 실천 도장: 뜯는 칸 아래쪽 (홈에 안 걸리게)
+  if (stage >= 3) g += `<g transform="rotate(-14 83.5 46)"><circle cx="83.5" cy="46" r="8" fill="none" stroke="var(--coral)" stroke-width="1.8"/><circle cx="83.5" cy="46" r="5.6" fill="none" stroke="var(--coral)" stroke-width=".7"/><text x="83.5" y="48.4" text-anchor="middle" font-size="6.3" fill="var(--coral)" font-family="Do Hyeon, sans-serif">실천</text></g>`;
+  if (stage === 6) g += `<path d="M-4 22q-6 6 0 13M-9 18q-8 10 0 21M104 22q6 6 0 13M109 18q8 10 0 21" fill="none" stroke="var(--grape)" stroke-width="2" stroke-linecap="round"/>`;
+  if (stage >= 7 && !full) g += `<g transform="translate(94 60)"><circle r="11" fill="var(--tk-gold)" stroke="var(--tk-gold-d)" stroke-width="2"/><circle r="7.5" fill="none" stroke="var(--tk-gold-d)" stroke-width="1"/><text y="3.6" text-anchor="middle" font-size="10" fill="#7A4A00" font-weight="700">₩</text></g>`;
+  const spark = (x, y, sc) => `<path class="tw" d="M0 -6Q1 -1 6 0Q1 1 0 6Q-1 1 -6 0Q-1 -1 0 -6Z" fill="var(--sun)" transform="translate(${x} ${y}) scale(${sc})"/>`;
+  if (stage >= 8) g += spark(6, -4, 1) + spark(98, -6, .8) + spark(50, -10, .7);
+  if (full) g += spark(-6, 50, .8);
+  return svgVars(g);
+}
+function lottoStage(L) {   // { stage 1~9, n 몇 번째 복권, left 긁을 장 수, prog }
+  const used = S.wins.size, earned = Math.floor(L.total / PT_TICKET), left = Math.max(0, earned - used), prog = L.total % PT_TICKET;
+  return left ? { stage: 9, n: used + 1, left, prog } : { stage: Math.min(8, Math.floor(prog / (PT_TICKET / 8)) + 1), n: earned + 1, left, prog };
+}
+function paintTicket(el, st) {
+  el.innerHTML = ticketSvg(st.stage, st.n);
+  el.classList.remove("tk-w1", "tk-w2", "tk-hop", "tk-glow");
+  if (LOTTO_MOVE[st.stage]) el.classList.add(LOTTO_MOVE[st.stage]);
 }
 function renderPoints() {
   const vis = lottoVisible() && S.loaded;
@@ -1203,7 +1248,9 @@ function renderPoints() {
   if (!vis) return;
   const L = pointsLedger(), used = S.wins.size;
   const earned = Math.floor(L.total / PT_TICKET), left = Math.max(0, earned - used), prog = L.total % PT_TICKET, stage = Math.floor(prog / (PT_TICKET / 8));
-  ["sideTicket", "topTicket"].forEach((id) => { const el = $(id); el.innerHTML = ticketSvg(stage, left > 0); el.classList.toggle("full", left > 0); });
+  const tst = lottoStage(L);
+  ["sideTicket", "topTicket"].forEach((id) => paintTicket($(id), tst));
+  $("sideStage").textContent = LOTTO_STAGES[tst.stage - 1];
   $("sidePts").textContent = prog.toLocaleString("ko-KR");
   ["sideTickets", "topTickets", "navTickets"].forEach((id) => { $(id).hidden = !left; $(id).textContent = left; });
   $("sideLotto").title = $("topLotto").title = `⭐ 모두 ${L.total.toLocaleString("ko-KR")}점 · 다음 복권까지 ${PT_TICKET - prog}점${left ? ` · 긁을 복권 ${left}장` : ""}`;
