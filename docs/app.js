@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014f";
-import { CHANGES } from "./changes.js?v=20261014f";
-import { firebaseConfig } from "./firebase-config.js?v=20261014f";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014g";
+import { CHANGES } from "./changes.js?v=20261014g";
+import { firebaseConfig } from "./firebase-config.js?v=20261014g";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1140,7 +1140,7 @@ function openGame(id) {
   openDlg($("gameDlg"));
   const step = (ts) => {
     if (!game || game.done) return;
-    if (game.last) { game.pos += game.dir * (ts - game.last) / 1100; if (game.pos > 1) { game.pos = 2 - game.pos; game.dir = -1; } if (game.pos < 0) { game.pos = -game.pos; game.dir = 1; } }
+    if (game.last) { game.pos += game.dir * (ts - game.last) / 750; if (game.pos > 1) { game.pos = 2 - game.pos; game.dir = -1; } if (game.pos < 0) { game.pos = -game.pos; game.dir = 1; } }
     game.last = ts; $("tgNeedle").style.left = (game.pos * 100) + "%"; game.raf = requestAnimationFrame(step);
   };
   game.raf = requestAnimationFrame(step);
@@ -1149,7 +1149,7 @@ $("gameDlg").addEventListener("cancel", (ev) => { if (game && !game.done) ev.pre
 function stopGame() {
   if (!game || game.done) return;
   game.done = true; cancelAnimationFrame(game.raf);
-  const d = Math.abs(game.pos - 0.5), pts = d <= 0.03 ? 500 : d <= 0.1 ? 300 : d <= 0.2 ? 100 : 0;
+  const d = Math.abs(game.pos - 0.5), pts = d <= 0.03 ? 300 : d <= 0.1 ? 150 : d <= 0.2 ? 50 : 0;
   const id = game.id;
   $("tgRes").textContent = pts ? `🎉 +${pts}점 돌려받았어요!` : "😅 아깝다! 0점";
   $("gmBtns").innerHTML = '<button class="btn" type="button" data-act="gmClose">확인</button>';
