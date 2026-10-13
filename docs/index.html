@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261014e">
+<link rel="stylesheet" href="style.css?v=20261014f">
 </head>
 <body>
 
@@ -298,6 +298,7 @@
           <li>⭐ 포인트: 실천 1분 = 1점 · 세부목표 달성 50 · 목표 달성 300 · 연속 실천 7일 30 / 15일 100 / 30일 250 / 90일 1000, 그 뒤 30일마다 300 · 돈 기록 1건 1 (월급 30). 지난 기록도 다 쳐요.</li>
           <li>달력 칸 오른쪽 아래 <b>+75</b> = 그 날 받은 포인트 (달력 위 ⭐로 켜고 꺼요). 날짜를 누르면 어디서 받았는지 보여요.</li>
           <li><b>1000점마다 복권 한 장.</b> 🎟️ 아이콘이 125점마다 한 칸씩 8칸 차올라요.</li>
+          <li>😐 꽝이나 😈 벌칙이 나오면 <b>🎯 타이밍 게임</b> 한 판으로 포인트를 돌려받을 수 있어요 (가운데 500 · 가까우면 300 · 조금 빗나가면 100).</li>
           <li>메뉴 <b>쿠폰함</b>에서 긁어요. 쿠폰은 기한 안에 [쓰기], 벌칙은 기한 안에 [했어요] — 못 하면 남은 장 수가 두 배가 되고 기한이 다시 생겨요.</li>
         </ul>
         </div>
@@ -497,6 +498,16 @@
   <div class="dlg-sec mv-btns" id="scBtns"></div>
 </dialog>
 
+<dialog class="dlg" id="gameDlg" aria-labelledby="gmTitle">
+  <div class="dlg-head"><div><h3 id="gmTitle">🎯 포인트 돌려받기</h3><span class="muted small">바늘을 가운데에 맞춰 멈춰요! 한 장에 한 번</span></div><button class="icon-round" type="button" data-act="gmClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec">
+    <div class="tg" id="tgBar" data-act="gmStop" role="button" aria-label="멈추기"><span class="tg-z z1"></span><span class="tg-z z2"></span><span class="tg-z z3"></span><span class="tg-needle" id="tgNeedle"></span></div>
+    <p class="small muted" style="margin:6px 0 0;text-align:center">가운데(진한 칸) <b>500</b> · 그 옆 <b>300</b> · 연한 칸 <b>100</b> · 바깥 0</p>
+    <p class="tg-res" id="tgRes"></p>
+  </div>
+  <div class="dlg-sec mv-btns" id="gmBtns"></div>
+</dialog>
+
 <dialog class="dlg" id="lottoIntroDlg" aria-labelledby="liTitle">
   <div class="dlg-head"><h3 id="liTitle">🎟️ 새 기능: 실천 복권!</h3><button class="icon-round" type="button" data-act="liClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="dlg-sec help"><ul>
@@ -504,6 +515,7 @@
     <li><b>1000점마다 복권 한 장!</b> 왼쪽 아래(폰은 위쪽) 🎟️ 아이콘이 8칸으로 차올라요.</li>
     <li>메뉴 <b>쿠폰함</b>에서 문질러 긁으면 🥇 대박 · 🥈 쿠폰 · 🥉 작은 쿠폰 · 😐 꽝 · 😈 벌칙 중 하나가 나와요.</li>
     <li>쿠폰은 기한 안에 [쓰기]. 벌칙은 기한 안에 다 못 하면 남은 장 수가 <b>두 배</b>!</li>
+    <li>꽝·벌칙이 나와도 <b>🎯 타이밍 게임</b>으로 포인트를 돌려받을 수 있어요.</li>
     <li>지난 기록도 포인트로 쳤어요. 벌써 복권이 있을지도?</li>
   </ul></div>
   <div class="dlg-sec mv-btns"><a class="btn" href="#coupons" data-act="liClose">쿠폰함 가기</a><button class="btn ghost" type="button" data-act="liClose">닫기</button></div>
@@ -512,6 +524,7 @@
 <dialog class="dlg dlg-day" id="lottoAdminDlg" aria-labelledby="laTitle">
   <div class="dlg-head"><div><h3 id="laTitle">🎟️ 복권 관리</h3><span class="muted small">관리자만 보여요. 욱진이 화면엔 긁어서 나온 것만 보여요.</span></div><button class="icon-round" type="button" data-act="laClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="dlg-sec"><h4>욱진이에게 공개</h4><div id="laOn"></div></div>
+  <div class="dlg-sec" id="laPresetSec" hidden><h4>📦 추천 목록</h4><p class="small muted" style="margin:0">쿠폰 200개(🥇 25 · 🥈 75 · 🥉 100)와 벌칙 50개를 한 번에 넣어요. 넣은 뒤에 마음대로 고치고 지우면 돼요.</p><div><button class="btn" type="button" data-act="laPreset">📦 추천 목록 한 번에 넣기</button></div></div>
   <div class="dlg-sec"><h4>💌 쿠폰 요청</h4><div class="list" id="laReqs"></div></div>
   <div class="dlg-sec"><h4>확률 (%)</h4><div class="la-odds" id="laOdds"></div><p class="small muted" id="laOddsSum" style="margin:0"></p></div>
   <div class="dlg-sec"><h4>쿠폰 목록</h4><p class="small muted" style="margin:0">등급마다 나오는 확률이 달라요. 기한 = 받은 날부터 며칠 안에 써야 하는지.</p><div class="la-list" id="laCoupons"></div>
@@ -575,6 +588,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261014e"></script>
+<script type="module" src="app.js?v=20261014f"></script>
 </body>
 </html>

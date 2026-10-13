@@ -1,5 +1,6 @@
-import { CHANGES } from "./changes.js?v=20261014e";
-import { firebaseConfig } from "./firebase-config.js?v=20261014e";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014f";
+import { CHANGES } from "./changes.js?v=20261014f";
+import { firebaseConfig } from "./firebase-config.js?v=20261014f";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -912,6 +913,7 @@ function renderLottoAdmin() {
   const sum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(o[k]) || 0), 0);
   $("laOddsSum").innerHTML = sum === 100 ? "합계 100% ✅" : `<span style="color:var(--danger)">합계 ${sum}% — 100이 되게 맞춰 주세요</span>`;
   const keepFocus = (box) => box.contains(document.activeElement);
+  $("laPresetSec").hidden = cs.length > 0 || ps.length > 0;
   if (!keepFocus($("laCoupons"))) $("laCoupons").innerHTML = cs.length ? cs.map((v) => `<div class="la-row"><select data-la="coupons" data-id="${esc(v.id)}" data-f="tier" aria-label="등급">${Object.keys(TIERS).map((k) => `<option value="${k}"${v.tier === k ? " selected" : ""}>${TIERS[k]}</option>`).join("")}</select>` +
     `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="coupons" data-id="${esc(v.id)}" data-f="title" aria-label="쿠폰 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 30}" data-la="coupons" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
     `<button class="icon-btn" type="button" data-act="laDel" data-k="coupons" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
@@ -1007,7 +1009,8 @@ function scratchReveal() {
   $("scratchCanvas").classList.add("gone"); $("scHint").hidden = true;
   const res = scratch.res, left = ticketsLeft() - (scratch.committed ? 0 : 1);
   toast(res.kind === "coupon" ? (res.tier === "big" ? "🥇 대박!! " : "🎉 ") + res.title : res.kind === "pen" ? "😈 벌칙: " + res.title : "😐 꽝! 다음 기회에");
-  $("scBtns").innerHTML = (left > 0 ? `<button class="btn" type="button" data-act="scAgain">한 장 더 긁기 (${left}장)</button>` : "") + '<button class="btn ghost" type="button" data-act="scClose">닫기</button>';
+  const gameBtn = res.kind !== "coupon" ? `<button class="btn" type="button" data-act="gmOpenLast">🎯 포인트 돌려받기 한 판</button>` : "";
+  $("scBtns").innerHTML = gameBtn + (left > 0 ? `<button class="btn${gameBtn ? " ghost" : ""}" type="button" data-act="scAgain">한 장 더 긁기 (${left}장)</button>` : "") + '<button class="btn ghost" type="button" data-act="scClose">닫기</button>';
 }
 (() => {   // 문질러 긁기
   const cv = $("scratchCanvas"); let down = false, n = 0;
@@ -1058,12 +1061,13 @@ function renderCoupons() {
   const pens = ws.filter((w) => w.kind === "pen"), pOpen = pens.filter((w) => w.left > 0), pDone = pens.filter((w) => !(w.left > 0));
   $("cpPens").innerHTML = (pOpen.length ? pOpen.map((w) => `<div class="item cp-item"><span class="cp-tier">😈</span><div class="body"><div class="title">${esc(w.title)}${w.left > 1 ? ` <b style="color:var(--danger)">×${w.left}</b>` : ""}</div>` +
     `<div class="meta"><span class="tag late">${esc(shortDate(w.deadline))}까지 · ${ddayText(w.deadline)}</span><span class="small muted">못 하면 ×${w.left * 2}</span></div></div>` +
-    `<div class="actions"><button class="btn small" type="button" data-act="penDone" data-id="${esc(w.id)}">했어요${w.left > 1 ? " (1장)" : ""}</button></div></div>`).join("") : '<div class="empty">미완료 벌칙이 없어요. 👍</div>') +
+    `<div class="actions" style="display:grid;gap:4px"><button class="btn small" type="button" data-act="penDone" data-id="${esc(w.id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>${w.game ? "" : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`}</div></div>`).join("") : '<div class="empty">미완료 벌칙이 없어요. 👍</div>') +
     pDone.map((w) => `<div class="item done"><span class="cp-tier">✅</span><div class="body"><div class="title">${esc(w.title)}</div><div class="meta"><span class="small muted">${esc(shortDate(w.doneAt || w.wonAt))} 완료</span></div></div><div class="actions"></div></div>`).join("");
   const past = ws.filter((w) => (w.kind === "coupon" && (w.usedAt || (w.expires || "9999") < t)) || w.kind === "miss");
   $("cpPast").innerHTML = past.length ? past.map((w) => {
     const st = w.kind === "miss" ? "😐 꽝" : w.usedAt ? `${shortDate(w.usedAt)} 사용함` : `${shortDate(w.expires)} 기한 만료`;
-    return `<div class="item done"><span class="cp-tier">${w.kind === "miss" ? "😐" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions"></div></div>`;
+    const gm = w.kind === "miss" ? (w.game ? `<span class="small muted">🎯 +${w.game.pts}</span>` : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`) : "";
+    return `<div class="item${w.kind === "miss" && !w.game ? "" : " done"}"><span class="cp-tier">${w.kind === "miss" ? "😐" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions">${gm}</div></div>`;
   }).join("") : '<div class="empty">아직 없어요.</div>';
 }
 function maybeLottoIntro() {   // 공개된 뒤 처음 여는 기기에 한 번 소개
@@ -1126,6 +1130,32 @@ function renderDayPanel() {
 }
 window.matchMedia("(max-width: 720px)").addEventListener("change", () => renderCalendar());
 
+// ---------- 🎯 타이밍 게임: 꽝·벌칙 뒤 한 판, 가운데 가까울수록 포인트 돌려받기 (wins.game = {pts, date}) ----------
+let game = null;   // { id, pos, dir, raf, last, done }
+function openGame(id) {
+  const w = S.wins.get(id); if (!w || w.game || !["miss", "pen"].includes(w.kind)) { toast("이 복권은 이미 게임을 했어요."); return; }
+  closeDlg($("scratchDlg"));
+  game = { id, pos: Math.random(), dir: Math.random() < .5 ? 1 : -1, last: 0, done: false };
+  $("tgRes").textContent = ""; $("gmBtns").innerHTML = '<button class="btn" type="button" data-act="gmStop">멈춰!</button>';
+  openDlg($("gameDlg"));
+  const step = (ts) => {
+    if (!game || game.done) return;
+    if (game.last) { game.pos += game.dir * (ts - game.last) / 1100; if (game.pos > 1) { game.pos = 2 - game.pos; game.dir = -1; } if (game.pos < 0) { game.pos = -game.pos; game.dir = 1; } }
+    game.last = ts; $("tgNeedle").style.left = (game.pos * 100) + "%"; game.raf = requestAnimationFrame(step);
+  };
+  game.raf = requestAnimationFrame(step);
+}
+$("gameDlg").addEventListener("cancel", (ev) => { if (game && !game.done) ev.preventDefault(); });   // 멈추기 전엔 못 닫음 (닫았다 다시 하기 막기)
+function stopGame() {
+  if (!game || game.done) return;
+  game.done = true; cancelAnimationFrame(game.raf);
+  const d = Math.abs(game.pos - 0.5), pts = d <= 0.03 ? 500 : d <= 0.1 ? 300 : d <= 0.2 ? 100 : 0;
+  const id = game.id;
+  $("tgRes").textContent = pts ? `🎉 +${pts}점 돌려받았어요!` : "😅 아깝다! 0점";
+  $("gmBtns").innerHTML = '<button class="btn" type="button" data-act="gmClose">확인</button>';
+  quietly(() => backend.update("wins", id, { game: { pts, date: today() } })).catch(() => {});
+}
+
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
 // 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 7일 30 / 15일 100 / 30일 250 / 90일 1000 / 그 뒤 30일마다 300 · 돈 기록 1 (월급 30)
 const PT_GOAL = 300, PT_SUB = 50, PT_TICKET = 1000;
@@ -1140,6 +1170,7 @@ function pointsLedger() {
     if (!m || !m.date) return; const x = at(m.date);
     if (m.kind === "income" && m.cat === "월급") { x.salary++; x.sum += 30; } else { x.money++; x.sum += 1; }
   });
+  S.wins.forEach((w) => { if (w && w.game && w.game.pts > 0 && w.game.date) { const x = at(w.game.date); x.sum += w.game.pts; x.lines.push(["🎯", "타이밍 게임", w.game.pts]); } });
   S.goals.forEach((g) => {
     if (!g) return;
     if (g.achievedAt) { const x = at(g.achievedAt); x.sum += PT_GOAL; x.lines.push(["🎉", `목표 '${g.title}' 달성`, PT_GOAL]); }
@@ -1889,6 +1920,17 @@ document.addEventListener("click", (ev) => {
   if (a === "testMode") { toggleTestMode(); return; }
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
+  if (a === "gmOpen") { openGame(id); return; }
+  if (a === "gmOpenLast") { const w = rows(S.wins).find((z) => scratch && z.at === scratch.at); if (w) openGame(w.id); else toast("잠깐만요, 저장 중이에요. 다시 눌러 주세요."); return; }
+  if (a === "gmStop") { stopGame(); return; }
+  if (a === "gmClose") { if (game && !game.done) return; closeDlg($("gameDlg")); game = null; return; }
+  if (a === "laPreset") {
+    if (lottoItems("coupons").length || lottoItems("pens").length) { toast("이미 목록이 있어요."); return; }
+    const now = Date.now(), coupons = {}, pens = {};
+    PRESET_COUPONS.forEach(([tier, title, days], i) => { coupons["p" + i.toString(36) + now.toString(36)] = { tier, title, days, createdAt: now + i }; });
+    PRESET_PENS.forEach(([title, days], i) => { pens["n" + i.toString(36) + now.toString(36)] = { title, days, createdAt: now + i }; });
+    saveLotto({ coupons, pens }, `📦 쿠폰 ${PRESET_COUPONS.length}개 · 벌칙 ${PRESET_PENS.length}개를 넣었어요.`); return;
+  }
   if (a === "crAdd") {
     const r = couponReqs().find((z) => z.id === id); if (!r) return;
     saveLotto({ reqs: { [id]: { status: "added" } } }, "요청을 '넣었어요'로 표시했어요. 아래 쿠폰 목록에 등급·기한을 정해 넣어 주세요.");

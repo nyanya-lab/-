@@ -115,6 +115,14 @@ button { cursor: pointer; }
 #scratchCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; transition: opacity .5s; }
 #scratchCanvas.gone { opacity: 0; pointer-events: none; }
 .la-list { display: grid; gap: 6px; }
+.tg { position: relative; height: 56px; border-radius: 14px; background: var(--sunk); border: 2px solid var(--line); overflow: hidden; cursor: pointer; touch-action: manipulation; user-select: none; }
+.tg-z { position: absolute; top: 0; bottom: 0; }
+.tg-z.z1 { left: 30%; right: 30%; background: color-mix(in srgb, var(--sun) 25%, transparent); }
+.tg-z.z2 { left: 40%; right: 40%; background: color-mix(in srgb, var(--sun) 50%, transparent); }
+.tg-z.z3 { left: 47%; right: 47%; background: var(--sun); }
+.tg-needle { position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; background: var(--danger); border-radius: 2px; left: 0; }
+.tg-legend { display: grid; grid-template-columns: 30fr 10fr 7fr 6fr 7fr 10fr 30fr; text-align: center; margin-top: 4px; font-family: var(--f-mono); }
+.tg-res { margin: 10px 0 0; text-align: center; font-size: 22px; font-weight: 700; min-height: 30px; }
 .cell-ic { display: none; }
 .cal-legend-phone { display: none; margin: 0; text-align: center; }
 .panel.day-panel { display: none; }

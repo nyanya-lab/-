@@ -23,6 +23,7 @@ docs/style.css         색 토큰(밝은 타일 색: 파랑·코랄·민트·노
 docs/app.js            모든 화면 로직 (상태 S, 저장소 backend, render 함수들)
 docs/firebase-config.js  Firebase 웹 설정 (공개돼도 되는 값)
 docs/changes.js        업데이트 내역 CHANGES (설명서 탭 + 새 버전 알림)
+docs/lotto-presets.js  복권 추천 목록 (쿠폰 200 · 벌칙 50, 관리 창에서 한 번에 넣기)
 docs/google-sync.html  구글 캘린더 동기화 설정 안내 페이지
 docs/apps-script/Code.gs       욱진이 Apps Script에 넣는 짧은 로더 (한 번만 붙여넣음)
 docs/apps-script/sync-core.js  실제 구글 동기화 코드. 로더가 5분마다 받아서 실행 → 여기만 고치면 자동 적용
@@ -33,7 +34,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 
 - 로그인 없음. **비밀번호 = 저장 위치**: `ukjin/{SHA-256("ukjin-board:"+비밀번호)}` 아래에 저장 (watch-log 방식).
   규칙: `ukjin/$room` 은 `$room.length === 64` 일 때만 읽기/쓰기.
-- 모음(`COLS`): `goals`, `tasks`, `logs`(실천 기록), `money`, `accounts`(통장·카드·현금), `requests`(기능 요청), `wins`(긁은 복권: kind coupon{tier,title,expires,usedAt} | pen{title,left,deadline,days,doneAt} | miss — 긁은 장 수 = wins 개수, 긁을 때는 되돌리기 기록 안 남김). 그 외 `settings`, `_backup/{prev,daily,undo}`, `gevents`·`gsync`(Apps Script가 씀), `history`(↶↷ 되돌리기 기록 최근 30개, 모든 기기 공유: 묶음마다 keys `"모음|id"`, before/after 문서, label, date, dev, undone).
+- 모음(`COLS`): `goals`, `tasks`, `logs`(실천 기록), `money`, `accounts`(통장·카드·현금), `requests`(기능 요청), `wins`(긁은 복권: kind coupon{tier,title,expires,usedAt} | pen{title,left,deadline,days,doneAt} | miss, 꽝·벌칙엔 `game{pts,date}` (🎯 타이밍 게임으로 돌려받은 포인트, 한 장에 한 번) — 긁은 장 수 = wins 개수, 긁을 때는 되돌리기 기록 안 남김). 그 외 `settings`, `_backup/{prev,daily,undo}`, `gevents`·`gsync`(Apps Script가 씀), `history`(↶↷ 되돌리기 기록 최근 30개, 모든 기기 공유: 묶음마다 keys `"모음|id"`, before/after 문서, label, date, dev, undone).
 - 항목·칸 단위로 따로 저장해서 여러 기기가 서로 덮어쓰지 않음. 업데이트는 `flattenPaths`로 경로별 update.
 - 할 일: `repeat` = `none`(date, done, doneDate) / `daily` / `weekly`(days 0=일…6=토, start, end, doneDates{날짜:true}).
   `subId` = 세부목표(선택). 목표 `goals/{id}/subs/{subId}` = {title, due, createdAt, doneAt}. 목표 달성은 `goals/{id}/achievedAt`(날짜). 진행률은 큰 목표만.
