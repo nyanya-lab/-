@@ -275,11 +275,19 @@ table.t tr.cur td { background: var(--sunk); }
 .hgoal-prog { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .hsub { display: grid; gap: 6px; }
 .hsub-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
-.hsub-head b::before { content: "▸ "; color: var(--cat, var(--muted)); }
+.hsub-head b.muted::before { content: "▸ "; color: var(--cat, var(--muted)); }
 .hsub-empty { padding-left: 14px; }
 .hsub-add { justify-self: start; font-size: 13px; }
 .sub-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 6px; align-items: center; }
-.sub-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; margin-top: 6px; }
+.sub-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; margin-top: 6px; }
+.sub-row.done input[type="text"] { text-decoration: line-through; color: var(--muted); }
+.sub-check { flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--cat, var(--blue)); background: var(--surface); display: grid; place-items: center; padding: 0; cursor: pointer; font-size: 13px; line-height: 1; }
+.sub-check.on { border-color: var(--sun); background: var(--sun-soft); }
+.hsub-head .sub-check { width: 18px; height: 18px; font-size: 11px; border-radius: 5px; }
+.hsub-head > span:first-child { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hsub.done .hsub-head b { text-decoration: line-through; color: var(--muted); }
+.hgoal.achieved { background: var(--sun-soft); }
+.ach-badge { font-size: 13px; font-weight: 600; color: var(--fg); white-space: nowrap; }
 .grp-label { padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--sunk); border-top: 1px solid var(--line); }
 .grp-label:first-child { border-top: 0; }
 /* 한 달 예산 */
