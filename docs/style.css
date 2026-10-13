@@ -379,6 +379,8 @@ tr.clickable:hover td { background: var(--sunk); }
 .ev.task.done > span { color: var(--fg); }
 .ev.task.done .mini-check { border-color: var(--sun); }
 .ev.task.done .mini-check.on { background: var(--sun); }
+.mini-fire { flex-shrink: 0; width: 15px; height: 15px; padding: 0; border: 0; background: none; font-size: 12px; line-height: 15px; text-align: center; cursor: pointer; }
+.mini-fire:hover { transform: scale(1.2); }
 .ev.task.miss { background: var(--sunk); border-left-color: var(--muted); }   /* 지난 날 못 한 할 일 ❌ */
 .ev.task.miss > span { color: var(--muted); }
 .ev.missed { background: var(--sunk); border-left-color: var(--muted); color: var(--muted); text-decoration: line-through; cursor: pointer; }
@@ -488,5 +490,6 @@ tr.clickable:hover td { background: var(--sunk); }
   .ev { font-size: 10px; padding: 1px 3px; border-left-width: 2px; }
   .ev.task { gap: 3px; padding: 1px 2px; }
   .mini-check { width: 13px; height: 13px; border-radius: 3px; }
+  .mini-fire { width: 13px; height: 13px; font-size: 10px; line-height: 13px; }
   .ev.more, .ev.habit { display: none; }
 }

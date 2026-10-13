@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261013e";
-import { firebaseConfig } from "./firebase-config.js?v=20261013e";
+import { CHANGES } from "./changes.js?v=20261013f";
+import { firebaseConfig } from "./firebase-config.js?v=20261013f";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -469,8 +469,10 @@ function calTask(x, d, repeat) {
   return `<div class="ev task ${color}${done ? " done" : missed ? " miss" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
-      : `<button type="button" class="mini-check${done ? " on" : ""}" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="${done}" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
-    `<span>${done ? '<span class="ev-long">🔥 </span>' : missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
+      : done   // 끝낸 일은 네모 대신 🔥, 누르면 체크가 풀려서 다시 네모로
+      ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">🔥</button>`
+      : `<button type="button" class="mini-check" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="false" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
+    `<span>${missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
