@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261013g">
+<link rel="stylesheet" href="style.css?v=20261013h">
 </head>
 <body>
 
@@ -65,14 +65,24 @@
         <div class="stats" id="todayStats"></div>
         <div class="cal">
           <div class="cal-head">
-            <h3 id="calTitle"></h3>
-            <div class="cal-nav">
-              <button class="chip gchip" type="button" id="gcalChip" hidden></button>
-              <button class="chip" type="button" data-act="calMonth" data-d="-1">이전 달</button>
+            <div class="cal-left">
+              <h3 id="calTitle"></h3>
+              <button class="icon-round sm" type="button" data-act="calMonth" data-d="-1" aria-label="이전 달"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+              <button class="icon-round sm" type="button" data-act="calMonth" data-d="1" aria-label="다음 달"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
               <button class="chip" type="button" data-act="calToday">오늘</button>
-              <button class="chip" type="button" data-act="calMonth" data-d="1">다음 달</button>
+            </div>
+            <div class="cal-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+              <input type="search" id="calSearch" placeholder="검색 (할 일·실천·목표·돈)" aria-label="검색" autocomplete="off">
+              <button class="icon-round sm" type="button" data-act="searchClear" id="calSearchClear" aria-label="검색 지우기" hidden><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+            </div>
+            <div class="cal-right">
+              <button class="icon-round sm" type="button" data-act="histUndo" id="undoBtn" aria-label="되돌리기"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg></button>
+              <button class="icon-round sm" type="button" data-act="histRedo" id="redoBtn" aria-label="다시 하기"><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg></button>
+              <button class="chip gchip" type="button" id="gcalChip" hidden></button>
             </div>
           </div>
+          <div class="search-results" id="searchResults" hidden></div>
           <div class="cal-dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
           <div class="cal-grid" id="calGrid"></div>
           <div class="cal-legend">
@@ -239,6 +249,8 @@
         <h3>달력 (첫 화면)</h3>
         <ul>
           <li>맨 위 4칸: 오늘 할 일 · 오늘 실천 · 이번 주 실천 · 연속 실천한 날.</li>
+          <li>달력 위 <b>‹ ›</b>로 달을 넘기고 <b>[오늘]</b>로 돌아와요. <b>🔍 검색</b>에 글자를 치면 할 일·실천·목표·돈 기록을 날짜별로 찾아 줘요 (누르면 바로 열려요).</li>
+          <li><b>↶ 되돌리기 · ↷ 다시 하기</b>: 최근 30개까지, 폰·PC 어디서 한 것이든 같이 기억해요. 누르면 무엇을 되돌리는지 확인 창이 떠요. 그 뒤에 바뀐 게 있으면 알려 줘요.</li>
           <li>칸 안 <b>네모</b>를 누르면 체크(🔥로 바뀜), <b>🔥</b>를 누르면 체크가 풀려 다시 네모로, <b>글자</b>를 누르면 편집 창, 칸의 <b>빈 곳</b>을 누르면 그 날 창([할 일]/[실천한 일])이 열려요.</li>
           <li>색: 📘 파랑 = 할 일 · 🔥 노랑 = 실천(끝낸 할 일 포함) · ❌ 회색 = 지난 날 못 한 일 · 빨강 = 시험일(D-DAY) · 초록 칸 = 실천한 날 · 연한 빨강 칸 = 실천 안 한 날.</li>
           <li>날짜가 지난 할 일(반복하는 일의 지난 날도)을 체크하면 물어봐요: <b>[오늘 했어요]</b> 원래 날짜는 ❌로 남고 오늘 🔥 / <b>[그날 했어요]</b> 그 날 한 걸로.</li>
@@ -488,6 +500,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261013g"></script>
+<script type="module" src="app.js?v=20261013h"></script>
 </body>
 </html>
