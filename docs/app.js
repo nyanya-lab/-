@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261013g";
-import { firebaseConfig } from "./firebase-config.js?v=20261013g";
+import { CHANGES } from "./changes.js?v=20261013h";
+import { firebaseConfig } from "./firebase-config.js?v=20261013h";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -68,7 +68,7 @@ const CERTS = [
 const CERT_TAGS = ["전체", "도면·CAD", "인테리어", "타일·마감", "목공·가구", "시공·관리"];
 
 // ---------- 상태 ----------
-const S = { goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), requests: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null };
+const S = { goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), requests: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null, history: [] };
 const ui = { reqArea: "달력", reqFilter: "open", mEdit: null, acctFilter: "all", page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "expense", certTag: "전체", certQ: "" };
 let backend = null;
 
@@ -167,6 +167,7 @@ function localBackend() {
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* 무시 */ } };
   const load = () => {
     COLS.forEach((c) => { S[c] = new Map(Object.entries(data[c])); });
+    S.history = data.history || [];
     S.settings = { ...DEFAULTS, ...(data.settings || {}) };
     S.loaded = true; render();
   };
@@ -176,6 +177,8 @@ function localBackend() {
     async add(c, obj) { const id = rid(); data[c][id] = obj; persist(); load(); return id; },
     async update(c, id, patch) { if (data[c][id]) { data[c][id] = deepMerge(clone(data[c][id]), patch); persist(); load(); } },
     async remove(c, id) { delete data[c][id]; persist(); load(); },
+    async set(c, id, obj) { data[c][id] = clone(obj); persist(); load(); },
+    async saveHistory(list) { data.history = list; persist(); },
     async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; persist(); load(); },
     async saveSettingsDeep(patch) { data.settings = deepMerge(clone(data.settings || {}), patch); persist(); load(); }
   };
@@ -238,6 +241,8 @@ async function firebaseStart() {
       add: tracked(async (c, obj) => { const r = rt.push(path(room, c)); await rt.set(r, obj); return r.key; }),
       update: tracked((c, id, patch) => rt.update(path(room, c, id), flattenPaths(patch))),
       remove: tracked((c, id) => rt.remove(path(room, c, id))),
+      set: tracked((c, id, obj) => rt.set(path(room, c, id), obj)),
+      saveHistory: tracked((list) => rt.set(path(room, "history"), list)),   // 되돌리기 기록 (모든 기기가 같이 씀)
       saveSettings: tracked((patch) => rt.update(path(room, "settings"), patch)), // 바뀐 칸만
       saveSettingsDeep: tracked((patch) => rt.update(path(room, "settings"), flattenPaths(patch))), // 깊은 칸 하나만 (예: 예산 항목)
       // 서버 백업 (watch-log 방식): 1시간짜리 prev, 하루짜리 daily. 실수로 지운 걸 어느 기기에서든 되돌릴 수 있게
@@ -253,6 +258,7 @@ async function firebaseStart() {
         await rt.update(path(room), patch);
       })
     };
+    wrapHistory(backend);
     rotateBackups(room);
     clearInterval(bakTimer); bakTimer = setInterval(() => rotateBackups(room), 10 * 60 * 1000);
     const onErr = (e) => showNote(isDenied(e) ? denied() : "데이터를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.", true);
@@ -271,6 +277,7 @@ async function firebaseStart() {
     // 욱진이 구글 계정의 Apps Script가 5분마다 넣어 주는 구글 일정과 동기화 상태
     unsubs.push(rt.onValue(path(room, "gevents"), (snap) => { S.gevents = snap.val() || {}; render(); }, onErr));
     unsubs.push(rt.onValue(path(room, "gsync"), (snap) => { S.gsync = snap.val() || null; render(); }, onErr));
+    unsubs.push(rt.onValue(path(room, "history"), (snap) => { const v = snap.val(); S.history = Array.isArray(v) ? v : v ? Object.values(v) : []; renderHist(); }, onErr));
     render();
   }
 
@@ -618,6 +625,183 @@ function doMove(kind) {
     else showDoneSheet(id, day);
   }).catch(() => {});
 }
+
+// ---------- 되돌리기 ↶ / 다시 하기 ↷ ----------
+// 저장할 때마다 바뀌는 문서의 '전'과 '후'를 모아 두고(1.5초 안의 변경은 한 묶음), 모든 기기가 같이 쓰는 기록(최근 30개)에 넣음
+const HIST_COLS = ["goals", "tasks", "logs", "money", "accounts"];
+const DEV = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "폰" : "PC";
+let histGroup = null, histApplying = false, histTimer = null, histFor = null;
+function histNorm(o) {   // 비교용: 빈 칸 빼고 키 순서 맞추기 (Firebase는 null·빈 묶음을 저장 안 함)
+  if (o === null || o === undefined) return undefined;
+  if (Array.isArray(o)) return o.map(histNorm);
+  if (typeof o !== "object") return o;
+  const out = {};
+  Object.keys(o).sort().forEach((k) => { const v = histNorm(o[k]); if (v !== undefined && !(v && typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length)) out[k] = v; });
+  return Object.keys(out).length ? out : undefined;
+}
+function sameDoc(a, b) { return JSON.stringify(histNorm(a)) === JSON.stringify(histNorm(b)); }
+function histTouch(c, id, isNew) {
+  if (histApplying || !HIST_COLS.includes(c) || !id) return;
+  if (!histGroup) histGroup = { keys: [], before: {} };
+  const k = c + "|" + id;
+  if (!histGroup.keys.includes(k)) { histGroup.keys.push(k); const cur = !isNew && S[c].get(id); histGroup.before[k] = cur ? clone(cur) : null; }
+  clearTimeout(histTimer); histTimer = setTimeout(histClose, 1500);
+}
+function wrapHistory(b) {
+  const add = b.add, update = b.update, remove = b.remove;
+  b.add = async (c, obj) => { const id = await add(c, obj); histTouch(c, id, true); clearTimeout(histTimer); histTimer = setTimeout(histClose, 1500); return id; };
+  b.update = (c, id, patch) => { histTouch(c, id); return update(c, id, patch); };
+  b.remove = (c, id) => { histTouch(c, id); return remove(c, id); };
+  return b;
+}
+function histClose() {
+  const g = histGroup; histGroup = null; if (!g || !backend) return;
+  const after = {};
+  g.keys.forEach((k) => { const [c, id] = k.split("|"); const cur = S[c].get(id); after[k] = cur ? clone(cur) : null; });
+  if (g.keys.every((k) => sameDoc(g.before[k], after[k]))) return;
+  const e = { at: Date.now(), dev: DEV, keys: g.keys, before: g.before, after, undone: false };
+  Object.assign(e, histDescribe(e));
+  const list = histList().filter((x) => !x.undone).concat([e]).slice(-30);
+  S.history = list; renderHist();
+  backend.saveHistory(list).catch(() => {});
+}
+function histList() { return (S.history || []).filter((x) => x && x.keys); }
+function histDoc(map, k) { return (map && map[k]) || null; }
+// 기록 한 줄 이름: 가장 중요한 문서 하나로 ("'강의듣기' 체크", "식비 30,000원 기록" …)
+function histDescribe(e) {
+  const order = ["tasks", "goals", "money", "accounts", "logs"];
+  const k = [...e.keys].sort((a, b) => order.indexOf(a.split("|")[0]) - order.indexOf(b.split("|")[0]))[0];
+  const c = k.split("|")[0], b = histDoc(e.before, k), a = histDoc(e.after, k), d = a || b || {};
+  const verb = !b ? "추가" : !a ? "삭제" : "고치기";
+  if (c === "tasks") {
+    const name = `'${d.title || "할 일"}'`;
+    if (a && b) {
+      const ad = a.doneDates || {}, bd = b.doneDates || {};
+      const day = Object.keys({ ...ad, ...bd }).find((x) => !!ad[x] !== !!bd[x]);
+      if (day) return { label: `${name} ${ad[day] ? "체크" : "체크 풀기"}`, date: day };
+      if (!!a.done !== !!b.done) return { label: `${name} ${a.done ? "체크" : "체크 풀기"}`, date: a.done ? a.doneDate || a.date : b.doneDate || b.date };
+    }
+    return { label: `${name} ${verb}`, date: d.date || d.start || null };
+  }
+  if (c === "logs") {
+    const t = d.minutes ? fmtHM(d.minutes) : "";
+    const name = d.taskId ? `'${d.text || "할 일"}' 시간${t ? " " + t : ""}` : `실천${t ? " " + t : ""}${d.text ? " · " + d.text : ""}`;
+    return { label: `${name} ${!b ? "기록" : verb}`, date: d.date || null };
+  }
+  if (c === "money") return { label: `${d.kind === "move" ? "이체" : d.cat || KIND_LABEL[d.kind] || "돈"} ${won(d.amount)} ${!b ? "기록" : verb}`, date: d.date || null };
+  if (c === "goals") {
+    if (a && b) {
+      const as = a.subs || {}, bs = b.subs || {}, sid = Object.keys({ ...as, ...bs }).find((x) => !sameDoc(as[x], bs[x]));
+      if (sid) { const sv = as[sid] || bs[sid] || {}; return { label: `세부목표 '${sv.title || ""}' ${!bs[sid] ? "추가" : !as[sid] ? "삭제" : "고치기"}`, date: null }; }
+    }
+    return { label: `목표 '${d.title || ""}' ${verb}`, date: null };
+  }
+  if (c === "accounts") return { label: `자산 '${d.name || ""}' ${verb}`, date: null };
+  return { label: "변경", date: null };
+}
+function histTargets() {
+  const list = histList();
+  let undo = null; for (let i = list.length - 1; i >= 0; i--) if (!list[i].undone) { undo = list[i]; break; }
+  const redo = list.find((x) => x.undone) || null;
+  return { undo, redo };
+}
+function renderHist() {
+  const { undo, redo } = histTargets();
+  $("undoBtn").classList.toggle("off", !undo); $("redoBtn").classList.toggle("off", !redo);
+  $("undoBtn").title = undo ? `되돌리기: ${undo.label}` : "되돌릴 게 없어요";
+  $("redoBtn").title = redo ? `다시 하기: ${redo.label}` : "다시 할 게 없어요";
+}
+function agoText(at) {
+  const m = Math.round((Date.now() - at) / 60000);
+  return m < 1 ? "방금" : m < 60 ? `${m}분 전` : m < 60 * 24 ? `${Math.round(m / 60)}시간 전` : fmtTime(at);
+}
+function askHist(dir) {
+  const { undo, redo } = histTargets(), e = dir === "undo" ? undo : redo;
+  if (!e) { toast(dir === "undo" ? "되돌릴 게 없어요." : "다시 할 게 없어요."); return; }
+  const now = dir === "undo" ? e.after : e.before;   // 지금 이 상태여야 그대로 되돌릴 수 있음
+  const changed = e.keys.some((k) => { const [c, id] = k.split("|"); return !sameDoc(S[c].get(id) || null, histDoc(now, k)); });
+  moveFor = null; logFor = null; histFor = { dir, at: e.at };
+  $("mvTitle").textContent = dir === "undo" ? "되돌릴까요?" : "다시 할까요?";
+  $("mvText").innerHTML = `<p><b>${e.date ? esc(shortDate(e.date)) + " " : ""}${esc(e.label)}</b></p>` +
+    `<p class="small muted">${esc(agoText(e.at))} · ${esc(e.dev || "")}에서</p>` +
+    (changed ? `<p class="hist-warn">그 뒤에 이 내용이 또 바뀌었어요 (다른 기기나 다른 작업). 그래도 ${dir === "undo" ? "되돌리면" : "다시 하면"} 그 뒤에 바뀐 것도 같이 ${dir === "undo" ? "그때로 돌아가요" : "덮어써요"}.</p>` : "");
+  $("mvBtns").innerHTML = `<button class="btn" type="button" data-act="histDo">${dir === "undo" ? "되돌리기" : "다시 하기"}</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>`;
+  openDlg($("moveDlg"));
+}
+async function histApply() {
+  const f = histFor; histFor = null; closeDlg($("moveDlg"));
+  const list = histList(), e = f && list.find((x) => x.at === f.at);
+  if (!e || !ready()) return;
+  const target = f.dir === "undo" ? e.before : e.after;
+  const keys = f.dir === "undo" ? [...e.keys].reverse() : e.keys;
+  histApplying = true;
+  try {
+    await act((async () => {
+      for (const k of keys) {
+        const [c, id] = k.split("|"), doc = histDoc(target, k);
+        if (doc) await backend.set(c, id, doc); else if (S[c].has(id)) await backend.remove(c, id);
+      }
+    })(), `${f.dir === "undo" ? "되돌렸어요" : "다시 했어요"}: ${e.label}`);
+  } catch (err) { return; } finally { histApplying = false; }
+  e.undone = f.dir === "undo";
+  S.history = list; renderHist();
+  backend.saveHistory(list).catch(() => {});
+}
+
+// ---------- 검색: 할 일·반복(날마다)·실천·목표·돈을 날짜 순으로 ----------
+let searchTimer = null;
+function searchRows(q) {
+  q = q.trim().toLowerCase(); if (!q) return [];
+  const t = today(), out = [], has = (v) => String(v || "").toLowerCase().includes(q);
+  const tm = (m) => (m ? fmtHM(m) : "");
+  S.tasks.forEach((x, id) => {
+    if (!x || !x.title || !has(x.title)) return;
+    if (isRep(x)) {   // 반복하는 일은 날마다 한 줄 (지난 날 + 앞으로 7일)
+      const last = [x.end || "9999-12-31", addDays(t, 7)].sort()[0];
+      let d = x.start || t; const floor = addDays(t, -400); if (d < floor) d = floor;
+      for (let n = 0; d <= last && n < 500; n++, d = addDays(d, 1)) {
+        if (!activeOn(x, d)) continue;
+        const done = isDone(x, d);
+        out.push({ date: d, icon: done ? "🔥" : d < t ? "❌" : "📌", time: tm(done ? taskMinutes(id, d) || x.minutes : x.minutes), title: x.title, act: "editTask", id });
+      }
+    } else if (x.date) {
+      out.push({ date: x.date, icon: x.done ? "🔥" : x.date < t ? "❌" : "📌", time: tm(x.done ? taskMinutes(id, x.doneDate) || x.minutes : x.minutes), title: x.title, act: "editTask", id });
+      if (x.lateFrom) out.push({ date: x.lateFrom, icon: "❌", time: tm(x.minutes), title: x.title, act: "editTask", id });
+    }
+  });
+  S.logs.forEach((l, id) => { if (l && !l.taskId && l.date && has(l.text)) out.push({ date: l.date, icon: "🔥", time: tm(l.minutes), title: l.text || "실천", act: "editLog", id }); });
+  S.goals.forEach((g, id) => {
+    if (!g) return;
+    if (has(g.title)) out.push({ date: g.due || "", icon: "🎯", time: g.due ? ddayText(g.due) : "", title: g.title, act: "openGoal", id });
+    subsOf(g).forEach((v) => { if (has(v.title)) out.push({ date: v.due || "", icon: "🎯", time: v.due ? ddayText(v.due) : "", title: `${g.title} › ${v.title}`, act: "openGoal", id }); });
+  });
+  S.money.forEach((m, id) => {
+    if (!m || !m.date || !(has(m.memo) || has(m.cat))) return;
+    const sign = m.kind === "income" ? "+" : m.kind === "move" ? "" : "-";
+    out.push({ date: m.date, icon: "💰", time: sign + won(m.amount), title: [m.kind === "transfer" ? partner() + "에게" : m.cat, m.memo].filter(Boolean).join(" · "), act: "searchMoney", id });
+  });
+  return out.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+}
+function renderSearch() {
+  const q = $("calSearch").value, box = $("searchResults");
+  $("calSearchClear").hidden = !q;
+  if (!q.trim()) { box.hidden = true; box.innerHTML = ""; return; }
+  const rows = searchRows(q), t = today(), DOWS = ["일", "월", "화", "수", "목", "금", "토"];
+  let prev = null;
+  box.innerHTML = rows.length ? rows.slice(0, 400).map((r) => {
+    const first = r.date !== prev; prev = r.date;
+    let day = "", sub = "날짜 미정";
+    if (r.date) { const p = r.date.split("-"); day = String(+p[2]); sub = `${p[0]}년 ${+p[1]}월, ${DOWS[parseYmd(r.date).getDay()]}`; }
+    return `<button type="button" class="sr-row${first ? "" : " cont"}${r.date === t ? " today-row" : ""}" data-act="${r.act}" data-id="${esc(r.id)}" data-date="${esc(r.date)}">` +
+      `<span class="sr-day">${first ? day : ""}</span><span class="sr-date">${first ? esc(sub) : ""}</span><span class="sr-icon">${r.icon}</span>` +
+      `<span class="sr-time">${esc(r.time || "")}</span><span class="sr-title">${esc(r.title)}</span></button>`;
+  }).join("") : '<div class="sr-empty">찾는 게 없어요.</div>';
+  box.hidden = false;
+  const near = [...box.querySelectorAll(".sr-row")].find((el) => el.dataset.date && el.dataset.date >= t);   // 오늘 근처로
+  box.scrollTop = near ? Math.max(0, near.offsetTop - box.offsetTop - 8) : box.scrollHeight;
+}
+$("calSearch").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderSearch, 150); });
+$("calSearch").addEventListener("keydown", (ev) => { if (ev.key === "Escape") { $("calSearch").value = ""; renderSearch(); } });
 
 // ---------- 설명서: 사용 설명서 · 업데이트 내역, 새 버전이면 한 번 알려 주기 ----------
 const NEWS_KEY = "ukjin-news-seen";
@@ -1220,7 +1404,8 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
+  renderHelp(); renderHist(); if (!$("searchResults").hidden) renderSearch();
+  if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
 }
 
@@ -1286,7 +1471,12 @@ document.addEventListener("click", (ev) => {
   if (a === "helpTab") { ui.helpTab = el.dataset.k; if (ui.helpTab === "changes") markNewsSeen(); renderHelp(); return; }
   if (a === "newsClose") { closeDlg($("newsDlg")); markNewsSeen(); return; }
   if (a === "newsAll") { closeDlg($("newsDlg")); markNewsSeen(); ui.helpTab = "changes"; renderHelp(); return; }
-  if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; return; }
+  if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; return; }
+  if (a === "histUndo") { askHist("undo"); return; }
+  if (a === "histRedo") { askHist("redo"); return; }
+  if (a === "histDo") { histApply(); return; }
+  if (a === "searchClear") { $("calSearch").value = ""; renderSearch(); $("calSearch").focus(); return; }
+  if (a === "searchMoney") { const m = S.money.get(id); if (!m) return; ui.month = m.date.slice(0, 7); location.hash = "#money"; setTimeout(() => editMoney(id), 60); return; }
   if (a === "logFire") { askLog(id); return; }
   if (a === "editLog") { openLog(id); return; }
   if (a === "logEditGo") { closeDlg($("moveDlg")); openLog(logFor); return; }
@@ -1682,7 +1872,7 @@ if (firebaseConfig && firebaseConfig.databaseURL) {
     showNote("Firebase에 연결하지 못했어요. 인터넷 연결과 firebase-config.js 값을 확인해 주세요.", true);
   });
 } else {
-  backend = localBackend();
+  backend = wrapHistory(localBackend());
   render();
   if (firebaseConfig) showNote("firebase-config.js에 Realtime Database 주소(databaseURL)를 넣으면 비밀번호로 여는 공유 보드가 돼요. 지금은 이 브라우저에만 저장돼요.");
 }
