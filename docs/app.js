@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261013i";
-import { firebaseConfig } from "./firebase-config.js?v=20261013i";
+import { CHANGES } from "./changes.js?v=20261013j";
+import { firebaseConfig } from "./firebase-config.js?v=20261013j";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -392,7 +392,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -505,6 +505,7 @@ function renderCalendar() {
   const habits = rows(S.tasks).filter(isRep);
   // 보드를 쓰기 시작한 날 (그 전 날짜는 '안 한 날'로 칠하지 않음)
   const startedAt = boardStart();
+  const ptsDay = lottoVisible() && ptsShown() ? pointsLedger().day : null;   // 칸 오른쪽 아래 +포인트
   const logsByDay = {}; rows(S.logs).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((l) => { if (l.date && !l.taskId) (logsByDay[l.date] ||= []).push(l); });   // 할 일에 붙은 시간은 그 할 일 옆에 보임
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
@@ -527,8 +528,9 @@ function renderCalendar() {
     const missed = !lv && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 없음
     const cls = ["day", lv ? "p" + lv : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
     // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
-    html += `<div class="${cls}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span></span>${shown.join("")}</div>`;
+    const pts = ptsDay && ptsDay[d] && ptsDay[d].sum;
+    html += `<div class="${cls}${pts ? " has-pts" : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
+      `<span class="top"><span class="num">${dt.getDate()}</span></span>${shown.join("")}${pts ? `<span class="day-pts">+${pts}</span>` : ""}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
@@ -808,6 +810,77 @@ function renderSearch() {
 $("calSearch").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderSearch, 150); });
 $("calSearch").addEventListener("keydown", (ev) => { if (ev.key === "Escape") { $("calSearch").value = ""; renderSearch(); } });
 
+// ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
+// 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 7일 30 / 15일 100 / 30일 250 / 90일 1000 / 그 뒤 30일마다 300 · 돈 기록 1 (월급 30)
+const PT_GOAL = 300, PT_SUB = 50, PT_TICKET = 1000;
+function lottoOn() { return !!(S.settings.lotto && S.settings.lotto.on); }
+function isAdminDevice() { try { return localStorage.getItem("ukjin-admin") === "1"; } catch (e) { return false; } }
+function lottoVisible() { return lottoOn() || isAdminDevice(); }   // 쿠폰 목록 준비 끝나기 전에는 관리자 기기에서만 보임
+function streakBonus(n) { return n === 7 ? 30 : n === 15 ? 100 : n === 30 ? 250 : n === 90 ? 1000 : n > 90 && (n - 90) % 30 === 0 ? 300 : 0; }
+function pointsLedger() {
+  const day = {}, at = (d) => (day[d] ||= { sum: 0, min: 0, money: 0, salary: 0, lines: [] });
+  S.logs.forEach((l) => { const m = Math.round(Number(l && l.minutes) || 0); if (l && l.date && m > 0) { const x = at(l.date); x.min += m; x.sum += m; } });
+  S.money.forEach((m) => {
+    if (!m || !m.date) return; const x = at(m.date);
+    if (m.kind === "income" && m.cat === "월급") { x.salary++; x.sum += 30; } else { x.money++; x.sum += 1; }
+  });
+  S.goals.forEach((g) => {
+    if (!g) return;
+    if (g.achievedAt) { const x = at(g.achievedAt); x.sum += PT_GOAL; x.lines.push(["🎉", `목표 '${g.title}' 달성`, PT_GOAL]); }
+    subsOf(g).forEach((v) => { if (v.doneAt) { const x = at(v.doneAt); x.sum += PT_SUB; x.lines.push(["🎉", `세부목표 '${v.title}' 달성`, PT_SUB]); } });
+  });
+  // 연속 실천: 실천한 날(달력 초록 칸과 같은 기준)을 이어서 세고, 7·15·30·90일…에 닿는 날 보너스
+  const pm = practiceMinutes(), days = Object.keys(pm).filter((d) => pm[d] > 0).sort();
+  let run = 0, prev = null;
+  days.forEach((d) => {
+    run = prev && addDays(prev, 1) === d ? run + 1 : 1; prev = d;
+    const b = streakBonus(run); if (b) { const x = at(d); x.sum += b; x.lines.push(["🔥", `연속 실천 ${run}일 보너스`, b]); }
+  });
+  Object.values(day).forEach((x) => {
+    if (x.min) x.lines.unshift(["🔥", `실천 ${fmtHM(x.min)}`, x.min]);
+    if (x.money) x.lines.push(["💰", `돈 기록 ${x.money}건`, x.money]);
+    if (x.salary) x.lines.push(["💰", `월급 기록${x.salary > 1 ? " " + x.salary + "건" : ""}`, x.salary * 30]);
+  });
+  const total = Object.values(day).reduce((t, x) => t + x.sum, 0);
+  return { total, day };
+}
+function ticketSvg(stage, full) {   // 복권 그림: 1000점을 8칸으로 (125점마다 한 칸)
+  let segs = "";
+  for (let i = 0; i < 8; i++) segs += `<rect class="t-seg${full || i < stage ? " on" : ""}" x="${8 + i * 3.2}" y="8" width="2.4" height="8" rx="0.8"/>`;
+  return `<path class="t-body" d="M3 3h34v6.2a2.8 2.8 0 0 0 0 5.6V21H3v-6.2a2.8 2.8 0 0 0 0-5.6z"/>${segs}`;
+}
+function renderPoints() {
+  const vis = lottoVisible() && S.loaded;
+  ["sideLotto", "topLotto", "ptsBtn"].forEach((id) => { $(id).hidden = !vis; });
+  if (!vis) return;
+  const L = pointsLedger(), used = Number((S.settings.lotto || {}).used) || 0;
+  const earned = Math.floor(L.total / PT_TICKET), left = Math.max(0, earned - used), prog = L.total % PT_TICKET, stage = Math.floor(prog / (PT_TICKET / 8));
+  ["sideTicket", "topTicket"].forEach((id) => { const el = $(id); el.innerHTML = ticketSvg(stage, left > 0); el.classList.toggle("full", left > 0); });
+  $("sidePts").textContent = prog.toLocaleString("ko-KR");
+  ["sideTickets", "topTickets"].forEach((id) => { $(id).hidden = !left; $(id).textContent = left; });
+  $("sideLotto").title = $("topLotto").title = `⭐ 모두 ${L.total.toLocaleString("ko-KR")}점 · 다음 복권까지 ${PT_TICKET - prog}점${left ? ` · 긁을 복권 ${left}장` : ""}`;
+  $("ptsBtn").classList.toggle("off", !ptsShown());
+  $("ptsBtn").title = ptsShown() ? "달력에 포인트 숨기기" : "달력에 포인트 보이기";
+  if ($("pointsDlg").open) renderPointsDlg(L);
+}
+function ptsShown() { try { return localStorage.getItem("ukjin-pts-show") !== "0"; } catch (e) { return true; } }
+function renderPointsDlg(L) {
+  L = L || pointsLedger();
+  const used = Number((S.settings.lotto || {}).used) || 0, earned = Math.floor(L.total / PT_TICKET), prog = L.total % PT_TICKET;
+  $("ptSub").textContent = `모두 ${L.total.toLocaleString("ko-KR")}점 · 복권 ${earned}장 받음`;
+  $("ptHead").innerHTML = `<div class="pt-big">${prog.toLocaleString("ko-KR")} <small class="muted" style="font-size:14px">/ ${PT_TICKET}</small></div>` +
+    `<div class="bar"><i style="width:${Math.round(prog / PT_TICKET * 100)}%;background:var(--sun)"></i></div>` +
+    `<div class="small muted">다음 복권까지 <b>${PT_TICKET - prog}점</b>${earned - used > 0 ? ` · 긁을 복권 <b>${earned - used}장</b>` : ""}</div>`;
+  const ds = Object.keys(L.day).filter((d) => L.day[d].sum).sort().reverse();
+  $("ptList").innerHTML = ds.length ? ds.map((d) => `<div class="pt-day"><span>${esc(shortDate(d))}</span><b>+${L.day[d].sum}</b><span>${L.day[d].lines.map((x) => `${x[0]} ${esc(x[1])} +${x[2]}`).join(" · ")}</span></div>`).join("")
+    : '<div class="small muted">아직 받은 포인트가 없어요.</div>';
+}
+function renderDayPts(d) {
+  const sec = $("dayPtsSec"), x = lottoVisible() && pointsLedger().day[d];
+  sec.hidden = !(x && x.sum);
+  if (x && x.sum) $("dayPts").innerHTML = x.lines.map((l) => `<div><span>${l[0]} ${esc(l[1])}</span><b>+${l[2]}</b></div>`).join("") + `<div><span><b style="color:var(--fg)">합계</b></span><b>+${x.sum}</b></div>`;
+}
+
 // ---------- 설명서: 사용 설명서 · 업데이트 내역, 새 버전이면 한 번 알려 주기 ----------
 const NEWS_KEY = "ukjin-news-seen";
 function newsSeen() { try { return localStorage.getItem(NEWS_KEY) || ""; } catch (e) { return ""; } }
@@ -910,6 +983,7 @@ function renderDaySide() {
   const ts = tasksOn(d);
   $("dayTasks").innerHTML = exams.map((g) => `<div class="item"><span class="tag cat c-coral">D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div></div>`).join("") +
     (ts.length ? ts.map((x) => taskItem(x, d)).join("") : (exams.length ? "" : '<div class="empty">이 날 할 일이 없어요.</div>'));
+  renderDayPts(d);
   const ls = rows(S.logs).filter((l) => l.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   $("dayLogs").innerHTML = ls.length ? ls.map((l) => `<div class="item"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "기록"}</span><div class="body" data-act="editLog" data-id="${esc(l.id)}" style="cursor:pointer" title="눌러서 편집"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div></div>` +
     `<div class="actions"><button class="icon-btn" type="button" data-act="del" data-col="logs" data-id="${esc(l.id)}">삭제</button></div></div>`).join("") : '<div class="empty">아직 기록이 없어요.</div>';
@@ -1417,7 +1491,7 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); if (!$("searchResults").hidden) renderSearch();
+  renderHelp(); renderHist(); renderPoints(); if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
 }
@@ -1485,6 +1559,9 @@ document.addEventListener("click", (ev) => {
   if (a === "newsClose") { closeDlg($("newsDlg")); markNewsSeen(); return; }
   if (a === "newsAll") { closeDlg($("newsDlg")); markNewsSeen(); ui.helpTab = "changes"; renderHelp(); return; }
   if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; return; }
+  if (a === "openPoints") { closeMenu(); renderPointsDlg(); openDlg($("pointsDlg")); return; }
+  if (a === "ptClose") { closeDlg($("pointsDlg")); return; }
+  if (a === "ptsToggle") { try { localStorage.setItem("ukjin-pts-show", ptsShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); renderPoints(); toast(ptsShown() ? "달력에 포인트를 보여요." : "달력에서 포인트를 숨겼어요."); return; }
   if (a === "goalAchieve") {
     if (!ready()) return; const g = S.goals.get(id); if (!g) return;
     act(backend.update("goals", id, { achievedAt: g.achievedAt ? null : t }), g.achievedAt ? "달성 표시를 풀었어요." : `🎉 '${g.title}' 목표 달성! 축하해요!`).catch(() => {});

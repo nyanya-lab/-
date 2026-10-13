@@ -15,13 +15,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261013i">
+<link rel="stylesheet" href="style.css?v=20261013j">
 </head>
 <body>
 
 <div class="topbar">
   <button class="icon-round" type="button" data-act="menu" aria-label="메뉴 열기"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <a class="brand" href="#calendar" title="새로 받아오기 (캐시 비우고 다시 열기)"><span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><b>욱진 실천 보드</b></a>
+  <button class="icon-round top-lotto" type="button" data-act="openPoints" id="topLotto" aria-label="포인트·복권" hidden><svg class="ticket" viewBox="0 0 40 24" aria-hidden="true" id="topTicket"></svg><b class="lotto-badge" id="topTickets" hidden></b></button>
   <button class="icon-round" type="button" data-act="openSettings" aria-label="설정"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span class="sync-dot" data-sync></span></button>
 </div>
 <div class="scrim" data-act="menuClose" hidden></div>
@@ -36,6 +37,7 @@
       <a href="#requests"><svg viewBox="0 0 24 24"><path d="M5 4h14v12H9l-4 4z"/><path d="M9 9h6M9 12h4"/></svg><span>기능 요청</span><b class="nav-badge" id="reqBadge" hidden></b></a>
       <a href="#help"><svg viewBox="0 0 24 24"><path d="M5 4.5h9a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h9M9 8.5h5"/></svg><span>설명서</span><b class="nav-badge" id="newsBadge" hidden>N</b></a>
   </nav>
+  <button class="side-lotto" type="button" data-act="openPoints" id="sideLotto" hidden><svg class="ticket" viewBox="0 0 40 24" aria-hidden="true" id="sideTicket"></svg><span class="lotto-txt"><b id="sidePts">0</b><small>/ 1000</small></span><b class="lotto-badge" id="sideTickets" hidden></b></button>
   <button class="side-settings" type="button" data-act="openSettings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>설정</span><span class="sync-dot" data-sync></span></button>
 </aside>
 
@@ -79,6 +81,7 @@
             <div class="cal-right">
               <button class="icon-round sm" type="button" data-act="histUndo" id="undoBtn" aria-label="되돌리기"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg></button>
               <button class="icon-round sm" type="button" data-act="histRedo" id="redoBtn" aria-label="다시 하기"><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg></button>
+              <button class="icon-round sm pts-toggle" type="button" data-act="ptsToggle" id="ptsBtn" aria-label="달력에 포인트 표시" hidden>⭐</button>
               <button class="chip gchip" type="button" id="gcalChip" hidden></button>
             </div>
           </div>
@@ -366,6 +369,7 @@
     </form>
     <div class="dlg-sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
     <div class="dlg-sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
+    <div class="dlg-sec" id="dayPtsSec" hidden><h4>⭐ 이 날 받은 포인트</h4><div class="pts-lines" id="dayPts"></div></div>
   </div>
   <div id="dayPaneLogs" hidden>
     <div class="dlg-sec"><div class="list" id="dayLogs"></div></div>
@@ -453,6 +457,13 @@
   </form>
 </div>
 
+<dialog class="dlg" id="pointsDlg" aria-labelledby="ptTitle">
+  <div class="dlg-head"><div><h3 id="ptTitle">⭐ 포인트</h3><span class="muted small" id="ptSub"></span></div><button class="icon-round" type="button" data-act="ptClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec"><div class="pt-head" id="ptHead"></div></div>
+  <div class="dlg-sec"><h4>날짜별 내역</h4><div class="pt-list" id="ptList"></div></div>
+  <div class="dlg-sec"><h4>포인트 받는 법</h4><div class="pt-rules small muted">🔥 실천 1분 = 1점 · 세부목표 달성 50 · 목표 달성 300 · 연속 실천 7일 30 · 15일 100 · 30일 250 · 90일 1000 · 그 뒤 30일마다 300 · 💰 돈 기록 1건 1 (월급 30) · <b>1000점마다 복권 한 장</b></div></div>
+</dialog>
+
 <dialog class="dlg" id="newsDlg" aria-labelledby="nwTitle">
   <div class="dlg-head"><h3 id="nwTitle">✨ 새로 바뀐 것</h3><button class="icon-round" type="button" data-act="newsClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="dlg-sec help" id="nwBody"></div>
@@ -501,6 +512,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261013i"></script>
+<script type="module" src="app.js?v=20261013j"></script>
 </body>
 </html>
