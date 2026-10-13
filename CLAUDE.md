@@ -40,6 +40,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
   `lateFrom`/`earlyFrom` = 다른 날 할 일을 오늘 체크해서 옮긴 원래 날짜 (확인 창에서 고름. 지난 일은 원래 날짜에 ❌ 흔적, 체크 풀면 원래 날짜로 돌아감).
   `minutes` = 할 시간(선택). 있으면 체크할 때 묻지 않고 그 시간으로 `logs`에 기록.
 - 실천 기록 `logs`: 할 일 체크 때 기록한 시간은 `taskId`로 연결 (달력·구글에서 할 일 옆에 시간으로 표시).
+- 포인트(⭐): 저장 안 하고 기록에서 계산 (`pointsLedger`). 실천 1분 1 · 세부목표 50 · 목표 300 · 연속 7/15/30/90일 30/100/250/1000, 그 뒤 30일마다 300 · 돈 기록 1(월급 30). 1000점 = 복권 1장. `settings.lotto` = {on(욱진이에게 공개), used(긁은 장 수), …}. 공개 전에는 관리자 기기(`localStorage ukjin-admin`)에서만 보임.
 - 한 달 예산: `settings.budgets[YYYY-MM]` = {income, items{id:{cat, amount}}}. 예상 수입 − 예산 합계 = 여자친구에게 줄 돈(예상). `saveSettingsDeep`로 칸 하나씩 저장. 예산이 없는 달은 그 전 가장 가까운 달 예산을 이어 쓰고, 고치는 순간 그 달 것으로 옮겨 저장.
 - 돈 `money.kind`: `income` / `expense` / `transfer`(여자친구에게 보낸 돈) / `move`(내 자산끼리 이체, 수입·지출 아님). `account`, `toAccount`.
 
