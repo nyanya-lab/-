@@ -34,6 +34,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 - 항목·칸 단위로 따로 저장해서 여러 기기가 서로 덮어쓰지 않음. 업데이트는 `flattenPaths`로 경로별 update.
 - 할 일: `repeat` = `none`(date, done, doneDate) / `daily` / `weekly`(days 0=일…6=토, start, end, doneDates{날짜:true}).
   `subId` = 세부목표(선택). 목표 `goals/{id}/subs/{subId}` = {title, due, createdAt}. 진행률은 큰 목표만.
+  `lateFrom`/`earlyFrom` = 다른 날 할 일을 오늘 체크해서 옮긴 원래 날짜 (확인 창에서 고름. 지난 일은 원래 날짜에 ❌ 흔적, 체크 풀면 원래 날짜로 돌아감).
   `minutes` = 할 시간(선택). 있으면 체크할 때 묻지 않고 그 시간으로 `logs`에 기록.
 - 실천 기록 `logs`: 할 일 체크 때 기록한 시간은 `taskId`로 연결 (달력·구글에서 할 일 옆에 시간으로 표시).
 - 한 달 예산: `settings.budgets[YYYY-MM]` = {income, items{id:{cat, amount}}}. 예상 수입 − 예산 합계 = 여자친구에게 줄 돈(예상). `saveSettingsDeep`로 칸 하나씩 저장. 예산이 없는 달은 그 전 가장 가까운 달 예산을 이어 쓰고, 고치는 순간 그 달 것으로 옮겨 저장.
