@@ -7,7 +7,7 @@
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  */
-const CORE_VERSION = "2026-10-11b";
+const CORE_VERSION = "2026-10-13a";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
@@ -77,6 +77,8 @@ function pushToGoogle_(tasks, goals, logs) {
   const res = { added: 0, updated: 0, deleted: 0, cleaned: 0 };
   const ids = {};
   listAll_({ privateExtendedProperty: "ukjinApp=1", singleEvents: false }).forEach(function (ev) {
+    // 반복 일정에서 ✅로 바꾼 날(예외 일정)도 같은 표시를 달고 따로 나옴 → 중복으로 보고 지우면 그 날이 사라짐. 아래 반복 칸에서 따로 다룸
+    if (ev.recurringEventId || ev.status === "cancelled") return;
     const p = ev.extendedProperties && ev.extendedProperties.private;
     const ref = p && p.ukjinRef, it = ref && items[ref];
     if (!it || ids[ref]) { remove_(ev.id); res.deleted++; return; }   // 보드에서 지웠거나 중복
@@ -111,15 +113,18 @@ function pushToGoogle_(tasks, goals, logs) {
     const from = it.date > since ? it.date : since;
     const r = Calendar.Events.instances(CAL, ids[ref], {
       timeMin: new Date(from + "T00:00:00+09:00").toISOString(),
-      timeMax: new Date(nextDay_(today) + "T00:00:00+09:00").toISOString(), maxResults: 100
+      timeMax: new Date(nextDay_(today) + "T00:00:00+09:00").toISOString(), maxResults: 100, showDeleted: true
     });
     (r.items || []).forEach(function (inst) {
       const d = inst.originalStartTime && inst.originalStartTime.date;
       if (!d) return;
       const done = !!it.doneDates[d];
       const summary = done ? MARK.done + withTime(it.taskId, d, it.title) : MARK.plan + it.plan, colorId = done ? COLOR.done : COLOR.plan;
-      if (inst.summary !== summary || (inst.colorId || "") !== colorId) {
-        Calendar.Events.patch({ summary: summary, colorId: colorId }, CAL, inst.id);
+      const gone = inst.status === "cancelled";   // 예전 코드가 잘못 지운 날은 되살림
+      if (gone || inst.summary !== summary || (inst.colorId || "") !== colorId) {
+        const body = { summary: summary, colorId: colorId };
+        if (gone) body.status = "confirmed";
+        Calendar.Events.patch(body, CAL, inst.id);
         res.updated++;
       }
     });
