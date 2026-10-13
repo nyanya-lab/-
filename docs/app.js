@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261013j";
-import { firebaseConfig } from "./firebase-config.js?v=20261013j";
+import { CHANGES } from "./changes.js?v=20261014a";
+import { firebaseConfig } from "./firebase-config.js?v=20261014a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -269,15 +269,16 @@ async function firebaseStart() {
     const got = {};
     COLS.forEach((c) => {
       unsubs.push(rt.onValue(path(room, c), (snap) => {
+        if (testMode) return;
         S[c] = new Map(Object.entries(snap.val() || {})); got[c] = true;
         S.loaded = COLS.every((k) => got[k]); render();
       }, onErr));
     });
-    unsubs.push(rt.onValue(path(room, "settings"), (snap) => { S.settings = { ...DEFAULTS, ...(snap.val() || {}) }; render(); }, onErr));
+    unsubs.push(rt.onValue(path(room, "settings"), (snap) => { if (testMode) return; S.settings = { ...DEFAULTS, ...(snap.val() || {}) }; render(); }, onErr));
     // 욱진이 구글 계정의 Apps Script가 5분마다 넣어 주는 구글 일정과 동기화 상태
     unsubs.push(rt.onValue(path(room, "gevents"), (snap) => { S.gevents = snap.val() || {}; render(); }, onErr));
     unsubs.push(rt.onValue(path(room, "gsync"), (snap) => { S.gsync = snap.val() || null; render(); }, onErr));
-    unsubs.push(rt.onValue(path(room, "history"), (snap) => { const v = snap.val(); S.history = Array.isArray(v) ? v : v ? Object.values(v) : []; renderHist(); }, onErr));
+    unsubs.push(rt.onValue(path(room, "history"), (snap) => { if (testMode) return; const v = snap.val(); S.history = Array.isArray(v) ? v : v ? Object.values(v) : []; renderHist(); }, onErr));
     render();
   }
 
@@ -384,7 +385,7 @@ let lockAction = null;
 function openSettings() {
   closeMenu();
   $("bakPanel").hidden = !(backend && backend.backups);
-  setSync(); renderGcalBox();
+  setSync(); renderGcalBox(); renderAdminBox();
   openDlg($("settingsDlg"));
   if (backend && backend.backups) loadBackups();
 }
@@ -810,6 +811,72 @@ function renderSearch() {
 $("calSearch").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderSearch, 150); });
 $("calSearch").addEventListener("keydown", (ev) => { if (ev.key === "Escape") { $("calSearch").value = ""; renderSearch(); } });
 
+// ---------- 🔐 관리자 (복권 쿠폰·벌칙 목록, 요청 알림) · 🧪 테스트 모드 ----------
+// 관리자 비밀번호는 해시만 settings.adminHash에 저장. 맞게 넣은 기기는 localStorage ukjin-admin=1
+let testMode = false, testBonus = 0;
+async function adminHash(pw) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ukjin-admin:" + pw));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function renderAdminBox() {
+  const box = $("adminBox"), has = !!S.settings.adminHash, me = isAdminDevice();
+  if (me) {
+    box.innerHTML = `<p class="small" style="margin:0">✅ 이 기기는 <b>관리자</b>예요. 제목 옆 🧪로 테스트 모드를 열 수 있어요.</p>` +
+      `<div class="admin-row"><button class="btn ghost small" type="button" data-act="adminOff">이 기기 관리자 끄기</button><button class="btn ghost small" type="button" data-act="adminChange">비밀번호 바꾸기</button></div>` +
+      `<form class="admin-row" id="adminChangeForm" hidden autocomplete="off"><input type="password" name="pw" placeholder="새 비밀번호" aria-label="새 관리자 비밀번호"><input type="password" name="pw2" placeholder="한 번 더" aria-label="새 관리자 비밀번호 확인"><button class="btn small" type="submit">바꾸기</button></form>`;
+  } else if (!has) {
+    box.innerHTML = `<p class="small muted" style="margin:0">복권 쿠폰·벌칙 목록을 고치는 사람만 쓰는 비밀번호예요. 보드 비밀번호와 다르게 정해 주세요.</p>` +
+      `<form class="admin-row" id="adminSetForm" autocomplete="off"><input type="password" name="pw" placeholder="관리자 비밀번호" aria-label="관리자 비밀번호"><input type="password" name="pw2" placeholder="한 번 더" aria-label="관리자 비밀번호 확인"><button class="btn small" type="submit">정하기</button></form>`;
+  } else {
+    box.innerHTML = `<form class="admin-row" id="adminOpenForm" autocomplete="off"><input type="password" name="pw" placeholder="관리자 비밀번호" aria-label="관리자 비밀번호"><button class="btn small" type="submit">열기</button></form>`;
+  }
+}
+function setAdminDevice(on) { try { if (on) localStorage.setItem("ukjin-admin", "1"); else localStorage.removeItem("ukjin-admin"); } catch (e) { /* 무시 */ } render(); renderAdminBox(); }
+document.addEventListener("submit", async (ev) => {
+  const f = ev.target; if (!["adminSetForm", "adminOpenForm", "adminChangeForm"].includes(f.id)) return;
+  ev.preventDefault();
+  if (!ready()) return;
+  const pw = f.elements.pw.value, pw2 = f.elements.pw2 && f.elements.pw2.value;
+  if (pw.length < 4) { toast("4자 이상으로 해 주세요."); return; }
+  if (f.id === "adminOpenForm") {
+    if ((await adminHash(pw)) !== S.settings.adminHash) { toast("관리자 비밀번호가 달라요."); return; }
+    setAdminDevice(true); toast("관리자로 열었어요."); return;
+  }
+  if (pw !== pw2) { toast("두 번 넣은 비밀번호가 달라요."); return; }
+  act(backend.saveSettings({ adminHash: await adminHash(pw) }), f.id === "adminSetForm" ? "관리자 비밀번호를 정했어요." : "관리자 비밀번호를 바꿨어요.").then(() => setAdminDevice(true)).catch(() => {});
+});
+// 테스트 모드: 지금 보드를 복사한 연습판 (저장 안 됨). 끝내면 새로 불러와서 진짜 보드로
+function testBackend(snapshot) {
+  const data = snapshot;
+  const load = () => { COLS.forEach((c) => { S[c] = new Map(Object.entries(data[c] || {})); }); S.settings = { ...DEFAULTS, ...(data.settings || {}) }; S.history = data.history || []; S.loaded = true; render(); };
+  load();
+  return {
+    mode: "test",
+    async add(c, obj) { const id = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); data[c] = data[c] || {}; data[c][id] = clone(obj); load(); return id; },
+    async update(c, id, patch) { if (data[c] && data[c][id]) { data[c][id] = deepMerge(clone(data[c][id]), patch); load(); } },
+    async remove(c, id) { if (data[c]) delete data[c][id]; load(); },
+    async set(c, id, obj) { data[c] = data[c] || {}; data[c][id] = clone(obj); load(); },
+    async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; load(); },
+    async saveSettingsDeep(patch) { data.settings = deepMerge(clone(data.settings || {}), patch); load(); },
+    async saveHistory(list) { data.history = list; }
+  };
+}
+function toggleTestMode() {
+  if (testMode) { toast("진짜 보드로 돌아가요…"); setTimeout(() => location.reload(), 300); return; }
+  if (!isAdminDevice() || !backend) return;
+  const snap = {}; COLS.forEach((c) => { snap[c] = Object.fromEntries(clone([...S[c]])); });
+  snap.settings = clone(S.settings); snap.history = clone(S.history || []);
+  testMode = true; testBonus = 0;
+  backend = wrapHistory(testBackend(snap));
+  closeMenu(); closeSettings();
+  toast("🧪 테스트 모드예요. 여기서 한 건 저장 안 돼요.");
+}
+function renderAdminUi() {
+  const me = isAdminDevice();
+  ["testBtnSide", "testBtnTop"].forEach((id) => { $(id).hidden = !me && !testMode; $(id).classList.toggle("on", testMode); $(id).title = testMode ? "테스트 끝내기" : "테스트 모드 (저장 안 됨)"; });
+  $("testBar").hidden = !testMode;
+}
+
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
 // 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 7일 30 / 15일 100 / 30일 250 / 90일 1000 / 그 뒤 30일마다 300 · 돈 기록 1 (월급 30)
 const PT_GOAL = 300, PT_SUB = 50, PT_TICKET = 1000;
@@ -841,6 +908,7 @@ function pointsLedger() {
     if (x.money) x.lines.push(["💰", `돈 기록 ${x.money}건`, x.money]);
     if (x.salary) x.lines.push(["💰", `월급 기록${x.salary > 1 ? " " + x.salary + "건" : ""}`, x.salary * 30]);
   });
+  if (testMode && testBonus) { const x = at(today()); x.sum += testBonus; x.lines.push(["🧪", "테스트 포인트", testBonus]); }
   const total = Object.values(day).reduce((t, x) => t + x.sum, 0);
   return { total, day };
 }
@@ -1491,7 +1559,7 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); if (!$("searchResults").hidden) renderSearch();
+  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
 }
@@ -1559,6 +1627,10 @@ document.addEventListener("click", (ev) => {
   if (a === "newsClose") { closeDlg($("newsDlg")); markNewsSeen(); return; }
   if (a === "newsAll") { closeDlg($("newsDlg")); markNewsSeen(); ui.helpTab = "changes"; renderHelp(); return; }
   if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; return; }
+  if (a === "testMode") { toggleTestMode(); return; }
+  if (a === "testPts") { testBonus += PT_TICKET; render(); toast("🧪 테스트 포인트 +1000점"); return; }
+  if (a === "adminOff") { setAdminDevice(false); toast("이 기기에서 관리자를 껐어요."); return; }
+  if (a === "adminChange") { const f = $("adminChangeForm"); if (f) { f.hidden = !f.hidden; } return; }
   if (a === "openPoints") { closeMenu(); renderPointsDlg(); openDlg($("pointsDlg")); return; }
   if (a === "ptClose") { closeDlg($("pointsDlg")); return; }
   if (a === "ptsToggle") { try { localStorage.setItem("ukjin-pts-show", ptsShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); renderPoints(); toast(ptsShown() ? "달력에 포인트를 보여요." : "달력에서 포인트를 숨겼어요."); return; }

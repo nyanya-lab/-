@@ -15,13 +15,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261013j">
+<link rel="stylesheet" href="style.css?v=20261014a">
 </head>
 <body>
 
 <div class="topbar">
   <button class="icon-round" type="button" data-act="menu" aria-label="메뉴 열기"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <a class="brand" href="#calendar" title="새로 받아오기 (캐시 비우고 다시 열기)"><span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><b>욱진 실천 보드</b></a>
+  <button class="icon-round test-btn" type="button" data-act="testMode" id="testBtnTop" hidden aria-label="테스트 모드">🧪</button>
   <button class="icon-round top-lotto" type="button" data-act="openPoints" id="topLotto" aria-label="포인트·복권" hidden><svg class="ticket" viewBox="0 0 40 24" aria-hidden="true" id="topTicket"></svg><b class="lotto-badge" id="topTickets" hidden></b></button>
   <button class="icon-round" type="button" data-act="openSettings" aria-label="설정"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span class="sync-dot" data-sync></span></button>
 </div>
@@ -29,6 +30,7 @@
 
 <aside class="side" id="side">
   <a class="brand" href="#calendar" title="새로 받아오기 (캐시 비우고 다시 열기)"><span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><b id="brandName">욱진 실천 보드</b><span class="mono" id="todayMono"></span></span></a>
+  <button class="test-btn side-test" type="button" data-act="testMode" id="testBtnSide" hidden title="테스트 모드 (저장 안 됨)">🧪</button>
   <nav class="nav" aria-label="메뉴">
       <a href="#calendar"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></a>
       <a href="#goals"><svg viewBox="0 0 24 24"><path d="M5 21V4h11l-1.8 3.8L16 12H5"/></svg><span>목표</span></a>
@@ -42,6 +44,7 @@
 </aside>
 
 <div class="wrap" id="wrap">
+  <div class="test-bar" id="testBar" hidden><span>🧪 <b>테스트 모드</b> · 여기서 한 건 저장 안 돼요 (진짜 보드·욱진이 폰에는 그대로)</span><span class="test-bar-btns"><button class="btn small ghost" type="button" data-act="testPts">⭐ +1000점</button><button class="btn small" type="button" data-act="testMode">테스트 끝내기</button></span></div>
   <div class="note" id="modeNote" hidden></div>
 
   <!-- 로그인 -->
@@ -335,6 +338,7 @@
     <h4>구글 캘린더</h4>
     <div id="gcalBox" style="display:grid;gap:8px"></div>
   </div>
+  <div class="dlg-sec" id="adminSec"><h4>관리자</h4><div id="adminBox" style="display:grid;gap:8px"></div></div>
   <div class="dlg-foot" id="lockRow" hidden><button class="btn ghost" type="button" data-act="lock">이 기기에서 잠그기</button><span class="small muted">다시 열 때 비밀번호를 물어봐요.</span></div>
 </dialog>
 
@@ -512,6 +516,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261013j"></script>
+<script type="module" src="app.js?v=20261014a"></script>
 </body>
 </html>
