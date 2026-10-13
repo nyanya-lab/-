@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261014a";
-import { firebaseConfig } from "./firebase-config.js?v=20261014a";
+import { CHANGES } from "./changes.js?v=20261014b";
+import { firebaseConfig } from "./firebase-config.js?v=20261014b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -393,7 +393,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoAdminDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -822,6 +822,7 @@ function renderAdminBox() {
   const box = $("adminBox"), has = !!S.settings.adminHash, me = isAdminDevice();
   if (me) {
     box.innerHTML = `<p class="small" style="margin:0">✅ 이 기기는 <b>관리자</b>예요. 제목 옆 🧪로 테스트 모드를 열 수 있어요.</p>` +
+      `<div class="admin-row"><button class="btn small" type="button" data-act="openLottoAdmin">🎟️ 복권 관리 (쿠폰·벌칙 목록)</button></div>` +
       `<div class="admin-row"><button class="btn ghost small" type="button" data-act="adminOff">이 기기 관리자 끄기</button><button class="btn ghost small" type="button" data-act="adminChange">비밀번호 바꾸기</button></div>` +
       `<form class="admin-row" id="adminChangeForm" hidden autocomplete="off"><input type="password" name="pw" placeholder="새 비밀번호" aria-label="새 관리자 비밀번호"><input type="password" name="pw2" placeholder="한 번 더" aria-label="새 관리자 비밀번호 확인"><button class="btn small" type="submit">바꾸기</button></form>`;
   } else if (!has) {
@@ -876,6 +877,51 @@ function renderAdminUi() {
   ["testBtnSide", "testBtnTop"].forEach((id) => { $(id).hidden = !me && !testMode; $(id).classList.toggle("on", testMode); $(id).title = testMode ? "테스트 끝내기" : "테스트 모드 (저장 안 됨)"; });
   $("testBar").hidden = !testMode;
 }
+
+// ---------- 📝 복권 관리 (관리자만): settings.lotto = { on, used, odds, coupons{id:{tier,title,days}}, pens{id:{title,days}} } ----------
+const TIERS = { big: "🥇 대박", mid: "🥈 쿠폰", small: "🥉 작은 쿠폰" };
+const ODDS_DEF = { big: 3, mid: 25, small: 47, miss: 20, pen: 5 };
+const ODDS_LABEL = { big: "🥇 대박", mid: "🥈 쿠폰", small: "🥉 작은", miss: "😐 꽝", pen: "😈 벌칙" };
+function lotto() { return S.settings.lotto || {}; }
+function lottoOdds() { return { ...ODDS_DEF, ...(lotto().odds || {}) }; }
+function lottoItems(kind) {
+  return Object.entries(lotto()[kind] || {}).filter(([, v]) => v && v.title).map(([id, v]) => ({ id, ...v })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+}
+function saveLotto(patch, msg) { if (!ready()) return Promise.resolve(); return act(backend.saveSettingsDeep({ lotto: patch }), msg).catch(() => {}); }
+function renderLottoAdmin() {
+  if (!$("lottoAdminDlg").open) return;
+  const on = lottoOn(), cs = lottoItems("coupons"), ps = lottoItems("pens"), o = lottoOdds();
+  $("laOn").innerHTML = `<div class="la-on"><span>${on ? "✅ <b>공개 중</b> · 욱진이도 복권·포인트가 보여요" : "🙈 <b>숨김</b> · 지금은 관리자 기기에서만 보여요"}</span>` +
+    `<button class="btn small${on ? " ghost" : ""}" type="button" data-act="laToggleOn">${on ? "다시 숨기기" : "욱진이에게 공개하기"}</button></div>` +
+    (on ? "" : `<p class="small muted" style="margin:6px 0 0">쿠폰을 등급마다 하나 이상, 벌칙도 하나 이상 넣은 뒤 공개해 주세요. (지금 쿠폰 ${cs.length}개 · 벌칙 ${ps.length}개)</p>`);
+  if (!$("laOdds").contains(document.activeElement)) $("laOdds").innerHTML = Object.keys(ODDS_DEF).map((k) => `<label>${ODDS_LABEL[k]}<input type="number" min="0" max="100" step="1" value="${o[k]}" data-odds="${k}"></label>`).join("");
+  const sum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(o[k]) || 0), 0);
+  $("laOddsSum").innerHTML = sum === 100 ? "합계 100% ✅" : `<span style="color:var(--danger)">합계 ${sum}% — 100이 되게 맞춰 주세요</span>`;
+  const keepFocus = (box) => box.contains(document.activeElement);
+  if (!keepFocus($("laCoupons"))) $("laCoupons").innerHTML = cs.length ? cs.map((v) => `<div class="la-row"><select data-la="coupons" data-id="${esc(v.id)}" data-f="tier" aria-label="등급">${Object.keys(TIERS).map((k) => `<option value="${k}"${v.tier === k ? " selected" : ""}>${TIERS[k]}</option>`).join("")}</select>` +
+    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="coupons" data-id="${esc(v.id)}" data-f="title" aria-label="쿠폰 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 30}" data-la="coupons" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
+    `<button class="icon-btn" type="button" data-act="laDel" data-k="coupons" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
+  if (!keepFocus($("laPens"))) $("laPens").innerHTML = ps.length ? ps.map((v) => `<div class="la-row"><span class="la-tier">😈</span>` +
+    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
+    `<button class="icon-btn" type="button" data-act="laDel" data-k="pens" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
+}
+function openLottoAdmin() { if (!isAdminDevice()) { toast("관리자만 열 수 있어요."); return; } closeSettings(); openDlg($("lottoAdminDlg")); renderLottoAdmin(); }
+["laCouponForm", "laPenForm"].forEach((fid) => $(fid).addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const f = ev.target, kind = fid === "laCouponForm" ? "coupons" : "pens", title = f.elements.title.value.trim();
+  if (!title) { toast("내용을 적어 주세요."); return; }
+  const id = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const doc = { title, days: Math.max(1, parseInt(f.elements.days.value, 10) || (kind === "pens" ? 7 : 30)), createdAt: Date.now() };
+  if (kind === "coupons") doc.tier = f.elements.tier.value;
+  saveLotto({ [kind]: { [id]: doc } }, kind === "pens" ? "벌칙을 넣었어요." : "쿠폰을 넣었어요.").then(() => { f.elements.title.value = ""; f.elements.title.focus(); });
+}));
+$("lottoAdminDlg").addEventListener("change", (ev) => {
+  const el = ev.target;
+  if (el.dataset.odds) { saveLotto({ odds: { [el.dataset.odds]: Math.max(0, Math.min(100, parseInt(el.value, 10) || 0)) } }, "확률을 바꿨어요."); return; }
+  if (!el.dataset.la) return;
+  let v = el.value; if (el.dataset.f === "days") v = Math.max(1, parseInt(v, 10) || 1); if (el.dataset.f === "title") { v = v.trim(); if (!v) { toast("내용을 적어 주세요."); renderLottoAdmin(); return; } }
+  saveLotto({ [el.dataset.la]: { [el.dataset.id]: { [el.dataset.f]: v } } }, "고쳤어요.");
+});
 
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
 // 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 7일 30 / 15일 100 / 30일 250 / 90일 1000 / 그 뒤 30일마다 300 · 돈 기록 1 (월급 30)
@@ -1559,7 +1605,7 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); if (!$("searchResults").hidden) renderSearch();
+  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
 }
@@ -1628,6 +1674,19 @@ document.addEventListener("click", (ev) => {
   if (a === "newsAll") { closeDlg($("newsDlg")); markNewsSeen(); ui.helpTab = "changes"; renderHelp(); return; }
   if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; return; }
   if (a === "testMode") { toggleTestMode(); return; }
+  if (a === "openLottoAdmin") { openLottoAdmin(); return; }
+  if (a === "laClose") { closeDlg($("lottoAdminDlg")); return; }
+  if (a === "laDel") {
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말?"; setTimeout(() => { if (el.isConnected) { el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "삭제"; } }, 3000); return; }
+    saveLotto({ [el.dataset.k]: { [id]: null } }, "지웠어요."); return;
+  }
+  if (a === "laToggleOn") {
+    const on = lottoOn(), cs = lottoItems("coupons"), ps = lottoItems("pens");
+    if (!on && (!["big", "mid", "small"].every((k) => cs.some((v) => v.tier === k)) || !ps.length)) { toast("쿠폰을 등급마다 하나 이상, 벌칙도 하나 이상 넣어 주세요."); return; }
+    const sum = Object.values(lottoOdds()).reduce((t, v) => t + (Number(v) || 0), 0);
+    if (!on && sum !== 100) { toast("확률 합계를 100으로 맞춰 주세요."); return; }
+    saveLotto({ on: !on }, on ? "다시 숨겼어요. 관리자 기기에서만 보여요." : "🎉 욱진이에게 공개했어요!"); return;
+  }
   if (a === "testPts") { testBonus += PT_TICKET; render(); toast("🧪 테스트 포인트 +1000점"); return; }
   if (a === "adminOff") { setAdminDevice(false); toast("이 기기에서 관리자를 껐어요."); return; }
   if (a === "adminChange") { const f = $("adminChangeForm"); if (f) { f.hidden = !f.hidden; } return; }

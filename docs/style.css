@@ -101,6 +101,17 @@ button { cursor: pointer; }
 .side-test { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); right: 10px; width: 34px; height: 34px; }
 .test-bar { position: sticky; top: 0; z-index: 25; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--sun-soft); border: 2px solid var(--sun); border-radius: 12px; padding: 8px 12px; margin-bottom: 12px; font-size: 14px; }
 .test-bar-btns { display: flex; gap: 6px; }
+.la-list { display: grid; gap: 6px; }
+.la-row { display: grid; grid-template-columns: 136px minmax(0, 1fr) 86px auto; gap: 6px; align-items: center; }
+.la-row select, .la-row input { padding: 6px 8px; }
+.la-tier { text-align: center; font-size: 18px; }
+.la-days { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+.la-days input { width: 60px; text-align: right; }
+.la-add { padding-top: 8px; border-top: 1px dashed var(--line); margin-top: 4px; }
+.la-odds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.la-odds label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); text-align: center; }
+.la-odds input { text-align: center; padding: 6px 4px; }
+.la-on { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .admin-row input { max-width: 200px; }
 .side-lotto { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--sun-soft); color: var(--fg); position: relative; }
@@ -530,6 +541,9 @@ tr.clickable:hover td { background: var(--sunk); }
   .test-bar { top: 54px; }
 }
 @media (max-width: 720px) {
+  .la-row { grid-template-columns: 128px minmax(0, 1fr) auto; }
+  .la-row .la-days { grid-column: 2; grid-row: 2; }
+  .la-odds { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cal-head { padding: 10px 12px; gap: 8px; }
   .cal-search { order: 3; flex-basis: 100%; }
   .cal-right { order: 2; }
