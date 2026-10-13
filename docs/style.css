@@ -115,6 +115,9 @@ button { cursor: pointer; }
 #scratchCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; transition: opacity .5s; }
 #scratchCanvas.gone { opacity: 0; pointer-events: none; }
 .la-list { display: grid; gap: 6px; }
+.admin-n { margin-left: auto; }
+.side-settings .admin-n + .sync-dot { margin-left: 8px; }
+.req-new { box-shadow: inset 3px 0 0 var(--danger); }
 .la-row { display: grid; grid-template-columns: 136px minmax(0, 1fr) 86px auto; gap: 6px; align-items: center; }
 .la-row select, .la-row input { padding: 6px 8px; }
 .la-tier { text-align: center; font-size: 18px; }

@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261014c";
-import { firebaseConfig } from "./firebase-config.js?v=20261014c";
+import { CHANGES } from "./changes.js?v=20261014d";
+import { firebaseConfig } from "./firebase-config.js?v=20261014d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -385,7 +385,7 @@ let lockAction = null;
 function openSettings() {
   closeMenu();
   $("bakPanel").hidden = !(backend && backend.backups);
-  setSync(); renderGcalBox(); renderAdminBox();
+  setSync(); renderGcalBox(); renderAdminBox(); renderAdminN();
   openDlg($("settingsDlg"));
   if (backend && backend.backups) loadBackups();
 }
@@ -910,7 +910,11 @@ function renderLottoAdmin() {
     `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
     `<button class="icon-btn" type="button" data-act="laDel" data-k="pens" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
 }
-function openLottoAdmin() { if (!isAdminDevice()) { toast("관리자만 열 수 있어요."); return; } closeSettings(); openDlg($("lottoAdminDlg")); renderLottoAdmin(); }
+function openLottoAdmin() {
+  if (!isAdminDevice()) { toast("관리자만 열 수 있어요."); return; }
+  closeSettings(); openDlg($("lottoAdminDlg")); renderLottoAdmin(); renderCouponReqs();
+  lsSet("ukjin-creq-seen", Date.now()); renderAdminN();   // 열면 새 요청은 본 걸로 (빨간 줄은 이번엔 그대로)
+}
 ["laCouponForm", "laPenForm"].forEach((fid) => $(fid).addEventListener("submit", (ev) => {
   ev.preventDefault();
   const f = ev.target, kind = fid === "laCouponForm" ? "coupons" : "pens", title = f.elements.title.value.trim();
@@ -1058,6 +1062,38 @@ function maybeLottoIntro() {   // 공개된 뒤 처음 여는 기기에 한 번 
   try { if (localStorage.getItem("ukjin-lotto-intro")) return; localStorage.setItem("ukjin-lotto-intro", "1"); } catch (e) { return; }
   openDlg($("lottoIntroDlg"));
 }
+
+// ---------- 💌 쿠폰 요청 (settings.lotto.reqs{id:{text, at, status new|added|no}}) · 관리자 기기에만 N ----------
+function lsGet(k) { try { return Number(localStorage.getItem(k)) || 0; } catch (e) { return 0; } }
+function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { /* 무시 */ } }
+function couponReqs() { return Object.entries(lotto().reqs || {}).filter(([, v]) => v && v.text).map(([id, v]) => ({ id, ...v })).sort((a, b) => (b.at || 0) - (a.at || 0)); }
+const REQ_ST = { new: "보냄", added: "✅ 목록에 넣었어요", no: "😅 이번엔 안 돼요" };
+function renderCouponReqs() {
+  const rs = couponReqs();
+  if (ui.page === "coupons") $("cpReqs").innerHTML = rs.length ? rs.map((r) => `<div class="item"><span class="cp-tier">💌</span><div class="body"><div class="title">${esc(r.text)}</div><div class="meta"><span class="small muted">${esc(fmtTime(r.at))} · ${REQ_ST[r.status || "new"]}</span></div></div><div class="actions"></div></div>`).join("") : "";
+  if ($("lottoAdminDlg").open) {
+    const seen = lsGet("ukjin-creq-seen");
+    $("laReqs").innerHTML = rs.length ? rs.map((r) => `<div class="item${(r.status || "new") === "new" && r.at > seen ? " req-new" : ""}"><span class="cp-tier">💌</span><div class="body"><div class="title">${esc(r.text)}</div><div class="meta"><span class="small muted">${esc(fmtTime(r.at))} · ${REQ_ST[r.status || "new"]}</span></div></div>` +
+      `<div class="actions" style="display:flex;gap:4px">${(r.status || "new") === "new" ? `<button class="btn small" type="button" data-act="crAdd" data-id="${esc(r.id)}">목록에 넣기</button><button class="btn ghost small" type="button" data-act="crNo" data-id="${esc(r.id)}">거절</button>` : ""}<button class="icon-btn" type="button" data-act="crDel" data-id="${esc(r.id)}">지우기</button></div></div>`).join("") : '<p class="small muted" style="margin:0">아직 요청이 없어요.</p>';
+  }
+}
+// 관리자 기기: 새 기능 요청·쿠폰 요청이 있으면 N (그 기기에서 본 뒤로 새로 온 것만)
+function renderAdminN() {
+  const me = isAdminDevice();
+  const reqNew = me && rows(S.requests).some((r) => (r.createdAt || 0) > lsGet("ukjin-req-seen"));
+  const crNew = me && couponReqs().some((r) => (r.status || "new") === "new" && r.at > lsGet("ukjin-creq-seen"));
+  const rb = $("reqBadge");
+  if (reqNew) { rb.hidden = false; rb.textContent = "N"; }
+  document.querySelectorAll("[data-admin-n]").forEach((b) => { b.hidden = !crNew; });
+  const lb = document.querySelector('#adminBox [data-act="openLottoAdmin"]'); if (lb) lb.textContent = "🎟️ 복권 관리 (쿠폰·벌칙 목록)" + (crNew ? " · 💌 새 요청" : "");
+  if (me && ui.page === "requests" && reqNew) lsSet("ukjin-req-seen", Date.now());   // 보고 있으면 본 걸로
+}
+$("cpReqForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const text = $("cpReqText").value.trim(); if (!text) { toast("어떤 쿠폰이면 좋겠는지 적어 주세요."); return; }
+  const id = "q" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  saveLotto({ reqs: { [id]: { text, at: Date.now(), status: "new" } } }, "💌 쿠폰 요청을 보냈어요!").then(() => { $("cpReqText").value = ""; });
+});
 
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
 // 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 7일 30 / 15일 100 / 30일 250 / 90일 1000 / 그 뒤 30일마다 300 · 돈 기록 1 (월급 30)
@@ -1741,15 +1777,20 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens();
-  if (S.loaded && $("newsDlg").open === false) maybeLottoIntro(); if (!$("searchResults").hidden) renderSearch();
+  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); renderCouponReqs(); renderAdminN();
+  if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
+  if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
 }
 
 // ---------- 동작 ----------
 const PAGES = ["calendar", "goals", "money", "certs", "requests", "help", "coupons"];
-function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; if (ui.page === "coupons" && !lottoVisible()) ui.page = "calendar"; renderHeader(); renderCoupons(); window.scrollTo(0, 0); }
+function route() {
+  const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; if (ui.page === "coupons" && S.loaded && !lottoVisible()) ui.page = "calendar";
+  if (ui.page === "requests" && isAdminDevice()) lsSet("ukjin-req-seen", Date.now());
+  renderHeader(); renderCoupons(); renderCouponReqs(); renderRequests(); renderAdminN(); window.scrollTo(0, 0);
+}
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
 let armed = null, armTimer;
@@ -1813,6 +1854,13 @@ document.addEventListener("click", (ev) => {
   if (a === "testMode") { toggleTestMode(); return; }
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
+  if (a === "crAdd") {
+    const r = couponReqs().find((z) => z.id === id); if (!r) return;
+    saveLotto({ reqs: { [id]: { status: "added" } } }, "요청을 '넣었어요'로 표시했어요. 아래 쿠폰 목록에 등급·기한을 정해 넣어 주세요.");
+    const f = $("laCouponForm"); f.elements.title.value = r.text.replace(/\s*(쿠폰)?\s*(넣어\s*줘|주세요|해\s*줘)\.?$/, "").trim() || r.text; f.scrollIntoView({ block: "center" }); f.elements.title.focus(); return;
+  }
+  if (a === "crNo") { saveLotto({ reqs: { [id]: { status: "no" } } }, "거절로 표시했어요."); return; }
+  if (a === "crDel") { saveLotto({ reqs: { [id]: null } }, "요청을 지웠어요."); return; }
   if (a === "scReveal") { scratchReveal(); return; }
   if (a === "scAgain") { closeDlg($("scratchDlg")); setTimeout(openScratch, 150); return; }
   if (a === "scClose") { if (scratch && scratch.committed && !scratch.revealed) scratchReveal(); else { closeDlg($("scratchDlg")); scratch = null; } return; }
