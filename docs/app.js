@@ -1,4 +1,5 @@
-import { firebaseConfig } from "./firebase-config.js?v=20261013d";
+import { CHANGES } from "./changes.js?v=20261013e";
+import { firebaseConfig } from "./firebase-config.js?v=20261013e";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -373,7 +374,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -560,14 +561,14 @@ function fmtShort(m) { const h = Math.floor(m / 60), r = m % 60; return !h ? r +
 // ---------- 날짜가 다른 할 일을 체크할 때 확인 창 ----------
 // 지난 일: 원래 날짜는 ❌(못 함)로 남기고 오늘 한 걸로 옮기거나, 그 날 한 걸로 체크
 // 앞으로 할 일: 오늘로 당겨서 🔥, 원래 날짜에서는 없어짐
-let moveFor = null;
-function openMove(id) {
+let moveFor = null, moveDay = null;
+function openMove(id, repDay) {
   const x = S.tasks.get(id); if (!x) return;
-  const t = today(), past = x.date < t, title = esc(x.title), from = shortDate(x.date), now = shortDate(t);
-  moveFor = id;
-  $("mvTitle").textContent = past ? "지난 할 일이에요" : "앞당겨서 했어요?";
+  const t = today(), d = repDay || x.date, past = d < t, title = esc(x.title), from = shortDate(d), now = shortDate(t);
+  moveFor = id; moveDay = d;
+  $("mvTitle").textContent = repDay ? "지난 날 반복하는 일이에요" : past ? "지난 할 일이에요" : "앞당겨서 했어요?";
   $("mvText").innerHTML = past
-    ? `<p>'<b>${title}</b>'은(는) ${from} 할 일이었어요. 언제 했어요?</p><ul>` +
+    ? `<p>'<b>${title}</b>'은(는) ${from} ${repDay ? "반복하는 일" : "할 일"}이었어요. 언제 했어요?</p><ul>` +
       `<li><b>오늘 했어요</b> · ${from} 칸은 ❌(못 한 날)로 남고, 오늘 ${now} 칸에 🔥 실천으로 옮겨요.</li>` +
       `<li><b>그날 했어요</b> · 깜빡하고 늦게 체크한 거면 ${from}에 한 걸로 체크해요.</li></ul>`
     : `<p>'<b>${title}</b>'은(는) ${from} 할 일이에요. 오늘 미리 했어요?</p><ul>` +
@@ -579,9 +580,23 @@ function openMove(id) {
   openDlg($("moveDlg"));
 }
 function doMove(kind) {
-  const id = moveFor, x = id && S.tasks.get(id); closeDlg($("moveDlg")); moveFor = null;
+  const id = moveFor, x = id && S.tasks.get(id), from = moveDay; closeDlg($("moveDlg")); moveFor = null; moveDay = null;
   if (!x || !ready()) return;
-  const t = today(), day = kind === "that" ? x.date : t;
+  const t = today();
+  if (isRep(x)) {   // 반복하는 일: 그날 → 그 날 칸 체크 / 오늘 → 그 날은 ❌로 두고 오늘 🔥 실천으로 따로 기록
+    if (kind === "that") {
+      act(backend.update("tasks", id, { doneDates: { [from]: true } }), x.minutes > 0 ? "" : `${shortDate(from)}에 한 걸로 체크했어요.`).then(() => {
+        if (x.minutes > 0) recordTaskTime(x, id, from, x.minutes, `🔥 ${fmtMin(x.minutes)} 기록했어요. ${shortDate(from)}에 한 걸로 체크했어요.`);
+        else showDoneSheet(id, from);
+      }).catch(() => {});
+    } else {
+      const min = Number(x.minutes) || 0;
+      act(backend.add("logs", { date: t, minutes: min, text: x.title, goalId: x.goalId || null, lateFor: { taskId: id, date: from }, createdAt: Date.now() }),
+        `오늘 🔥로 기록했어요. ${shortDate(from)}은 ❌로 남아요.` + (min ? "" : " 시간을 넣어 주세요.")).then((lid) => { if (!min && lid) openLog(lid); }).catch(() => {});
+    }
+    return;
+  }
+  const day = kind === "that" ? x.date : t;
   const patch = kind === "that" ? { done: true, doneDate: x.date }
     : { date: t, done: true, doneDate: t, [kind === "late" ? "lateFrom" : "earlyFrom"]: x.date };
   const msg = kind === "late" ? `오늘로 옮겼어요. ${shortDate(x.date)}은 ❌로 남아요.` : kind === "early" ? "오늘로 당겨서 체크했어요." : `${shortDate(x.date)}에 한 걸로 체크했어요.`;
@@ -589,6 +604,25 @@ function doMove(kind) {
     if (x.minutes > 0) recordTaskTime(x, id, day, x.minutes, `🔥 ${fmtMin(x.minutes)} 기록했어요. ` + msg);
     else showDoneSheet(id, day);
   }).catch(() => {});
+}
+
+// ---------- 설명서: 사용 설명서 · 업데이트 내역, 새 버전이면 한 번 알려 주기 ----------
+const NEWS_KEY = "ukjin-news-seen";
+function newsSeen() { try { return localStorage.getItem(NEWS_KEY) || ""; } catch (e) { return ""; } }
+function chgHtml(list) { return list.map((c) => `<div class="chg-date">${esc(c.date.replace(/-/g, "."))}</div><ul>${c.items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`).join(""); }
+function renderHelp() {
+  const tab = ui.helpTab || "guide";
+  document.querySelectorAll("#helpSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === tab)));
+  $("helpGuide").hidden = tab !== "guide"; $("helpChanges").hidden = tab !== "changes";
+  $("helpChanges").innerHTML = chgHtml(CHANGES);
+  $("newsBadge").hidden = !CHANGES.length || newsSeen() >= CHANGES[0].date;
+}
+function markNewsSeen() { try { localStorage.setItem(NEWS_KEY, CHANGES[0].date); } catch (e) { /* 무시 */ } renderHelp(); }
+function maybeShowNews() {
+  const seen = newsSeen(); if (!CHANGES.length || seen >= CHANGES[0].date) return;
+  // 처음 여는 기기는 가장 최근 묶음만, 아니면 못 본 것 (최대 3일치)
+  $("nwBody").innerHTML = chgHtml(seen ? CHANGES.filter((c) => c.date > seen).slice(0, 3) : CHANGES.slice(0, 1));
+  openDlg($("newsDlg"));
 }
 
 // ---------- 실천한 일: 🔥 누르면 편집/삭제 묻기, 글자 누르면 편집 창 ----------
@@ -1170,13 +1204,15 @@ async function loadBackups() {
   } catch (e) { box.innerHTML = '<div class="empty">백업을 불러오지 못했어요.</div>'; }
 }
 
+let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
+  renderHelp(); if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
 }
 
 // ---------- 동작 ----------
-const PAGES = ["calendar", "goals", "money", "certs", "requests"];
+const PAGES = ["calendar", "goals", "money", "certs", "requests", "help"];
 function route() { const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; renderHeader(); window.scrollTo(0, 0); }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
@@ -1234,6 +1270,9 @@ document.addEventListener("click", (ev) => {
     return;
   }
   if (a === "planDel") { const v = planOf(ui.month).items.find((z) => z.id === id); savePlan(ui.month, { items: { [id]: null } }, v ? `${v.cat} 예산을 뺐어요.` : ""); return; }
+  if (a === "helpTab") { ui.helpTab = el.dataset.k; if (ui.helpTab === "changes") markNewsSeen(); renderHelp(); return; }
+  if (a === "newsClose") { closeDlg($("newsDlg")); markNewsSeen(); return; }
+  if (a === "newsAll") { closeDlg($("newsDlg")); markNewsSeen(); ui.helpTab = "changes"; renderHelp(); return; }
   if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; return; }
   if (a === "logFire") { askLog(id); return; }
   if (a === "editLog") { openLog(id); return; }
@@ -1297,6 +1336,7 @@ document.addEventListener("click", (ev) => {
     if (!ready()) return;
     const x = S.tasks.get(id); if (!x) return;
     if (!isRep(x) && !x.done && x.date && x.date !== t) { openMove(id); return; }   // 지난 일·앞으로 할 일을 오늘 체크 → 어떻게 할지 묻기
+    if (isRep(x) && el.dataset.day && el.dataset.day < t && !isDone(x, el.dataset.day)) { openMove(id, el.dataset.day); return; }   // 반복하는 일의 지난 날
     if (!isRep(x) && x.done && (x.lateFrom || x.earlyFrom)) {   // 옮겨서 체크했던 걸 풀면 원래 날짜로 돌려놓기
       const back = x.lateFrom || x.earlyFrom, old = taskLogs(id, x.doneDate);
       act((async () => {
