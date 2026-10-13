@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261013h">
+<link rel="stylesheet" href="style.css?v=20261013i">
 </head>
 <body>
 
@@ -271,6 +271,7 @@
         <h3>목표</h3>
         <ul>
           <li>＋ 목표로 추가하고 시험일을 넣으면 D-day가 보여요. 진행률은 큰 목표의 할 일 기준이에요.</li>
+          <li>목표를 이루면 목표 창에서 <b>[🎉 달성!]</b>, 세부목표는 앞의 네모를 눌러 달성 표시해요. 잘못 눌렀으면 다시 누르면 풀려요.</li>
           <li>＋ 세부목표로 나눌 수 있어요 (예: 필기 합격, 실기 합격). 할 일을 추가·편집할 때 세부목표를 골라요 (안 골라도 돼요).</li>
           <li>목표를 누르면 목표 창: 목표 정보, 세부목표, 반복하는 일, 할 일, 추천 할 일 넣기.</li>
         </ul>
@@ -386,7 +387,7 @@
       <label class="f">분류<select id="geCat"></select></label>
       <label class="f">목표일 / 시험일<input type="date" id="geDue"></label>
     </div>
-    <div style="display:flex;gap:8px"><button class="btn small" type="submit">저장</button></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn small" type="submit">저장</button><span id="gAchieve"></span></div>
   </form>
   <div class="dlg-sec" id="gSubSec"><div class="sec-head"><h4>세부목표</h4><button class="btn ghost small" type="button" data-act="gSubOpen" aria-label="세부목표 추가">＋ 추가</button></div><div id="gSubs"></div></div>
   <div class="dlg-sec" id="gRepSec"><div class="sec-head"><h4>반복하는 일</h4><button class="btn ghost small" type="button" data-act="gtOpen" data-k="rep" aria-label="반복하는 일 추가">＋ 추가</button></div><div class="list" id="gRepeats"></div></div>
@@ -500,6 +501,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261013h"></script>
+<script type="module" src="app.js?v=20261013i"></script>
 </body>
 </html>

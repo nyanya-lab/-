@@ -1,5 +1,5 @@
-import { CHANGES } from "./changes.js?v=20261013h";
-import { firebaseConfig } from "./firebase-config.js?v=20261013h";
+import { CHANGES } from "./changes.js?v=20261013i";
+import { firebaseConfig } from "./firebase-config.js?v=20261013i";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests"];
@@ -692,7 +692,12 @@ function histDescribe(e) {
   if (c === "goals") {
     if (a && b) {
       const as = a.subs || {}, bs = b.subs || {}, sid = Object.keys({ ...as, ...bs }).find((x) => !sameDoc(as[x], bs[x]));
-      if (sid) { const sv = as[sid] || bs[sid] || {}; return { label: `세부목표 '${sv.title || ""}' ${!bs[sid] ? "추가" : !as[sid] ? "삭제" : "고치기"}`, date: null }; }
+      if (sid) {
+        const sv = as[sid] || bs[sid] || {};
+        if (as[sid] && bs[sid] && !!as[sid].doneAt !== !!bs[sid].doneAt) return { label: `세부목표 '${sv.title || ""}' ${as[sid].doneAt ? "달성" : "달성 취소"}`, date: as[sid].doneAt || null };
+        return { label: `세부목표 '${sv.title || ""}' ${!bs[sid] ? "추가" : !as[sid] ? "삭제" : "고치기"}`, date: null };
+      }
+      if (!!a.achievedAt !== !!b.achievedAt) return { label: `목표 '${d.title || ""}' ${a.achievedAt ? "달성" : "달성 취소"}`, date: a.achievedAt || null };
     }
     return { label: `목표 '${d.title || ""}' ${verb}`, date: null };
   }
@@ -956,6 +961,10 @@ function groupBySub(list, g, item) {
   if (rest.length) html += '<div class="grp-label">세부목표 없음</div>' + rest.map(item).join("");
   return html;
 }
+// 세부목표 달성 네모 (달성하면 🎉)
+function subCheck(gid, v) {
+  return `<button type="button" class="sub-check${v.doneAt ? " on" : ""}" data-act="subDone" data-id="${esc(gid)}" data-sid="${esc(v.id)}" aria-pressed="${!!v.doneAt}" aria-label="${esc(v.title)} ${v.doneAt ? "달성 취소" : "달성"}">${v.doneAt ? "🎉" : ""}</button>`;
+}
 function subForm(gid) {
   return `<form class="sub-form" data-gid="${esc(gid)}" autocomplete="off"><input type="text" name="t" maxlength="60" placeholder="세부목표, 예: 필기 합격" aria-label="세부목표 이름">` +
     `<input type="date" name="d" aria-label="날짜 (선택)"><button class="btn small" type="submit">추가</button><button class="btn ghost small" type="button" data-act="subCancel">취소</button></form>`;
@@ -981,13 +990,14 @@ function renderHomeGoals() {
     let body = "";
     ss.forEach((v) => {
       const xs = show.filter((x) => x.subId === v.id);
-      body += `<div class="hsub"><div class="hsub-head"><b>${esc(v.title)}</b>${v.due ? `<span class="mono small muted">${ddayText(v.due)} · ${shortDate(v.due)}</span>` : ""}</div>` +
+      body += `<div class="hsub${v.doneAt ? " done" : ""}"><div class="hsub-head"><span>${subCheck(g.id, v)}<b>${esc(v.title)}</b></span>` +
+        (v.doneAt ? `<span class="small muted">🎉 ${shortDate(v.doneAt)} 달성</span>` : v.due ? `<span class="mono small muted">${ddayText(v.due)} · ${shortDate(v.due)}</span>` : "") + "</div>" +
         (xs.length ? block(xs) : '<div class="small muted hsub-empty">아직 할 일이 없어요</div>') + "</div>";
     });
     const rest = show.filter((x) => !ss.some((v) => v.id === x.subId));
     if (rest.length) body += `<div class="hsub">${ss.length ? '<div class="hsub-head"><b class="muted">세부목표 없음</b></div>' : ""}${block(rest)}</div>`;
-    return `<div class="hgoal ${catCls(g)}"><div class="hgoal-head" data-act="openGoal" data-id="${esc(g.id)}" role="button" tabindex="0" title="눌러서 목표 편집">` +
-      `<div class="hgoal-title"><b>${esc(g.title)}</b>${g.due ? `<span class="dd mono">${ddayText(g.due)}</span>` : ""}</div>` +
+    return `<div class="hgoal ${catCls(g)}${g.achievedAt ? " achieved" : ""}"><div class="hgoal-head" data-act="openGoal" data-id="${esc(g.id)}" role="button" tabindex="0" title="눌러서 목표 편집">` +
+      `<div class="hgoal-title"><b>${esc(g.title)}</b>${g.achievedAt ? `<span class="ach-badge">🎉 ${shortDate(g.achievedAt)} 달성</span>` : g.due ? `<span class="dd mono">${ddayText(g.due)}</span>` : ""}</div>` +
       `<div class="hgoal-prog"><div class="bar"><i style="width:${pct}%"></i></div><span class="small muted mono">할 일 ${od}/${once.length}</span></div></div>` +
       body + (ui.subFor === g.id ? subForm(g.id) : `<button class="link-btn hsub-add" type="button" data-act="subAdd" data-id="${esc(g.id)}">＋ 세부목표</button>`) + "</div>";
   }).join("");
@@ -1015,7 +1025,7 @@ function renderGoals() {
         dd = `<div class="dday${n >= 0 && n <= 14 ? " soon" : ""}">${n > 0 ? "D-" + n : n === 0 ? "D-DAY" : "D+" + (-n)}<small>${shortDate(g.due)}</small></div>`;
       } else dd = '<div class="dday muted" style="font-size:13px">날짜 미정</div>';
       return `<article class="goal ${catCls(g)}" data-act="openGoal" data-id="${esc(g.id)}" role="button" tabindex="0" aria-label="${esc(g.title)} 자세히"><div class="goal-head"><div style="display:grid;gap:6px;min-width:0">` +
-        `<div><span class="tag">${esc(g.cat || "기타")}</span></div><div class="goal-title">${esc(g.title)}</div></div>${dd}</div>` +
+        `<div><span class="tag">${esc(g.cat || "기타")}</span>${g.achievedAt ? ` <span class="ach-badge">🎉 ${shortDate(g.achievedAt)} 달성</span>` : ""}</div><div class="goal-title">${esc(g.title)}</div></div>${dd}</div>` +
         (subsOf(g).length ? `<div class="small muted">세부목표 · ${subsOf(g).map((v) => esc(v.title)).join(" · ")}</div>` : "") +
         `<div style="display:grid;gap:4px"><div class="bar"><i style="width:${pct}%"></i></div>` +
         `<div class="small muted">할 일 <span class="mono">${onceDone}/${once.length}</span> 완료` +
@@ -1057,7 +1067,10 @@ function renderGoalDlg() {
   const t = today();
   $("gTitle").textContent = g.title;
   const n = g.due ? diffDays(g.due, t) : null;
-  $("gSub").textContent = (g.cat || "기타") + (g.due ? ` · ${n > 0 ? "D-" + n : n === 0 ? "D-DAY" : "D+" + (-n)} (${shortDate(g.due)})` : " · 날짜 미정");
+  $("gSub").textContent = (g.cat || "기타") + (g.due ? ` · ${n > 0 ? "D-" + n : n === 0 ? "D-DAY" : "D+" + (-n)} (${shortDate(g.due)})` : " · 날짜 미정") + (g.achievedAt ? ` · 🎉 ${shortDate(g.achievedAt)} 달성` : "");
+  $("gAchieve").innerHTML = g.achievedAt
+    ? `<span class="ach-badge">🎉 ${esc(shortDate(g.achievedAt))} 달성</span> <button class="btn ghost small" type="button" data-act="goalAchieve" data-id="${esc(ui.goalId)}">달성 취소</button>`
+    : `<button class="btn small" type="button" data-act="goalAchieve" data-id="${esc(ui.goalId)}">🎉 달성!</button>`;
   $("gDlgHead").className = "dlg-head goal-band " + catCls(ui.goalId);
   const ts = rows(S.tasks).filter((x) => x.goalId === ui.goalId);
   const reps = ts.filter(isRep).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -1066,7 +1079,7 @@ function renderGoalDlg() {
   $("gTasks").innerHTML = once.length ? groupBySub(once, g, (x) => taskItem(x, t, !x.done && x.date > t, true)) : '<div class="empty">아직 없어요.</div>';
   // 세부목표: 바로 고치기 (이름·날짜 바꾸면 저장)
   const ss = subsOf(g);
-  $("gSubs").innerHTML = ss.map((v) => `<div class="sub-row"><input type="text" value="${esc(v.title)}" maxlength="60" data-sub="title" data-sid="${esc(v.id)}" aria-label="세부목표 이름">` +
+  $("gSubs").innerHTML = ss.map((v) => `<div class="sub-row${v.doneAt ? " done" : ""}">${subCheck(ui.goalId, v)}<input type="text" value="${esc(v.title)}" maxlength="60" data-sub="title" data-sid="${esc(v.id)}" aria-label="세부목표 이름">` +
     `<input type="date" value="${esc(v.due || "")}" data-sub="due" data-sid="${esc(v.id)}" aria-label="세부목표 날짜"><button class="icon-btn" type="button" data-act="delSub" data-sid="${esc(v.id)}">삭제</button></div>`).join("") +
     (gt.subOpen ? `<div style="margin-top:8px">${subForm(ui.goalId)}</div>` : ss.length ? "" : '<p class="small muted" style="margin:0">예: 필기 합격, 실기 합격. 할 일을 세부목표별로 묶을 수 있어요.</p>');
   // 추가 폼: ＋ 누른 칸 바로 아래에 열림
@@ -1472,6 +1485,16 @@ document.addEventListener("click", (ev) => {
   if (a === "newsClose") { closeDlg($("newsDlg")); markNewsSeen(); return; }
   if (a === "newsAll") { closeDlg($("newsDlg")); markNewsSeen(); ui.helpTab = "changes"; renderHelp(); return; }
   if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; return; }
+  if (a === "goalAchieve") {
+    if (!ready()) return; const g = S.goals.get(id); if (!g) return;
+    act(backend.update("goals", id, { achievedAt: g.achievedAt ? null : t }), g.achievedAt ? "달성 표시를 풀었어요." : `🎉 '${g.title}' 목표 달성! 축하해요!`).catch(() => {});
+    return;
+  }
+  if (a === "subDone") {
+    if (!ready()) return; const g = S.goals.get(id), v = g && subsOf(g).find((z) => z.id === el.dataset.sid); if (!v) return;
+    act(backend.update("goals", id, { subs: { [v.id]: { doneAt: v.doneAt ? null : t } } }), v.doneAt ? "달성 표시를 풀었어요." : `🎉 '${v.title}' 달성!`).catch(() => {});
+    return;
+  }
   if (a === "histUndo") { askHist("undo"); return; }
   if (a === "histRedo") { askHist("redo"); return; }
   if (a === "histDo") { histApply(); return; }

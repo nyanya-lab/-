@@ -36,7 +36,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 - 모음(`COLS`): `goals`, `tasks`, `logs`(실천 기록), `money`, `accounts`(통장·카드·현금), `requests`(기능 요청). 그 외 `settings`, `_backup/{prev,daily,undo}`, `gevents`·`gsync`(Apps Script가 씀), `history`(↶↷ 되돌리기 기록 최근 30개, 모든 기기 공유: 묶음마다 keys `"모음|id"`, before/after 문서, label, date, dev, undone).
 - 항목·칸 단위로 따로 저장해서 여러 기기가 서로 덮어쓰지 않음. 업데이트는 `flattenPaths`로 경로별 update.
 - 할 일: `repeat` = `none`(date, done, doneDate) / `daily` / `weekly`(days 0=일…6=토, start, end, doneDates{날짜:true}).
-  `subId` = 세부목표(선택). 목표 `goals/{id}/subs/{subId}` = {title, due, createdAt}. 진행률은 큰 목표만.
+  `subId` = 세부목표(선택). 목표 `goals/{id}/subs/{subId}` = {title, due, createdAt, doneAt}. 목표 달성은 `goals/{id}/achievedAt`(날짜). 진행률은 큰 목표만.
   `lateFrom`/`earlyFrom` = 다른 날 할 일을 오늘 체크해서 옮긴 원래 날짜 (확인 창에서 고름. 지난 일은 원래 날짜에 ❌ 흔적, 체크 풀면 원래 날짜로 돌아감).
   `minutes` = 할 시간(선택). 있으면 체크할 때 묻지 않고 그 시간으로 `logs`에 기록.
 - 실천 기록 `logs`: 할 일 체크 때 기록한 시간은 `taskId`로 연결 (달력·구글에서 할 일 옆에 시간으로 표시).
