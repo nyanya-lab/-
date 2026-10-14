@@ -146,7 +146,12 @@ button { cursor: pointer; }
 .la-tier { text-align: center; font-size: 18px; }
 .la-days { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
 .la-days input { width: 60px; text-align: right; }
-.la-row.la-cp { grid-template-columns: 136px minmax(0, 1fr) 86px auto auto; }
+.la-row.la-cp { grid-template-columns: 136px minmax(0, 1fr) 86px 64px auto auto; }
+.la-row.la-pn { grid-template-columns: 136px minmax(0, 1fr) 86px 64px auto; }
+.la-won { font-family: var(--f-mono); font-size: 12px; color: var(--muted); text-align: center; opacity: .55; }
+.la-won.on { opacity: 1; color: var(--fg); font-weight: 600; }
+.la-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-bottom: 8px; }
+.la-tools input, .la-tools select { padding: 7px 10px; font-size: 14px; }
 .la-eff { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 7px; font-size: 15px; line-height: 1.2; opacity: .35; filter: grayscale(1); cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
 .la-eff.on, .la-eff:has(input:checked) { opacity: 1; filter: none; background: var(--grape-soft); border-color: var(--grape); }
 .la-eff input { margin: 0; }
@@ -638,7 +643,8 @@ tr.clickable:hover td { background: var(--sunk); }
   .cp-ticket .btn { grid-column: 1 / -1; }
   .la-row { grid-template-columns: 128px minmax(0, 1fr) auto; }
   .la-row .la-days { grid-column: 2; grid-row: 2; }
-  .la-row.la-cp { grid-template-columns: 128px minmax(0, 1fr) auto; }
+  .la-row.la-cp, .la-row.la-pn { grid-template-columns: 128px minmax(0, 1fr) auto; }
+  .la-row .la-won { grid-column: 1; grid-row: 2; text-align: left; padding-left: 4px; }
   .la-cp .la-eff { grid-column: 3; grid-row: 2; justify-self: center; }
   .la-odds { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cal-head { padding: 10px 12px; gap: 8px; }
