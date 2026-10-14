@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014v";
-import { CHANGES } from "./changes.js?v=20261014v";
-import { firebaseConfig } from "./firebase-config.js?v=20261014v";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014w";
+import { CHANGES } from "./changes.js?v=20261014w";
+import { firebaseConfig } from "./firebase-config.js?v=20261014w";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -933,7 +933,6 @@ function renderLottoAdmin() {
   const LT = { reqs: "💌 요청" + (newReq ? ` <b class="la-new">${newReq}</b>` : ""), odds: "🎲 확률" + (oddsOk ? "" : " ⚠️"), cp: `🎟️ 쿠폰 <b>${cs.length}</b>`, pen: `😈 벌칙 <b>${ps.length}</b>` };
   $("laTabs").querySelectorAll("button").forEach((b) => { b.innerHTML = LT[b.dataset.k]; b.setAttribute("aria-pressed", b.dataset.k === tab); });
   document.querySelectorAll("[data-la-tab]").forEach((el) => { if (el.id !== "laPresetSec") el.hidden = el.dataset.laTab !== tab; });
-  $("laPenN").textContent = `모두 ${ps.length}개`;
   $("laOn").innerHTML = `<div class="la-on"><span>${on ? "✅ <b>공개 중</b> · 욱진이도 복권·포인트가 보여요" : "🙈 <b>숨김</b> · 지금은 관리자 기기에서만 보여요"}</span>` +
     `<button class="btn small${on ? " ghost" : ""}" type="button" data-act="laToggleOn">${on ? "다시 숨기기" : "욱진이에게 공개하기"}</button></div>` +
     (on ? "" : `<p class="small muted" style="margin:6px 0 0">쿠폰을 등급마다 하나 이상, 벌칙도 하나 이상 넣은 뒤 공개해 주세요. (지금 쿠폰 ${cs.length}개 · 벌칙 ${ps.length}개)</p>`);
@@ -946,17 +945,34 @@ function renderLottoAdmin() {
   $("laRename").hidden = !rn.length;
   $("laRename").innerHTML = rn.length ? `<span>💰 금액을 등급 기준으로 통일했어요. 예전 제목 ${rn.length}개에 금액이 남아 있어요 (예: ${esc(rn[0].title)} → ${esc(PRESET_RENAMES[rn[0].title])}).</span><button class="btn small" type="button" data-act="laRename">제목 고치기</button>` : "";
   const LF = { all: ["전체", () => true], big: ["🥇", (v) => v.tier === "big"], mid: ["🥈", (v) => v.tier === "mid"], small: ["🥉", (v) => v.tier === "small"], streak: ["🛡️", (v) => v.effect === "streak"] };
-  const lf = LF[ui.laTier] ? ui.laTier : "all", shown = cs.filter(LF[lf][1]);
-  $("laCpN").textContent = `모두 ${cs.length}개`;
+  const won = laWonCounts(), cpShown = laArrange("cp", cs.filter(LF[ui.laTier] ? LF[ui.laTier][1] : () => true), "coupon", won);
+  const lf = LF[ui.laTier] ? ui.laTier : "all", shown = cpShown;
+  $("laCpN").textContent = `모두 ${cs.length}개` + (shown.length !== cs.length ? ` · 보이는 ${shown.length}개` : "");
   $("laFilter").innerHTML = Object.keys(LF).map((k) => `<button type="button" data-act="laFilter" data-k="${k}" aria-pressed="${k === lf}">${LF[k][0]} <b>${cs.filter(LF[k][1]).length}</b></button>`).join("");
   if (!keepFocus($("laCoupons"))) $("laCoupons").innerHTML = shown.length ? shown.map((v) => `<div class="la-row la-cp"><select data-la="coupons" data-id="${esc(v.id)}" data-f="tier" aria-label="등급">${Object.keys(TIERS).map((k) => `<option value="${k}"${v.tier === k ? " selected" : ""}>${TIERS[k]}</option>`).join("")}</select>` +
-    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="coupons" data-id="${esc(v.id)}" data-f="title" aria-label="쿠폰 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 30}" data-steps data-la="coupons" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
+    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="coupons" data-id="${esc(v.id)}" data-f="title" aria-label="쿠폰 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 30}" data-steps data-la="coupons" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` + wonHtml(won["coupon|" + v.title]) +
     `<button class="la-eff${v.effect === "streak" ? " on" : ""}" type="button" data-act="laEff" data-id="${esc(v.id)}" aria-pressed="${v.effect === "streak"}" title="🛡️ 연속일 채우기 효과 ${v.effect === "streak" ? "켜짐" : "꺼짐"}">🛡️</button>` +
-    `<button class="icon-btn" type="button" data-act="laDel" data-k="coupons" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
-  if (!keepFocus($("laPens"))) $("laPens").innerHTML = ps.length ? ps.map((v) => `<div class="la-row"><span class="la-tier">😈</span>` +
-    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
-    `<button class="icon-btn" type="button" data-act="laDel" data-k="pens" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
+    `<button class="icon-btn" type="button" data-act="laDel" data-k="coupons" data-id="${esc(v.id)}">삭제</button></div>`).join("") : `<p class="small muted" style="margin:0">${cs.length ? "찾는 쿠폰이 없어요." : "아직 없어요."}</p>`;
+  const psShown = laArrange("pen", ps, "pen", won);
+  $("laPenN").textContent = `모두 ${ps.length}개` + (psShown.length !== ps.length ? ` · 보이는 ${psShown.length}개` : "");
+  if (!keepFocus($("laPens"))) $("laPens").innerHTML = psShown.length ? psShown.map((v) => `<div class="la-row la-pn"><span class="la-tier">😈</span>` +
+    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` + wonHtml(won["pen|" + v.title]) +
+    `<button class="icon-btn" type="button" data-act="laDel" data-k="pens" data-id="${esc(v.id)}">삭제</button></div>`).join("") : `<p class="small muted" style="margin:0">${ps.length ? "찾는 벌칙이 없어요." : "아직 없어요."}</p>`;
 }
+// 복권 관리 목록: 검색 · 정렬 · 당첨 횟수 (긁은 복권 wins에서 같은 내용을 셈)
+function laWonCounts() { const n = {}; S.wins.forEach((w) => { if (w && w.title) { const k = w.kind + "|" + w.title; n[k] = (n[k] || 0) + 1; } }); return n; }
+function wonHtml(n) { return `<span class="la-won${n ? " on" : ""}" title="지금까지 당첨된 횟수">당첨 ${n || 0}회</span>`; }
+function laArrange(k, list, kind, won) {
+  const q = ((ui.laQ || {})[k] || "").trim().toLowerCase(), sort = (ui.laSort || {})[k] || "new", w = (v) => won[kind + "|" + v.title] || 0, d = (v) => Number(v.days) || 0;
+  const out = q ? list.filter((v) => v.title.toLowerCase().includes(q)) : list.slice();
+  if (sort === "abc") out.sort((a, b) => a.title.localeCompare(b.title, "ko"));
+  if (sort === "short") out.sort((a, b) => d(a) - d(b) || a.title.localeCompare(b.title, "ko"));
+  if (sort === "long") out.sort((a, b) => d(b) - d(a) || a.title.localeCompare(b.title, "ko"));
+  if (sort === "won") out.sort((a, b) => w(b) - w(a) || a.title.localeCompare(b.title, "ko"));
+  return out;
+}
+$("lottoPage").addEventListener("input", (ev) => { const k = ev.target.dataset.laQ; if (!k) return; (ui.laQ ||= {})[k] = ev.target.value; renderLottoAdmin(); });
+$("lottoPage").addEventListener("change", (ev) => { const k = ev.target.dataset.laSort; if (!k) return; (ui.laSort ||= {})[k] = ev.target.value; renderLottoAdmin(); });
 function openLottoAdmin() {
   if (!isAdminDevice()) { toast("관리자만 열 수 있어요."); return; }
   closeSettings(); location.hash = "#lotto";
