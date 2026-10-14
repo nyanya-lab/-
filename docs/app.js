@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015d";
-import { CHANGES } from "./changes.js?v=20261015d";
-import { firebaseConfig } from "./firebase-config.js?v=20261015d";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015e";
+import { CHANGES } from "./changes.js?v=20261015e";
+import { firebaseConfig } from "./firebase-config.js?v=20261015e";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1480,6 +1480,9 @@ function renderDayPts(d) {
 // ---------- 설명서: 사용 설명서 · 업데이트 내역, 새 버전이면 한 번 알려 주기 ----------
 const NEWS_KEY = "ukjin-news-seen";
 function newsSeen() { try { return localStorage.getItem(NEWS_KEY) || ""; } catch (e) { return ""; } }
+// 본 표시 = "날짜#그 날 줄 수" → 같은 날 줄이 늘어도 새 소식으로 (예전 값엔 #가 없어서 그 날 묶음을 한 번 더 보여 줌)
+function newsSplit() { const [d, n] = newsSeen().split("#"); return { d: d || "", n: Number(n) || 0 }; }
+function hasNews() { const s = newsSplit(), top = CHANGES[0]; return !!top && (top.date > s.d || (top.date === s.d && top.items.length > s.n)); }
 function chgHtml(list) { return list.map((c) => `<div class="chg-date">${esc(c.date.replace(/-/g, "."))}</div><ul>${c.items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`).join(""); }
 function renderHelp() {
   const tab = ui.helpTab || "guide";
@@ -1492,13 +1495,14 @@ function renderHelp() {
   document.querySelectorAll("#helpTopics button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === topic)));
   document.querySelectorAll("[data-help]").forEach((el) => { el.hidden = el.dataset.help !== topic; });
   $("helpChanges").innerHTML = chgHtml(CHANGES);
-  $("newsBadge").hidden = !CHANGES.length || newsSeen() >= CHANGES[0].date;
+  $("newsBadge").hidden = !hasNews();
 }
-function markNewsSeen() { try { localStorage.setItem(NEWS_KEY, CHANGES[0].date); } catch (e) { /* 무시 */ } renderHelp(); }
+function markNewsSeen() { try { localStorage.setItem(NEWS_KEY, CHANGES[0].date + "#" + CHANGES[0].items.length); } catch (e) { /* 무시 */ } renderHelp(); }
 function maybeShowNews() {
-  const seen = newsSeen(); if (!CHANGES.length || seen >= CHANGES[0].date) return;
-  // 처음 여는 기기는 가장 최근 묶음만, 아니면 못 본 것 (최대 3일치)
-  $("nwBody").innerHTML = chgHtml(seen ? CHANGES.filter((c) => c.date > seen).slice(0, 3) : CHANGES.slice(0, 1));
+  if (!hasNews()) return;
+  // 처음 여는 기기는 가장 최근 묶음만, 아니면 못 본 것 (최대 3일치, 같은 날은 새로 더한 줄만)
+  const s = newsSplit();
+  $("nwBody").innerHTML = chgHtml(s.d ? CHANGES.filter((c) => c.date >= s.d).map((c) => c.date === s.d && s.n ? { ...c, items: c.items.slice(0, c.items.length - s.n) } : c).filter((c) => c.items.length).slice(0, 3) : CHANGES.slice(0, 1));
   openDlg($("newsDlg"));
 }
 
