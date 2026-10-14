@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015y";
-import { CHANGES } from "./changes.js?v=20261015y";
-import { firebaseConfig } from "./firebase-config.js?v=20261015y";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z";
+import { CHANGES } from "./changes.js?v=20261015z";
+import { firebaseConfig } from "./firebase-config.js?v=20261015z";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1029,10 +1029,14 @@ function renderNags() {
     if (!(conf && conf.inc === r.inc) && !skip("give")) list.push(["give", `💰 ${esc(me())}이가 ${mon} 수입 <b>${won(r.inc)}</b>을 입력했어요 → 줄 돈 <b>${won(g)}</b> <span class="muted">(수입 − 예산 ${won(pl.total)})</span>`,
       `<button class="btn small" type="button" data-act="nagGive" data-v="${g}" data-inc="${r.inc}">확인했어요</button>`]);
   }
+  // 👏 받을 칭찬 (욱진이 기기만)
+  const pp = adm || !lottoOn() ? [] : pendingPraises();
+  if (pp.length && !skip("pr" + pp[pp.length - 1].id)) list.unshift(["pr" + pp[pp.length - 1].id, `👏 <b>${esc(partner())}가 칭찬했어요!</b> ⭐ +${pp.reduce((n, p) => n + p.pts, 0)}점 <span class="muted">· ${esc(untilText(praiseState(pp[0]).end))} 받기</span>`,
+    `<button class="btn small" type="button" data-act="prGet">받기</button>`]);
   // 🔄 새 버전이 올라왔으면 (checkNewVersion) 맨 위에. [나중에]는 그 버전만 숨김
   if (ui.newVer && !skip("upd" + ui.newVer)) list.unshift(["upd" + ui.newVer, "🔄 <b>새 버전이 나왔어요.</b> 새로고침하면 바뀐 걸 쓸 수 있어요.", `<button class="btn small" type="button" data-act="updReload">새로고침</button>`]);
   box.hidden = !list.length;
-  box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag${k.startsWith("upd") ? " upd" : ""}"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
+  box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag${k.startsWith("upd") ? " upd" : k.startsWith("pr") ? " praise" : ""}"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
 }
 function saveLotto(patch, msg) {
   if (!ready()) return Promise.resolve();
@@ -1049,7 +1053,7 @@ function renderLottoAdmin() {
   $("laTabs").querySelectorAll("button").forEach((b) => { b.innerHTML = LT[b.dataset.k]; b.setAttribute("aria-pressed", b.dataset.k === tab); });
   document.querySelectorAll("[data-la-tab]").forEach((el) => { if (el.id !== "laPresetSec") el.hidden = el.dataset.laTab !== tab; });
   const prs = praises().slice(0, 5);
-  $("praiseList").innerHTML = prs.map((p) => `<div class="item"><span class="cp-tier">👏</span><div class="body"><div class="title">${esc(p.text || "칭찬")}</div><div class="meta"><span class="small muted">${esc(fmtTime(p.at))} · +${p.pts}점</span></div></div>` +
+  $("praiseList").innerHTML = prs.map((p) => `<div class="item"><span class="cp-tier">👏</span><div class="body"><div class="title">${esc(p.text || "칭찬")}</div><div class="meta"><span class="small muted">${esc(fmtTime(p.at))} · +${p.pts}점 · ${(() => { const s = praiseState(p); return s.st === "got" ? (p.claim ? `✅ ${shortDate(s.day)} 받음` : "✅ 받음") : s.st === "wait" ? `⏳ 기다리는 중 · ${untilText(s.end)}` : "⌛ 안 받아서 사라짐"; })()}</span></div></div>` +
     `<div class="actions"><button class="icon-btn" type="button" data-act="praiseDel" data-id="${esc(p.id)}">지우기</button></div></div>`).join("");
   const keepFocus = (box) => box.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);   // 글자 치는 중일 때만 다시 안 그림 (버튼을 눌렀을 땐 바로 반영)
   if (!keepFocus($("laOdds"))) $("laOdds").innerHTML = Object.keys(ODDS_DEF).map((k) => `<label>${ODDS_LABEL[k]}<input type="number" min="0" max="100" step="1" value="${o[k]}" data-odds="${k}"></label>`).join("");
@@ -1094,13 +1098,42 @@ $("lottoPage").addEventListener("input", (ev) => { const k = ev.target.dataset.l
 $("lottoPage").addEventListener("change", (ev) => { const k = ev.target.dataset.laSort; if (!k) return; (ui.laSort ||= {})[k] = ev.target.value; renderLottoAdmin(); });
 // 👏 칭찬 (관리자): settings.lotto.praises{id:{text, at, date, pts}} → 포인트에 더함. 테스트 모드여도 진짜로 저장
 const PT_PRAISE = 30;
+// 칭찬 받기: 새 칭찬(claim: 1)은 욱진이가 [받기]를 눌러야 점수 (got = 받은 날). 칭찬한 날 포함 3일째 밤까지, 지나면 사라짐
+// claim 없는 예전 칭찬은 칭찬한 날 받은 걸로
+const PRAISE_DAYS = 3;
+function praiseState(p) {
+  if (!p.claim) return { st: "got", day: p.date };
+  if (p.got) return { st: "got", day: p.got };
+  const end = addDays(p.date, PRAISE_DAYS - 1);
+  return { st: today() > end ? "gone" : "wait", end };
+}
+function pendingPraises() { return praises().filter((p) => praiseState(p).st === "wait").reverse(); }   // 먼저 온 것부터
+function praiseGetAll() {
+  const ps = pendingPraises(); if (!ps.length || !ready()) return;
+  const t = today(), patch = {}, sum = ps.reduce((n, p) => n + p.pts, 0);
+  ps.forEach((p) => { patch[p.id] = { got: t }; });
+  closeDlg($("praiseDlg"));
+  saveLotto({ praises: patch }, `👏 칭찬 ${ps.length > 1 ? ps.length + "개 " : ""}받았어요! ⭐ +${sum}점`);
+}
+// 욱진이 기기: 받을 칭찬이 있으면 열 때 팝업 (이번에 열린 동안 같은 칭찬은 한 번만, 다른 창이 떠 있으면 기다림). 닫아도 맨 위 띠로 남음
+function maybePraise() {
+  if (!S.loaded || isAdminDevice() || !lottoOn() || document.querySelector("dialog[open]")) return;
+  const ps = pendingPraises(); if (!ps.length) return;
+  const key = ps.map((p) => p.id).join(","); let seen = "";
+  try { seen = sessionStorage.getItem("ukjin-praise-seen") || ""; if (seen === key) return; sessionStorage.setItem("ukjin-praise-seen", key); } catch (e) { /* 무시 */ }
+  const sum = ps.reduce((n, p) => n + p.pts, 0);
+  $("prBody").innerHTML = ps.map((p) => `<div class="praise-card"><b>${esc(p.text ? `"${p.text}"` : "잘했어요!")}</b><span>⭐ +${p.pts}점 · ${esc(untilText(praiseState(p).end))}</span></div>`).join("");
+  $("prGet").textContent = `받기 (+${sum}점)`;
+  openDlg($("praiseDlg"));
+}
+["newsDlg", "lottoIntroDlg"].forEach((id) => $(id).addEventListener("close", () => setTimeout(maybePraise, 200)));
 function praises() { return Object.entries(lotto().praises || {}).filter(([, v]) => v && v.date).map(([id, v]) => ({ id, ...v, pts: Number(v.pts) || PT_PRAISE })).sort((a, b) => (b.at || 0) - (a.at || 0)); }
 $("praiseForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!isAdminDevice()) return;
   const text = $("praiseText").value.trim(), id = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   const pts = Math.max(10, Math.round((parseInt($("praisePts").value, 10) || PT_PRAISE) / 10) * 10);
-  saveLotto({ praises: { [id]: { text, at: Date.now(), date: today(), pts } } }, `👏 칭찬했어요! 욱진이에게 +${pts}점`).then(() => { $("praiseText").value = ""; $("praisePts").value = PT_PRAISE; $("praiseBtn").textContent = `👏 칭찬 +${PT_PRAISE}`; });
+  saveLotto({ praises: { [id]: { text, at: Date.now(), date: today(), pts, claim: 1 } } }, `👏 칭찬했어요! 욱진이가 ${PRAISE_DAYS}일 안에 [받기]를 누르면 +${pts}점`).then(() => { $("praiseText").value = ""; $("praisePts").value = PT_PRAISE; $("praiseBtn").textContent = `👏 칭찬 +${PT_PRAISE}`; });
 });
 $("praisePts").addEventListener("input", () => { $("praiseBtn").textContent = `👏 칭찬 +${Math.max(10, parseInt($("praisePts").value, 10) || 0)}`; });
 function openLottoAdmin() {
@@ -1620,7 +1653,7 @@ function pointsLedger() {
     if (!m || !m.date) return; const x = at(m.date);
     if (m.kind === "income" && m.cat === "월급") { x.salary++; x.sum += 30; } else { x.money++; x.sum += 1; }
   });
-  praises().forEach((p) => { const x = at(p.date); x.sum += p.pts; x.lines.push(["👏", p.text || "칭찬", p.pts]); });
+  praises().forEach((p) => { const s = praiseState(p); if (s.st !== "got") return; const x = at(s.day); x.sum += p.pts; x.lines.push(["👏", p.text || "칭찬", p.pts]); });
   S.wins.forEach((w) => { if (w && w.game && w.game.pts > 0 && w.game.date) { const x = at(w.game.date); x.sum += w.game.pts; x.lines.push(["🎯", "타이밍 게임", w.game.pts]); } });
   S.goals.forEach((g) => {
     if (!g) return;
@@ -2393,6 +2426,7 @@ function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
+  maybePraise();
   if (S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
@@ -2483,6 +2517,8 @@ document.addEventListener("click", (ev) => {
   if (a === "nagKeep") { const m = today().slice(0, 7); savePlan(m, {}, `🗓️ ${+m.slice(5)}월 예산은 지난달 그대로 써요.`); return; }
   if (a === "nagGive") { const m = today().slice(0, 7); saveSettingsReal({ giveConfirm: { [m]: { inc: Number(el.dataset.inc), give: Number(el.dataset.v), at: Date.now() } } }, `✅ ${+m.slice(5)}월 줄 돈 ${won(Number(el.dataset.v))} 확인했어요.`); return; }
   if (a === "updReload") { hardReload(true); return; }
+  if (a === "prGet") { praiseGetAll(); return; }
+  if (a === "prLater") { closeDlg($("praiseDlg")); toast("맨 위 띠에서 언제든 받을 수 있어요."); return; }
   if (a === "theme") { setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"); return; }
   if (a === "nagLater") { try { const v = sessionStorage.getItem("ukjin-nag-later") || ""; sessionStorage.setItem("ukjin-nag-later", v + "," + el.dataset.k + "@" + today().slice(0, 7)); } catch (e) { /* 무시 */ } renderNags(); return; }
   if (a === "histRange") { ui.histRange = el.dataset.k; renderMoney(); return; }
@@ -2544,7 +2580,7 @@ document.addEventListener("click", (ev) => {
   }
   if (a === "praiseDel") {
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말?"; setTimeout(() => { if (el.isConnected) { el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "지우기"; } }, 3000); return; }
-    saveLotto({ praises: { [id]: null } }, "칭찬을 지웠어요. (30점도 빠져요)"); return;
+    saveLotto({ praises: { [id]: null } }, "칭찬을 지웠어요. (받은 점수도 빠져요)"); return;
   }
   if (a === "testPts") { testBonus += PT_TICKET; render(); toast("🧪 테스트 포인트 +1000점"); return; }
   if (a === "adminOff") { setAdminDevice(false); toast("이 기기에서 관리자를 껐어요."); return; }
