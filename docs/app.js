@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014w";
-import { CHANGES } from "./changes.js?v=20261014w";
-import { firebaseConfig } from "./firebase-config.js?v=20261014w";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014x";
+import { CHANGES } from "./changes.js?v=20261014x";
+import { firebaseConfig } from "./firebase-config.js?v=20261014x";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -956,7 +956,7 @@ function renderLottoAdmin() {
   const psShown = laArrange("pen", ps, "pen", won);
   $("laPenN").textContent = `모두 ${ps.length}개` + (psShown.length !== ps.length ? ` · 보이는 ${psShown.length}개` : "");
   if (!keepFocus($("laPens"))) $("laPens").innerHTML = psShown.length ? psShown.map((v) => `<div class="la-row la-pn"><span class="la-tier">😈</span>` +
-    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` + wonHtml(won["pen|" + v.title]) +
+    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-steps="3,7,15" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` + wonHtml(won["pen|" + v.title]) +
     `<button class="icon-btn" type="button" data-act="laDel" data-k="pens" data-id="${esc(v.id)}">삭제</button></div>`).join("") : `<p class="small muted" style="margin:0">${ps.length ? "찾는 벌칙이 없어요." : "아직 없어요."}</p>`;
 }
 // 복권 관리 목록: 검색 · 정렬 · 당첨 횟수 (긁은 복권 wins에서 같은 내용을 셈)
@@ -986,13 +986,14 @@ function openLottoAdmin() {
   if (kind === "coupons") { doc.tier = f.elements.tier.value; if (f.elements.streak.checked) doc.effect = "streak"; }
   saveLotto({ [kind]: { [id]: doc } }, kind === "pens" ? "벌칙을 넣었어요." : "쿠폰을 넣었어요.").then(() => { f.elements.title.value = ""; if (f.elements.streak) f.elements.streak.checked = false; f.elements.title.focus(); });
 }));
-// 쿠폰 기한 칸 화살표(▲▼·키보드)는 하루씩 말고 7 → 15 → 30 → 60 → 90일로 (직접 치는 건 그대로)
+// 기한 칸 화살표(▲▼·키보드)는 하루씩 말고 단계로: 쿠폰 7 → 15 → 30 → 60 → 90일, 벌칙 3 → 7 → 15일 (data-steps, 직접 치는 건 그대로)
 const DAY_STEPS = [7, 15, 30, 60, 90];
 ["pointerdown", "keydown"].forEach((t) => $("lottoPage").addEventListener(t, (ev) => { const el = ev.target; if (el.matches && el.matches("input[data-steps]")) el.dataset.prev = el.value; }, true));
 $("lottoPage").addEventListener("input", (ev) => {
   const el = ev.target; if (!el.matches("input[data-steps]") || ev.inputType) return;   // 글자 입력은 inputType이 있음
   const prev = Number(el.dataset.prev), v = Number(el.value); if (!prev || Math.abs(v - prev) !== 1) return;
-  const next = v > prev ? DAY_STEPS.find((d) => d > prev) || DAY_STEPS[DAY_STEPS.length - 1] : [...DAY_STEPS].reverse().find((d) => d < prev) || DAY_STEPS[0];
+  const steps = el.dataset.steps ? el.dataset.steps.split(",").map(Number) : DAY_STEPS;
+  const next = v > prev ? steps.find((d) => d > prev) || steps[steps.length - 1] : [...steps].reverse().find((d) => d < prev) || steps[0];
   el.value = next; el.dataset.prev = next;
 }, true);
 // 등급을 고르면 기한 기본값: 🥇 60일 · 🥈 30일 · 🥉 7일
@@ -1041,7 +1042,7 @@ function untilText(d) { const n = diffDays(d, today()); return `${shortDate(d)}�
 function resHtml(res) {
   const due = addDays(today(), res.days);
   if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="tt">${esc(res.title)}</div>${res.effect === "streak" ? '<div class="sm">🛡️ 쓰면 실천 못 한 날 하루를 채워요</div>' : payText(res) ? `<div class="sm">${payText(res)}</div>` : ""}<div class="sm">${untilText(due)}</div>`;
-  if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${untilText(due)} · 못 하면 ×2</div>`;
+  if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${untilText(due)} · 못 하면 ×2</div><div class="sm"><b>📸 꼭 인증샷 찍어서 보내기!</b></div>`;
   return `<div class="big">😐</div><div class="lv">꽝</div><div class="tt">아쉽다! 다음 기회에</div>`;
 }
 function openScratch() {
@@ -1128,7 +1129,7 @@ function openFill(id) {
 }
 function penDone(id) {
   const w = S.wins.get(id); if (!w || !ready()) return; const left = Math.max(0, (w.left || 1) - 1);
-  act(backend.update("wins", id, left ? { left } : { left: 0, doneAt: today() }), left ? `💪 한 장 했어요! ${left}장 남았어요. 기한 안에 다 해요.` : "✅ 벌칙 끝!").catch(() => {});
+  act(backend.update("wins", id, left ? { left } : { left: 0, doneAt: today() }), left ? `💪 한 장 했어요! ${left}장 남았어요. 📸 인증샷 보냈죠?` : "✅ 벌칙 끝! 📸 인증샷 보냈죠?").catch(() => {});
 }
 // 😈 벌칙 = 기한 마감일의 할 일 (tasks.penId). 장 수·기한이 바뀌면 따라 바뀌고, 다 하면 끝낸 일로
 let penTaskSyncing = false;
@@ -1182,7 +1183,7 @@ function renderCoupons() {
   const TABS = { avail: ["🎟️ 쓸 쿠폰", avail.length], pens: ["😈 벌칙", pOpen.length], past: ["📜 지난 것", 0], reqs: ["💌 요청", 0] };
   $("cpTabs").querySelectorAll("button").forEach((b) => { const [lb, n] = TABS[b.dataset.k]; b.innerHTML = lb + (n ? ` <b>${n}</b>` : ""); b.setAttribute("aria-pressed", b.dataset.k === tab); });
   document.querySelectorAll("[data-cp]").forEach((el) => { el.hidden = el.dataset.cp !== tab; });
-  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 (최근 순)"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
+  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "📸 꼭 인증샷 찍어서 보내기 · 기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 (최근 순)"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
   $("cpTabTitle").textContent = HEAD[tab][0]; $("cpTabSub").textContent = HEAD[tab][1];
   const sel = $("cpSort"); sel.hidden = !(tab === "avail" || tab === "pens"); sel.value = sort; sel.querySelector('[value="tier"]').hidden = tab !== "avail";
   if (tab === "pens" && sort === "tier") sel.value = "due";
