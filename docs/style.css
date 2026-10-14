@@ -383,6 +383,8 @@ table.t tr.cur td { background: var(--sunk); }
 .acct b { font-size: 18px; }
 .acct small { color: var(--muted); font-size: 12px; }
 .seg.seg4 { grid-template-columns: repeat(4, 1fr); }
+.seg.seg5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 720px) { .cp-tabs.seg5 { grid-template-columns: repeat(3, 1fr); } }
 .seg.seg2 { grid-template-columns: repeat(2, 1fr); }
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .add-form { background: var(--sunk); }
@@ -452,6 +454,18 @@ tr.clickable:hover td { background: var(--sunk); }
 .req-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .req-pic button { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #FFFFFF; font-size: 12px; line-height: 22px; padding: 0; cursor: pointer; }
 .req-pick { justify-self: start; width: max-content; cursor: pointer; }
+/* 📸 인증샷 창 · 추억 탭 */
+.proof-pic { margin: 10px 0; }
+.proof-pic img { display: block; max-width: 100%; max-height: 40vh; border-radius: 8px; border: 1px solid var(--line); }
+.proof-empty { display: grid; place-items: center; height: 120px; border: 2px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 14px; }
+.pic-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pic-grid[hidden] { display: none; }
+@media (min-width: 721px) { .pic-grid { grid-template-columns: repeat(3, minmax(0, 220px)); } }
+.pic-grid .empty, .pic-more { grid-column: 1 / -1; }
+.pic-more { display: flex; justify-content: center; padding: 6px 0; }
+.pic-card { display: grid; gap: 4px; padding: 0 0 6px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.pic-card img, .pic-card .ph { display: grid; place-items: center; width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--sunk); color: var(--muted); font-size: 13px; }
+.pic-card .cap { padding: 0 6px; font-size: 12px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pic-dlg { max-width: min(96vw, 1000px); padding: 10px; }
 .pic-dlg[open] { display: grid; gap: 8px; justify-items: center; }
 .pic-dlg img { max-width: 100%; max-height: 80vh; border-radius: 8px; }

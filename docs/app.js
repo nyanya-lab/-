@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015q";
-import { CHANGES } from "./changes.js?v=20261015q";
-import { firebaseConfig } from "./firebase-config.js?v=20261015q";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015r";
+import { CHANGES } from "./changes.js?v=20261015r";
+import { firebaseConfig } from "./firebase-config.js?v=20261015r";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -165,6 +165,7 @@ function localBackend() {
   try { data = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { /* 저장소 막힘 */ }
   data = data || {};
   COLS.forEach((c) => { data[c] = data[c] || {}; });
+  data.pics = data.pics || {};
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* 무시 */ } };
   const load = () => {
     COLS.forEach((c) => { S[c] = new Map(Object.entries(data[c])); });
@@ -181,7 +182,9 @@ function localBackend() {
     async set(c, id, obj) { data[c][id] = clone(obj); persist(); load(); },
     async saveHistory(list) { data.history = list; persist(); },
     async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; persist(); load(); },
-    async saveSettingsDeep(patch) { data.settings = deepMerge(clone(data.settings || {}), patch); persist(); load(); }
+    async saveSettingsDeep(patch) { data.settings = deepMerge(clone(data.settings || {}), patch); persist(); load(); },
+    async putPic(id, obj) { data.pics[id] = obj; persist(); },
+    async getPic(id, part) { return (data.pics[id] || {})[part] || null; }
   };
 }
 
@@ -222,11 +225,18 @@ async function firebaseStart() {
   const denied = () => "Realtime Database 규칙이 아직 안 들어갔어요. README의 규칙을 Firebase 콘솔에 넣어 주세요.";
 
   const BAK_KINDS = { prev: 60 * 60 * 1000, daily: 24 * 60 * 60 * 1000 };
+  // 백업할 칸만 따로 받기 (📸 사진 pics는 커서 백업·내려받기에서 뺌)
+  const BAK_KEYS = [...COLS, "settings", "history", "gevents", "gsync"];
+  async function roomSnap(room) {
+    const out = {};
+    await Promise.all(BAK_KEYS.map(async (k) => { const v = (await rt.get(path(room, k))).val(); if (v != null) out[k] = v; }));
+    return out;
+  }
   let bakTimer = null;
   async function rotateBackups(room) {
     try {
-      const all = (await rt.get(path(room))).val() || {};
-      const bak = all._backup || {}; delete all._backup;
+      const all = await roomSnap(room), bak = {};
+      for (const kind of Object.keys(BAK_KINDS)) bak[kind] = { savedAt: (await rt.get(path(room, "_backup", kind, "savedAt"))).val() || 0 };
       if (!COLS.some((c) => all[c] && Object.keys(all[c]).length)) return; // 빈 보드는 백업으로 덮지 않음
       const now = Date.now();
       for (const [kind, ms] of Object.entries(BAK_KINDS)) {
@@ -249,15 +259,17 @@ async function firebaseStart() {
       // 서버 백업 (watch-log 방식): 1시간짜리 prev, 하루짜리 daily. 실수로 지운 걸 어느 기기에서든 되돌릴 수 있게
       async backups() { return (await rt.get(path(room, "_backup"))).val() || {}; },
       restore: tracked(async (kind) => {
-        const all = (await rt.get(path(room))).val() || {};
-        const bak = (all._backup || {})[kind]; if (!bak) throw new Error("no backup");
-        delete all._backup;
+        const bak = (await rt.get(path(room, "_backup", kind))).val(); if (!bak) throw new Error("no backup");
+        const all = await roomSnap(room);
         await rt.set(path(room, "_backup", "undo"), { ...all, savedAt: Date.now() }); // 되돌리기 직전 상태도 남겨 둠
         const patch = {};
         COLS.forEach((c) => { patch[c] = bak[c] || null; });
         patch.settings = bak.settings || null;
         await rt.update(path(room), patch);
-      })
+      }),
+      // 📸 인증샷: pics/{id} = {full, thumb, win, kind, title, date, at}. 보드 열 때는 안 받고 필요할 때 한 장씩
+      putPic: tracked((id, obj) => rt.set(path(room, "pics", id), obj)),
+      async getPic(id, part) { return (await rt.get(path(room, "pics", id, part))).val(); }
     };
     wrapHistory(backend);
     rotateBackups(room);
@@ -394,7 +406,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg", "picDlg", "winDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg", "picDlg", "winDlg", "proofDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -879,7 +891,7 @@ document.addEventListener("submit", async (ev) => {
 });
 // 테스트 모드: 지금 보드를 복사한 연습판 (저장 안 됨). 끝내면 새로 불러와서 진짜 보드로
 function testBackend(snapshot) {
-  const data = snapshot;
+  const data = snapshot, pics = {};
   const load = () => { COLS.forEach((c) => { S[c] = new Map(Object.entries(data[c] || {})); }); S.settings = { ...DEFAULTS, ...(data.settings || {}) }; S.history = data.history || []; S.loaded = true; render(); };
   load();
   return {
@@ -890,7 +902,9 @@ function testBackend(snapshot) {
     async set(c, id, obj) { data[c] = data[c] || {}; data[c][id] = clone(obj); load(); },
     async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; load(); },
     async saveSettingsDeep(patch) { data.settings = deepMerge(clone(data.settings || {}), patch); load(); },
-    async saveHistory(list) { data.history = list; }
+    async saveHistory(list) { data.history = list; },
+    async putPic(id, obj) { pics[id] = obj; },
+    async getPic(id, part) { if (pics[id]) return pics[id][part] || null; return realBackend && realBackend.getPic ? realBackend.getPic(id, part) : null; }
   };
 }
 function toggleTestMode() {
@@ -1094,7 +1108,7 @@ function untilText(d) { const n = diffDays(d, today()); return `${shortDate(d)}�
 function resHtml(res) {
   const due = addDays(today(), res.days);
   if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="tt">${esc(res.title)}</div>${res.effect === "streak" ? '<div class="sm">🛡️ 쓰면 실천 못 한 날 하루를 채워요</div>' : payText(res) ? `<div class="sm">${payText(res)}</div>` : ""}<div class="sm">${untilText(due)}</div>`;
-  if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${untilText(due)} · 못 하면 ×2</div><div class="sm"><b>📸 꼭 인증샷 찍어서 보내기!</b></div>`;
+  if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${untilText(due)} · 못 하면 ×2</div><div class="sm"><b>📸 하고 나면 인증샷 올리기!</b></div>`;
   return `<div class="big">😐</div><div class="lv">꽝</div><div class="tt">아쉽다! 다음 기회에</div>`;
 }
 function openScratch() {
@@ -1179,9 +1193,96 @@ function openFill(id) {
   $("mvBtns").innerHTML = '<button class="btn ghost" type="button" data-act="mvClose">취소</button>';
   openDlg($("moveDlg"));
 }
-function penDone(id) {
-  const w = S.wins.get(id); if (!w || !ready()) return; const left = Math.max(0, (w.left || 1) - 1);
-  act(backend.update("wins", id, left ? { left } : { left: 0, doneAt: today() }), left ? `💪 한 장 했어요! ${left}장 남았어요. 📸 인증샷 보냈죠?` : "✅ 벌칙 끝! 📸 인증샷 보냈죠?").catch(() => {});
+function penDone(id) { openProof(id); }   // 벌칙 한 장 = 📸 인증샷을 올려야 끝
+// 📸 인증샷 창: 벌칙 [했어요]·쿠폰 [쓰기]는 사진을 올려야 눌러져요 (달력 체크박스도 여기로)
+// 사진은 보드 데이터와 따로 pics/{사진id}에 (긴 쪽 1280px + 작은 사진 360px), wins.pics = {사진id: 날짜}
+let proof = null;   // { id, full, thumb, busy }
+function openProof(id) {
+  const w = S.wins.get(id); if (!w || !ready()) return;
+  const pen = w.kind === "pen";
+  if (pen && !(w.left > 0)) { toast("끝낸 벌칙이에요. 잘못 눌렀으면 ↶ 되돌리기를 써요."); return; }
+  if (!pen && (w.kind !== "coupon" || w.usedAt)) { toast("이미 쓴 쿠폰이에요."); return; }
+  proof = { id, full: null, thumb: null, busy: false };
+  $("pfTitle").textContent = pen ? `😈 ${w.title}${w.left > 1 ? ` ×${w.left}` : ""}` : `${w.tier === "big" ? "🥇" : w.tier === "mid" ? "🥈" : "🥉"} ${w.title}`;
+  $("pfSub").textContent = pen ? `${untilText(w.deadline)} · 못 하면 ×${w.left * 2}` : untilText(w.expires);
+  $("pfBody").innerHTML = pen ? `<p><b>📸 인증샷을 올려야 [했어요]가 눌러져요.</b>${w.left > 1 ? " 한 장 할 때마다 한 번씩 올려요." : ""}</p>`
+    : `<p><b>📸 쓰는 모습을 찍어서 올려야 [쓰기]가 눌러져요.</b> 쿠폰함 📸 추억에 모여요.</p>${payText(w) ? `<p class="muted">${payText(w)}</p>` : ""}`;
+  $("pfOk").dataset.label = pen ? (w.left > 1 ? "했어요 (1장)" : "했어요") : "쓰기";
+  renderProof(); openDlg($("proofDlg"));
+}
+function renderProof() {
+  const p = proof; if (!p) return;
+  $("pfPic").innerHTML = p.full ? `<img src="${p.full}" alt="올릴 인증샷">` : p.busy ? '<div class="proof-empty">사진 줄이는 중…</div>' : '<div class="proof-empty">아직 사진이 없어요</div>';
+  $("pfPickTxt").textContent = p.full ? "📷 다른 사진으로" : "📷 사진 찍기·고르기";
+  $("pfOk").disabled = !p.full || p.busy;
+  $("pfOk").textContent = p.busy && p.full ? "올리는 중…" : $("pfOk").dataset.label;
+}
+async function setProofFile(file) {
+  const p = proof; if (!p || p.busy || !file || !(file.type || "").startsWith("image/")) return;
+  p.busy = true; renderProof();
+  try { const full = await shrinkPic(file), thumb = await shrinkPic(file, 360, 40000); p.full = full; p.thumb = thumb; }
+  catch (e) { toast("그림을 못 읽었어요."); }
+  p.busy = false; renderProof();
+}
+function proofDone() {
+  const p = proof, w = p && S.wins.get(p.id); if (!w || !p.full || p.busy || !ready()) return;
+  const t = today(), picId = rid(), pen = w.kind === "pen", left = Math.max(0, (w.left || 1) - 1);
+  const patch = pen ? (left ? { left } : { left: 0, doneAt: t }) : { usedAt: t };
+  patch.pics = { [picId]: t };
+  p.busy = true; renderProof();
+  act((async () => {
+    await backend.putPic(picId, { full: p.full, thumb: p.thumb, win: p.id, kind: w.kind, title: w.title || "", date: t, at: Date.now() });
+    await backend.update("wins", p.id, patch);
+  })(), pen ? (left ? `💪 한 장 했어요! ${left}장 남았어요. 📸 인증샷도 올렸어요.` : "✅ 벌칙 끝! 📸 인증샷도 올렸어요.") : `🎉 '${w.title}' 쿠폰을 썼어요! 📸 추억에 남겼어요. (↶로 되돌릴 수 있어요)`)
+    .then(() => { picThumbs.set(picId, p.thumb); if (proof === p) { proof = null; closeDlg($("proofDlg")); } }, () => { p.busy = false; renderProof(); });
+}
+$("pfFile").addEventListener("change", (ev) => { setProofFile(ev.target.files && ev.target.files[0]); ev.target.value = ""; });
+document.addEventListener("paste", (ev) => {
+  if (!$("proofDlg").open) return;
+  const f = [...(ev.clipboardData && ev.clipboardData.items || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile()).find((x) => x && x.type.startsWith("image/"));
+  if (f) { ev.preventDefault(); setProofFile(f); }
+});
+$("proofDlg").addEventListener("close", () => { if (proof && !proof.busy) proof = null; });
+
+// 📸 추억 탭: wins.pics로 목록을 만들고, 작은 사진은 화면에 9장씩 (아래로 내리면 9장 더) 받아 와요. 누르면 큰 사진
+const picThumbs = new Map(), picLoading = new Set();
+let picIO = null;
+function picList() {
+  const out = [];
+  S.wins.forEach((w, wid) => { if (w && w.pics && typeof w.pics === "object") Object.entries(w.pics).forEach(([pid, d]) => out.push({ pid, wid, date: typeof d === "string" ? d : "", w })); });
+  return out.sort((a, b) => b.date.localeCompare(a.date) || b.pid.localeCompare(a.pid));
+}
+const okPic = (v) => typeof v === "string" && v.startsWith("data:image/");
+function picCardImg(pid) { const v = picThumbs.get(pid); return okPic(v) ? `<img src="${v}" alt="">` : `<span class="ph">${picThumbs.has(pid) ? "사진 없음" : "📸"}</span>`; }
+function renderPics() {
+  const box = $("cpPics"), all = picList(), n = Math.min(all.length, ui.picShown || 9);
+  if (picIO) { picIO.disconnect(); picIO = null; }
+  if (!all.length) { box.innerHTML = '<div class="empty">아직 사진이 없어요. 벌칙 [했어요]·쿠폰 [쓰기] 때 올린 인증샷이 여기 모여요.</div>'; return; }
+  box.innerHTML = all.slice(0, n).map((x) => `<button type="button" class="pic-card" data-act="pfView" data-id="${esc(x.pid)}" data-pic="${esc(x.pid)}" aria-label="${esc(x.w.title || "")} 사진 크게 보기">${picCardImg(x.pid)}` +
+    `<span class="cap">${x.w.kind === "pen" ? "😈" : "🎟️"} ${esc(x.w.title || "")}<br><span class="muted">${x.date ? esc(shortDate(x.date)) : ""}</span></span></button>`).join("") +
+    (n < all.length ? `<div class="pic-more" id="cpPicsMore"><button class="btn ghost small" type="button" data-act="pfMore">더 보기 (${all.length - n}장)</button></div>` : "");
+  all.slice(0, n).forEach((x) => loadThumb(x.pid));
+  const more = $("cpPicsMore");
+  if (more && "IntersectionObserver" in window) {
+    picIO = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { picIO.disconnect(); picIO = null; ui.picShown = n + 9; renderPics(); } });
+    picIO.observe(more);
+  }
+}
+function loadThumb(pid) {
+  if (picThumbs.has(pid) || picLoading.has(pid) || !backend || !backend.getPic) return;
+  picLoading.add(pid);
+  backend.getPic(pid, "thumb").then((v) => { picThumbs.set(pid, okPic(v) ? v : ""); }, () => {}).finally(() => {
+    picLoading.delete(pid);
+    const card = document.querySelector(`[data-pic="${pid}"]`), ph = card && card.querySelector(".ph");
+    if (ph && picThumbs.has(pid)) ph.outerHTML = picCardImg(pid);
+  });
+}
+async function viewPic(pid) {
+  if (!backend || !backend.getPic) return;
+  const small = picThumbs.get(pid);
+  if (okPic(small)) { $("picImg").src = small; openDlg($("picDlg")); }
+  try { const v = await backend.getPic(pid, "full"); if (okPic(v)) { $("picImg").src = v; openDlg($("picDlg")); } else if (!okPic(small)) toast("사진을 찾지 못했어요."); }
+  catch (e) { if (!okPic(small)) toast("사진을 불러오지 못했어요. 인터넷 연결을 확인해 주세요."); }
 }
 // 😈 벌칙 = 기한 마감일의 할 일 (tasks.penId). 장 수·기한이 바뀌면 따라 바뀌고, 다 하면 끝낸 일로
 let penTaskSyncing = false;
@@ -1252,10 +1353,10 @@ function renderCoupons() {
   const pf = cpPf(), PR = (w) => w.kind === "coupon" ? TR[w.tier] ?? 3 : w.kind === "pen" ? 4 : 5, nm = (w) => w.kind === "miss" ? "꽝" : w.title || "";
   const past = pastAll.filter(CP_PF[pf][1]).sort(sort === "tier" ? (a, b) => PR(a) - PR(b) || (b.at || 0) - (a.at || 0) : sort === "abc" ? (a, b) => nm(a).localeCompare(nm(b), "ko") || (b.at || 0) - (a.at || 0) : (a, b) => (b.at || 0) - (a.at || 0));
   $("cpPastFilter").innerHTML = Object.keys(CP_PF).map((k) => `<button type="button" data-act="cpPf" data-k="${k}" aria-pressed="${k === pf}">${CP_PF[k][0]} <b>${pastAll.filter(CP_PF[k][1]).length}</b></button>`).join("");
-  const TABS = { avail: ["🎟️ 쓸 쿠폰", avail.length], pens: ["😈 벌칙", pOpen.length], past: ["📜 지난 것", 0], reqs: ["💌 요청", 0] };
+  const TABS = { avail: ["🎟️ 쓸 쿠폰", avail.length], pens: ["😈 벌칙", pOpen.length], past: ["📜 지난 것", 0], pics: ["📸 추억", 0], reqs: ["💌 요청", 0] };
   $("cpTabs").querySelectorAll("button").forEach((b) => { const [lb, n] = TABS[b.dataset.k]; b.innerHTML = lb + (n ? ` <b>${n}</b>` : ""); b.setAttribute("aria-pressed", b.dataset.k === tab); });
   document.querySelectorAll("[data-cp]").forEach((el) => { el.hidden = el.dataset.cp !== tab; });
-  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "📸 꼭 인증샷 찍어서 보내기 · 기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 · 끝낸 벌칙"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
+  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "📸 [했어요]를 누르고 인증샷 올리기 · 기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 · 끝낸 벌칙"], pics: ["📸 추억", "벌칙·쿠폰 인증샷 모음 · 누르면 크게 보여요"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
   $("cpTabTitle").textContent = HEAD[tab][0]; $("cpTabSub").textContent = HEAD[tab][1];
   const sel = $("cpSort"); sel.hidden = !CP_SORTS[tab];
   if (CP_SORTS[tab]) { sel.innerHTML = CP_SORTS[tab].map((k) => `<option value="${k}">${k === "recent" && tab !== "past" ? "최근 받은 순" : CP_SORT_LABEL[k]}</option>`).join(""); sel.value = sort; }
@@ -1270,9 +1371,10 @@ function renderCoupons() {
     const gm = w.kind === "miss" || w.kind === "pen" ? (w.game ? `<span class="small muted">🎯 +${w.game.pts}</span>` : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`) : "";
     return `<div class="item${w.kind !== "coupon" && !w.game ? "" : " done"}"><span class="cp-tier">${w.kind === "miss" ? "😐" : w.kind === "pen" ? "😈" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions">${gm}</div></div>`;
   }).join("") : `<div class="empty">${pastAll.length ? "여기에 해당하는 게 없어요." : "아직 없어요."}</div>`;
+  if (tab === "pics") renderPics();
 }
 // 쿠폰함 탭·정렬 (이 기기에만 기억)
-function cpTab() { try { const v = localStorage.getItem("ukjin-cp-tab"); return ["avail", "pens", "past", "reqs"].includes(v) ? v : "avail"; } catch (e) { return "avail"; } }
+function cpTab() { try { const v = localStorage.getItem("ukjin-cp-tab"); return ["avail", "pens", "past", "pics", "reqs"].includes(v) ? v : "avail"; } catch (e) { return "avail"; } }
 // 정렬: 탭마다 고를 수 있는 것과 기억하는 칸이 다름 (지난 것은 최근 순이 기본)
 const CP_SORTS = { avail: ["due", "recent", "tier"], pens: ["due", "recent"], past: ["recent", "tier", "abc"] };
 const CP_SORT_LABEL = { due: "남은 기한 짧은 순", recent: "최근 순", tier: "등급 순", abc: "가나다순" };
@@ -1375,7 +1477,7 @@ function openWin(id) {
     $("wnTitle").textContent = `😈 ${w.title}${open && w.left > 1 ? ` ×${w.left}` : ""}`;
     $("wnSub").textContent = `${shortDate(w.wonAt)} 긁음`;
     if (open) {
-      body.push(`<p><b>${untilText(w.deadline)}</b> · 못 하면 ×${w.left * 2}</p>`, `<p><b>📸 꼭 인증샷 찍어서 보내기!</b></p>`);
+      body.push(`<p><b>${untilText(w.deadline)}</b> · 못 하면 ×${w.left * 2}</p>`, `<p><b>📸 [했어요]를 누르고 인증샷을 올려요</b></p>`);
       btns.push(`<button class="btn" type="button" data-act="penDone" data-id="${esc(id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>`);
     } else body.push(`<p>✅ ${shortDate(w.doneAt || w.wonAt)} 벌칙 끝!</p>`);
     if (!w.game) btns.push(`<button class="btn ghost" type="button" data-act="gmOpen" data-id="${esc(id)}">🎯 포인트 돌려받기 한 판</button>`);
@@ -2350,7 +2452,11 @@ document.addEventListener("click", (ev) => {
   if (a === "winOpen") { openWin(id); return; }
   if (a === "winClose") { closeDlg($("winDlg")); return; }
   if (a === "goCoupons") { if ($("dayDlg").open) closeDlg($("dayDlg")); location.hash = "#coupons"; return; }
-  if (a === "cpUse") { const w = S.wins.get(id); if (!w || !ready()) return; act(backend.update("wins", id, { usedAt: t }), `🎉 '${w.title}' 쿠폰을 썼어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return; }
+  if (a === "cpUse") { openProof(id); return; }
+  if (a === "pfOk") { proofDone(); return; }
+  if (a === "pfClose") { closeDlg($("proofDlg")); return; }
+  if (a === "pfView") { viewPic(id); return; }
+  if (a === "pfMore") { ui.picShown = (ui.picShown || 9) + 9; renderPics(); return; }
   if (a === "penDone") { penDone(id); return; }
   if (a === "laEff") { const v = (lotto().coupons || {})[id]; if (!v) return; saveLotto({ coupons: { [id]: { effect: v.effect === "streak" ? null : "streak" } } }, v.effect === "streak" ? "🛡️ 효과를 껐어요." : "🛡️ 연속일 채우기 쿠폰으로 바꿨어요."); return; }
   if (a === "goReqs") { location.hash = "#requests"; return; }
@@ -2663,16 +2769,16 @@ $("budgetForm").addEventListener("submit", (ev) => {
 // 📷 요청 사진: 붙여넣기(Ctrl+V)·고르기 → 긴 쪽 1280px JPEG로 줄여서 요청 문서에 같이 저장 (requests.images = [dataURL…], 최대 4장)
 const REQ_PIC_MAX = 4;
 let reqPics = [];
-function shrinkPic(file) {
+function shrinkPic(file, max = 1280, cap = 400000) {
   return new Promise((res, rej) => {
     const url = URL.createObjectURL(file), img = new Image();
     img.onload = () => {
-      const k = Math.min(1, 1280 / Math.max(img.width, img.height)), cv = document.createElement("canvas");
+      const k = Math.min(1, max / Math.max(img.width, img.height)), cv = document.createElement("canvas");
       cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
       const g = cv.getContext("2d"); g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height);
       URL.revokeObjectURL(url);
       let q = 0.8, out = cv.toDataURL("image/jpeg", q);
-      while (out.length > 400000 && q > 0.4) { q -= 0.15; out = cv.toDataURL("image/jpeg", q); }
+      while (out.length > cap && q > 0.4) { q -= 0.15; out = cv.toDataURL("image/jpeg", q); }
       res(out);
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("그림을 못 읽었어요")); };
