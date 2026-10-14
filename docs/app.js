@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014r";
-import { CHANGES } from "./changes.js?v=20261014r";
-import { firebaseConfig } from "./firebase-config.js?v=20261014r";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014s";
+import { CHANGES } from "./changes.js?v=20261014s";
+import { firebaseConfig } from "./firebase-config.js?v=20261014s";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -928,6 +928,12 @@ function saveLotto(patch, msg) {
 function renderLottoAdmin() {
   if (ui.page !== "lotto") return;
   const on = lottoOn(), cs = lottoItems("coupons"), ps = lottoItems("pens"), o = lottoOdds();
+  const tab = laTab(), newReq = couponReqs().filter((r) => (r.status || "new") === "new").length;
+  const oddsOk = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(o[k]) || 0), 0) === 100;
+  const LT = { reqs: "💌 요청" + (newReq ? ` <b class="la-new">${newReq}</b>` : ""), odds: "🎲 확률" + (oddsOk ? "" : " ⚠️"), cp: `🎟️ 쿠폰 <b>${cs.length}</b>`, pen: `😈 벌칙 <b>${ps.length}</b>` };
+  $("laTabs").querySelectorAll("button").forEach((b) => { b.innerHTML = LT[b.dataset.k]; b.setAttribute("aria-pressed", b.dataset.k === tab); });
+  document.querySelectorAll("[data-la-tab]").forEach((el) => { if (el.id !== "laPresetSec") el.hidden = el.dataset.laTab !== tab; });
+  $("laPenN").textContent = `모두 ${ps.length}개`;
   $("laOn").innerHTML = `<div class="la-on"><span>${on ? "✅ <b>공개 중</b> · 욱진이도 복권·포인트가 보여요" : "🙈 <b>숨김</b> · 지금은 관리자 기기에서만 보여요"}</span>` +
     `<button class="btn small${on ? " ghost" : ""}" type="button" data-act="laToggleOn">${on ? "다시 숨기기" : "욱진이에게 공개하기"}</button></div>` +
     (on ? "" : `<p class="small muted" style="margin:6px 0 0">쿠폰을 등급마다 하나 이상, 벌칙도 하나 이상 넣은 뒤 공개해 주세요. (지금 쿠폰 ${cs.length}개 · 벌칙 ${ps.length}개)</p>`);
@@ -935,7 +941,7 @@ function renderLottoAdmin() {
   if (!keepFocus($("laOdds"))) $("laOdds").innerHTML = Object.keys(ODDS_DEF).map((k) => `<label>${ODDS_LABEL[k]}<input type="number" min="0" max="100" step="1" value="${o[k]}" data-odds="${k}"></label>`).join("");
   const sum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(o[k]) || 0), 0);
   $("laOddsSum").innerHTML = sum === 100 ? "합계 100% ✅" : `<span style="color:var(--danger)">합계 ${sum}% — 100이 되게 맞춰 주세요</span>`;
-  $("laPresetSec").hidden = cs.length > 0 || ps.length > 0;
+  $("laPresetSec").hidden = tab !== "cp" || cs.length > 0 || ps.length > 0;
   const rn = cs.filter((v) => PRESET_RENAMES[v.title]);
   $("laRename").hidden = !rn.length;
   $("laRename").innerHTML = rn.length ? `<span>💰 금액을 등급 기준으로 통일했어요. 예전 제목 ${rn.length}개에 금액이 남아 있어요 (예: ${esc(rn[0].title)} → ${esc(PRESET_RENAMES[rn[0].title])}).</span><button class="btn small" type="button" data-act="laRename">제목 고치기</button>` : "";
@@ -1178,13 +1184,16 @@ function maybeLottoIntro() {   // 공개된 뒤 처음 여는 기기에 한 번 
 // ---------- 💌 쿠폰 요청 (settings.lotto.reqs{id:{text, at, status new|added|no}}) · 관리자 기기에만 N ----------
 function lsGet(k) { try { return Number(localStorage.getItem(k)) || 0; } catch (e) { return 0; } }
 function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { /* 무시 */ } }
+// 복권 관리 탭 (이 기기에만 기억). 새 쿠폰 요청은 요청 탭을 봐야 '본 걸로' → N 꺼짐
+function laTab() { try { const v = localStorage.getItem("ukjin-la-tab"); return ["reqs", "odds", "cp", "pen"].includes(v) ? v : "cp"; } catch (e) { return "cp"; } }
+function markCreqSeen() { if (ui.creqHi == null) ui.creqHi = lsGet("ukjin-creq-seen"); lsSet("ukjin-creq-seen", Date.now()); renderAdminN(); }
 function couponReqs() { return Object.entries(lotto().reqs || {}).filter(([, v]) => v && v.text).map(([id, v]) => ({ id, ...v })).sort((a, b) => (b.at || 0) - (a.at || 0)); }
 const REQ_ST = { new: "보냄", added: "✅ 목록에 넣었어요", no: "😅 이번엔 안 돼요" };
 function renderCouponReqs() {
   const rs = couponReqs();
   if (ui.page === "coupons") $("cpReqs").innerHTML = rs.length ? rs.map((r) => `<div class="item"><span class="cp-tier">💌</span><div class="body"><div class="title">${esc(r.text)}</div><div class="meta"><span class="small muted">${esc(fmtTime(r.at))} · ${REQ_ST[r.status || "new"]}</span></div></div><div class="actions"></div></div>`).join("") : "";
   if (ui.page === "lotto") {
-    const seen = lsGet("ukjin-creq-seen");
+    const seen = ui.creqHi ?? lsGet("ukjin-creq-seen");
     $("laReqs").innerHTML = rs.length ? rs.map((r) => `<div class="item${(r.status || "new") === "new" && r.at > seen ? " req-new" : ""}"><span class="cp-tier">💌</span><div class="body"><div class="title">${esc(r.text)}</div><div class="meta"><span class="small muted">${esc(fmtTime(r.at))} · ${REQ_ST[r.status || "new"]}</span></div></div>` +
       `<div class="actions" style="display:flex;gap:4px">${(r.status || "new") === "new" ? `<button class="btn small" type="button" data-act="crAdd" data-id="${esc(r.id)}">목록에 넣기</button><button class="btn ghost small" type="button" data-act="crNo" data-id="${esc(r.id)}">거절</button>` : ""}<button class="icon-btn" type="button" data-act="crDel" data-id="${esc(r.id)}">지우기</button></div></div>`).join("") : '<p class="small muted" style="margin:0">아직 요청이 없어요.</p>';
   }
@@ -1193,6 +1202,7 @@ function renderCouponReqs() {
 function renderAdminN() {
   const me = isAdminDevice();
   $("navLotto").hidden = !me;
+  renderSideReqs(me);
   const reqNew = me && rows(S.requests).some((r) => (r.createdAt || 0) > lsGet("ukjin-req-seen"));
   const crNew = me && couponReqs().some((r) => (r.status || "new") === "new" && r.at > lsGet("ukjin-creq-seen"));
   const rb = $("reqBadge");
@@ -1200,6 +1210,18 @@ function renderAdminN() {
   document.querySelectorAll("[data-admin-n]").forEach((b) => { b.hidden = !crNew; });
   const lb = document.querySelector('#adminBox [data-act="openLottoAdmin"]'); if (lb) lb.textContent = "🎟️ 복권 관리 (쿠폰·벌칙 목록)" + (crNew ? " · 💌 새 요청" : "");
   if (me && ui.page === "requests" && reqNew) lsSet("ukjin-req-seen", Date.now());   // 보고 있으면 본 걸로
+}
+// 관리자 기기: 왼쪽 복권 위에 아직 처리 안 한 요청 (본 것도 처리 전이면 계속). 🛠️ 기능 요청(완료 전) · 💌 쿠폰 요청(보냄)
+function renderSideReqs(me) {
+  const box = $("sideReqs");
+  const fr = me ? rows(S.requests).filter((r) => r.text && r.status !== "done").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)) : [];
+  const cr = me ? couponReqs().filter((r) => (r.status || "new") === "new").reverse() : [];
+  box.hidden = !(fr.length + cr.length);
+  if (box.hidden) { box.innerHTML = ""; return; }
+  const items = [...cr.map((r) => ["goCreqs", "💌", r.text]), ...fr.map((r) => ["goReqs", "🛠️", r.text])], MAX = 5;
+  box.innerHTML = `<div class="side-reqs-h"><b>📋 처리할 요청</b><span>🛠️ ${fr.length} · 💌 ${cr.length}</span></div>` +
+    items.slice(0, MAX).map(([a, ic, t]) => `<button type="button" data-act="${a}" title="${esc(t)}"><span>${ic}</span><span class="t">${esc(t)}</span></button>`).join("") +
+    (items.length > MAX ? `<small>+${items.length - MAX}개 더</small>` : "");
 }
 $("cpReqForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
@@ -2022,8 +2044,10 @@ const PAGES = ["calendar", "goals", "money", "certs", "requests", "help", "coupo
 function route() {
   const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; if (ui.page === "coupons" && S.loaded && !lottoVisible()) ui.page = "calendar";
   if (ui.page === "lotto" && !isAdminDevice()) ui.page = "calendar";   // 복권 관리는 관리자 기기만
+  if (ui.page !== "lotto") ui.creqHi = null;
   if (ui.page === "requests" && isAdminDevice()) lsSet("ukjin-req-seen", Date.now());
-  if (ui.page === "lotto") lsSet("ukjin-creq-seen", Date.now());   // 열면 새 쿠폰 요청은 본 걸로 (빨간 줄은 이번엔 그대로)
+  if (ui.page === "lotto" && couponReqs().some((r) => (r.status || "new") === "new" && r.at > lsGet("ukjin-creq-seen"))) lsSet("ukjin-la-tab", "reqs");   // 새 요청이 있으면 요청 탭부터
+  if (ui.page === "lotto" && laTab() === "reqs") markCreqSeen();
   renderHeader(); renderLottoAdmin(); renderCoupons(); renderCouponReqs(); renderRequests(); renderAdminN(); window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
@@ -2130,6 +2154,9 @@ document.addEventListener("click", (ev) => {
   if (a === "cpUse") { const w = S.wins.get(id); if (!w || !ready()) return; act(backend.update("wins", id, { usedAt: t }), `🎉 '${w.title}' 쿠폰을 썼어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return; }
   if (a === "penDone") { penDone(id); return; }
   if (a === "laEff") { const v = (lotto().coupons || {})[id]; if (!v) return; saveLotto({ coupons: { [id]: { effect: v.effect === "streak" ? null : "streak" } } }, v.effect === "streak" ? "🛡️ 효과를 껐어요." : "🛡️ 연속일 채우기 쿠폰으로 바꿨어요."); return; }
+  if (a === "goReqs") { location.hash = "#requests"; return; }
+  if (a === "goCreqs") { lsSet("ukjin-la-tab", "reqs"); if (ui.page === "lotto") { markCreqSeen(); renderLottoAdmin(); renderCouponReqs(); } else location.hash = "#lotto"; closeMenu(); return; }
+  if (a === "laTab") { lsSet("ukjin-la-tab", el.dataset.k); if (el.dataset.k === "reqs") markCreqSeen(); renderLottoAdmin(); renderCouponReqs(); return; }
   if (a === "laFilter") { ui.laTier = el.dataset.k; renderLottoAdmin(); return; }
   if (a === "laDel") {
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말?"; setTimeout(() => { if (el.isConnected) { el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "삭제"; } }, 3000); return; }
