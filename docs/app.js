@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015k";
-import { CHANGES } from "./changes.js?v=20261015k";
-import { firebaseConfig } from "./firebase-config.js?v=20261015k";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015l";
+import { CHANGES } from "./changes.js?v=20261015l";
+import { firebaseConfig } from "./firebase-config.js?v=20261015l";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -394,7 +394,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg", "picDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -2102,6 +2102,7 @@ function renderRequests() {
       `<span class="tag">${esc(r.area || "기타")}</span><span class="muted small">${r.createdAt ? fmtTime(r.createdAt) : ""}</span>` +
       `<button class="icon-btn" type="button" data-act="del" data-col="requests" data-id="${esc(r.id)}">삭제</button></div>` +
       `<p class="req-text">${esc(r.text || "")}</p>` +
+      (Array.isArray(r.images) && r.images.length ? `<div class="req-pics">${r.images.filter((p) => typeof p === "string" && p.startsWith("data:image/")).map((p, i) => `<button type="button" class="req-pic" data-act="picOpen" data-id="${esc(r.id)}" data-i="${i}" aria-label="사진 크게 보기"><img src="${p}" alt="요청 사진 ${i + 1}" loading="lazy"></button>`).join("")}</div>` : "") +
       `<label class="f">메모·답변<textarea data-req-note="${esc(r.id)}" maxlength="1000" rows="2" placeholder="예: 10/12에 넣었어요">${esc(r.note || "")}</textarea></label></article>`;
   }).join("") : `<div class="panel muted">${ui.reqFilter === "done" ? "아직 완료된 요청이 없어요." : "아직 요청이 없어요. 위에 적어 보세요."}</div>`;
 }
@@ -2109,7 +2110,7 @@ function requestsText() {
   const open = rows(S.requests).filter((r) => r.status !== "done").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   if (!open.length) return "";
   return "욱진 실천 보드 기능 요청 (" + today() + ")\n" + open.map((r, i) =>
-    `${i + 1}. [${r.area || "기타"}] ${(r.text || "").trim()} (${REQ_STATUS[r.status || "todo"]}${r.createdAt ? ", " + fmtTime(r.createdAt) : ""})${r.note ? "\n   메모: " + r.note.trim() : ""}`).join("\n");
+    `${i + 1}. [${r.area || "기타"}] ${(r.text || "").trim()} (${REQ_STATUS[r.status || "todo"]}${r.createdAt ? ", " + fmtTime(r.createdAt) : ""})${Array.isArray(r.images) && r.images.length ? ` (사진 ${r.images.length}장, 사이트에서 보기)` : ""}${r.note ? "\n   메모: " + r.note.trim() : ""}`).join("\n");
 }
 
 function searchLinks(q) {
@@ -2256,6 +2257,9 @@ document.addEventListener("click", (ev) => {
   if (a === "nagLater") { try { const v = sessionStorage.getItem("ukjin-nag-later") || ""; sessionStorage.setItem("ukjin-nag-later", v + "," + el.dataset.k + "@" + today().slice(0, 7)); } catch (e) { /* 무시 */ } renderNags(); return; }
   if (a === "histRange") { ui.histRange = el.dataset.k; renderMoney(); return; }
   if (a === "histMonth") { ui.month = el.dataset.m; renderMoney(); const p = $("planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); toast(`${monthLabel(el.dataset.m)} 예산·내역을 보여요.`); return; }
+  if (a === "reqPicDel") { reqPics.splice(Number(el.dataset.i), 1); renderReqPics(); return; }
+  if (a === "picOpen") { const r = S.requests.get(id), p = r && Array.isArray(r.images) && r.images[Number(el.dataset.i)]; if (!p) return; $("picImg").src = p; openDlg($("picDlg")); return; }
+  if (a === "picClose") { closeDlg($("picDlg")); return; }
   if (a === "cpPf") { try { localStorage.setItem("ukjin-cp-pf", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); return; }
   if (a === "cpTab") { try { localStorage.setItem("ukjin-cp-tab", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); renderCouponReqs(); return; }
   if (a === "gmOpen") { openGame(id); return; }
@@ -2601,12 +2605,50 @@ $("budgetForm").addEventListener("submit", (ev) => {
   act(backend.saveSettings({ budget: parseInt($("budgetIn").value, 10) || 0 }), "예산을 저장했어요.").catch(() => {});
 });
 
+// 📷 요청 사진: 붙여넣기(Ctrl+V)·고르기 → 긴 쪽 1280px JPEG로 줄여서 요청 문서에 같이 저장 (requests.images = [dataURL…], 최대 4장)
+const REQ_PIC_MAX = 4;
+let reqPics = [];
+function shrinkPic(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1280 / Math.max(img.width, img.height)), cv = document.createElement("canvas");
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      const g = cv.getContext("2d"); g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      let q = 0.8, out = cv.toDataURL("image/jpeg", q);
+      while (out.length > 400000 && q > 0.4) { q -= 0.15; out = cv.toDataURL("image/jpeg", q); }
+      res(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("그림을 못 읽었어요")); };
+    img.src = url;
+  });
+}
+async function addReqPics(files) {
+  const imgs = [...files].filter((f) => f && f.type && f.type.startsWith("image/"));
+  if (!imgs.length) return false;
+  for (const f of imgs) {
+    if (reqPics.length >= REQ_PIC_MAX) { toast(`사진은 ${REQ_PIC_MAX}장까지예요.`); break; }
+    try { reqPics.push(await shrinkPic(f)); } catch (e) { toast("그림을 못 읽었어요."); }
+  }
+  renderReqPics(); return true;
+}
+function renderReqPics() {
+  $("reqPics").innerHTML = reqPics.map((p, i) => `<span class="req-pic"><img src="${p}" alt="붙인 사진 ${i + 1}"><button type="button" data-act="reqPicDel" data-i="${i}" aria-label="사진 빼기">✕</button></span>`).join("");
+}
+$("reqText").addEventListener("paste", (ev) => {
+  const files = [...(ev.clipboardData && ev.clipboardData.items || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile());
+  if (files.some((f) => f && f.type.startsWith("image/"))) { ev.preventDefault(); addReqPics(files); }
+});
+$("reqFile").addEventListener("change", (ev) => { addReqPics(ev.target.files); ev.target.value = ""; });
 $("reqForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
   const text = $("reqText").value.trim(); if (!text) return;
-  act(backend.add("requests", { text, area: ui.reqArea, status: "todo", note: "", createdAt: Date.now() }), "요청을 남겼어요.")
-    .then(() => { $("reqText").value = ""; ui.reqFilter = "open"; }).catch(() => {});
+  const doc = { text, area: ui.reqArea, status: "todo", note: "", createdAt: Date.now() };
+  if (reqPics.length) doc.images = reqPics.slice();
+  act(backend.add("requests", doc), "요청을 남겼어요.")
+    .then(() => { $("reqText").value = ""; reqPics = []; renderReqPics(); ui.reqFilter = "open"; }).catch(() => {});
 });
 // 메모·답변은 입력을 멈추면 저장
 let reqNoteTimer = null;

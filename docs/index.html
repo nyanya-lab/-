@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015k">
+<link rel="stylesheet" href="style.css?v=20261015l">
 </head>
 <body>
 
@@ -283,6 +283,9 @@
       </div>
       <form class="panel form" id="reqForm" autocomplete="off">
         <label class="f">무엇이 있으면 좋겠어요?<textarea id="reqText" maxlength="1000" placeholder="예: 할 일에 사진 붙이기 / 돈 관리에서 카드 결제일 알림" required></textarea></label>
+        <div class="f"><span class="small muted">📷 캡처 도구로 복사한 그림은 글 칸에서 <b>Ctrl+V</b>로 붙여요 (최대 4장). 폰은 [사진 고르기].</span>
+          <div class="req-pics" id="reqPics"></div>
+          <label class="btn ghost small req-pick">📷 사진 고르기<input type="file" id="reqFile" accept="image/*" multiple hidden></label></div>
         <div class="f"><span class="small muted">어느 탭에 대한 요청이에요?</span><div class="chips" id="reqArea"></div></div>
         <div><button class="btn" type="submit">요청 남기기</button></div>
       </form>
@@ -600,6 +603,8 @@
   <div class="dlg-sec mv-btns"><button class="btn" type="button" data-act="newsClose">확인</button><a class="btn ghost" href="#help" data-act="newsAll">전체 내역 보기</a></div>
 </dialog>
 
+<dialog class="dlg pic-dlg" id="picDlg" aria-label="사진 크게 보기"><img id="picImg" alt="요청 사진"><button class="btn ghost small" type="button" data-act="picClose">닫기</button></dialog>
+
 <dialog class="dlg" id="moveDlg" aria-labelledby="mvTitle">
   <div class="dlg-head"><h3 id="mvTitle"></h3><button class="icon-round" type="button" data-act="mvClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="dlg-sec"><div class="mv-text" id="mvText"></div></div>
@@ -642,6 +647,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015k"></script>
+<script type="module" src="app.js?v=20261015l"></script>
 </body>
 </html>
