@@ -153,6 +153,11 @@ button { cursor: pointer; }
 .la-page { display: grid; gap: 14px; }
 .la-page .panel { margin: 0; }
 .la-page .panel > p.small { margin: 0 0 10px !important; }
+.seg.la-tabs { margin: 0; }
+.la-tabs button { white-space: nowrap; }
+.la-tabs b { font-family: var(--f-mono); font-weight: 500; color: var(--muted); font-size: 12px; }
+.la-tabs b.la-new { background: var(--danger); color: #FFFFFF; border-radius: 9px; padding: 0 6px; font-weight: 700; }
+@media (max-width: 720px) { .la-tabs button { font-size: 12.5px; padding: 8px 2px; letter-spacing: -.3px; } }
 .seg.la-filter { grid-template-columns: repeat(5, 1fr); margin-bottom: 10px; }
 .la-filter b { font-family: var(--f-mono); font-weight: 500; color: var(--muted); font-size: 12px; }
 .la-add { padding-top: 8px; border-top: 1px dashed var(--line); margin-top: 4px; }
@@ -163,6 +168,14 @@ button { cursor: pointer; }
 .admin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .admin-row input { max-width: 200px; }
 /* 메뉴 아래 복권: 상자 없이 그림을 메뉴 폭만큼 크게, 아래에 점수·이야기 */
+.side-reqs { margin-top: auto; display: grid; gap: 2px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 12px; }
+.side-reqs-h { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-bottom: 2px; }
+.side-reqs-h span { color: var(--muted); font-family: var(--f-mono); font-size: 11px; }
+.side-reqs button { display: flex; gap: 4px; align-items: center; border: 0; background: none; padding: 3px 2px; text-align: left; color: var(--fg); font-size: 12px; border-radius: 6px; cursor: pointer; min-width: 0; }
+.side-reqs button:hover { background: var(--sunk); }
+.side-reqs .t { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+.side-reqs small { color: var(--muted); padding-left: 2px; }
+.side-reqs:not([hidden]) + .side-lotto { margin-top: 8px; }
 .side-lotto { margin-top: auto; display: grid; justify-items: center; gap: 2px; padding: 6px 0 2px; border: 0; background: none; color: var(--fg); position: relative; cursor: pointer; }
 .side-lotto .ticket { width: 100%; height: auto; max-width: 196px; }
 .side-lotto .lotto-txt { justify-items: center; text-align: center; margin-top: -22px; position: relative; }   /* 그림 아래 동전 자리 여백만큼 당김 */
