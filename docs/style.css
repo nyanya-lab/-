@@ -32,20 +32,7 @@
   --tk-paper: #FFFCF2; --tk-line: #F0DDB0; --tk-band: #2F6FEB; --tk-foil: #BFC5CF; --tk-foil-hi: #E9ECF1; --tk-foil-lo: #9BA3AF; --tk-gold: #F6C343; --tk-gold-d: #B7791F; --tk-denim: #3D5A80; --tk-denim-d: #2B4260;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #11151C; --surface: #1A202A; --sunk: #222936; --fg: #E8ECF3; --muted: #9AA5B8;
-    --line: #2C3442; --grout: #2A3240; --tile-empty: #232A36;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --blue: #6E9BFF; --blue-soft: #1E2C4A; --coral: #FF8A6E; --coral-soft: #3A2420;
-    --mint: #3DD6A5; --mint-soft: #16332A; --sun: #FFC14D; --sun-soft: #3A2E14;
-    --grape: #A68CFF; --grape-soft: #2A2442;
-    --c5: #FF7FBF; --c6: #4CCFE3; --c7: #D9A066; --c8: #7D889B;
-    --ink-fg: #0E1420; --danger: #FF7A63; --ok: #3DD6A5;
-    --tk-paper: #2B2A22; --tk-line: #4A4330; --tk-band: #4F86F0; --tk-foil: #8D95A3; --tk-foil-hi: #B7BEC9; --tk-foil-lo: #6B7380; --tk-gold: #F6C343; --tk-gold-d: #B7791F; --tk-denim: #5D7BA3; --tk-denim-d: #3F5C82;
-    color-scheme: dark;
-  }
-}
+/* 폰이 다크 모드여도 사이트는 늘 밝게 (주인 요청). 어두운 색은 아래 data-theme="dark"에만 남겨 둠 (지금은 안 씀) */
 :root[data-theme="dark"] {
   --bg: #11151C; --surface: #1A202A; --sunk: #222936; --fg: #E8ECF3; --muted: #9AA5B8;
   --line: #2C3442; --grout: #2A3240; --tile-empty: #232A36;
