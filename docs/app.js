@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014n";
-import { CHANGES } from "./changes.js?v=20261014n";
-import { firebaseConfig } from "./firebase-config.js?v=20261014n";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014o";
+import { CHANGES } from "./changes.js?v=20261014o";
+import { firebaseConfig } from "./firebase-config.js?v=20261014o";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -993,19 +993,23 @@ function commitWin(res, at) {
   if (res.kind === "pen") Object.assign(doc, { days: res.days, left: 1, deadline: addDays(t, res.days) });
   return quietly(() => backend.add("wins", doc));
 }
-function luckyHtml(n) { const c = ["var(--coral)", "var(--blue)", "var(--mint)"]; return `<div class="lucky">No.${String(n).padStart(3, "0")} 행운 번호 ${luckyNums(n).map((v, i) => `<i style="background:${c[i]}">${v}</i>`).join("")}</div>`; }
+// 기한 글: 10/21(수)까지 (7일 남음)
+function untilText(d) { const n = diffDays(d, today()); return `${shortDate(d)}까지 (${n > 0 ? n + "일 남음" : n === 0 ? "오늘 마감" : "지남"})`; }
 function resHtml(res) {
-  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="lv">${res.tier === "big" ? "대박!!" : res.tier === "mid" ? "쿠폰 당첨!" : "작은 쿠폰"}</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.effect === "streak" ? "🛡️ 쓰면 실천 못 한 날 하루를 채워요 · " : ""}${res.days}일 안에 쓰기</div>`;
-  if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.days}일 안에 못 하면 ×2</div>`;
+  const due = addDays(today(), res.days);
+  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="tt">${esc(res.title)}</div>${res.effect === "streak" ? '<div class="sm">🛡️ 쓰면 실천 못 한 날 하루를 채워요</div>' : ""}<div class="sm">${untilText(due)}</div>`;
+  if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${untilText(due)} · 못 하면 ×2</div>`;
   return `<div class="big">😐</div><div class="lv">꽝</div><div class="tt">아쉽다! 다음 기회에</div>`;
 }
 function openScratch() {
   if (!ready()) return;
   const left = ticketsLeft();
   if (!left) { toast("긁을 복권이 없어요. 실천해서 포인트를 모아요!"); return; }
-  scratch = { res: drawLotto(), committed: false, revealed: false, at: Date.now() };
+  cancelGame();
+  scratch = { res: drawLotto(), committed: false, revealed: false, at: Date.now(), left };
   $("scSub").textContent = `남은 복권 ${left}장`;
-  $("scratchUnder").innerHTML = resHtml(scratch.res) + luckyHtml(S.wins.size + 1);
+  $("scratchUnder").innerHTML = resHtml(scratch.res);
+  $("scGame").hidden = true;
   $("scBtns").innerHTML = '<button class="btn ghost" type="button" data-act="scReveal">한 번에 열기</button>';
   $("scHint").hidden = false;
   openDlg($("scratchDlg"));
@@ -1022,20 +1026,30 @@ function paintScratch() {
   c.globalCompositeOperation = "destination-out";
   scratch.painted = true;
 }
-async function scratchCommit() {
-  if (!scratch || scratch.committed) return;
-  scratch.committed = true;   // 긁기 시작하면 바로 저장 (닫았다 다시 뽑기 못 하게)
-  try { await commitWin(scratch.res, scratch.at); } catch (e) { scratch.committed = false; }
+function scratchCommit() {   // 긁기 시작하면 바로 저장 (닫았다 다시 뽑기 못 하게)
+  const sc = scratch; if (!sc) return Promise.resolve();
+  if (!sc.commitP) {
+    sc.committed = true;
+    sc.commitP = commitWin(sc.res, sc.at).then((id) => { sc.id = id; }).catch(() => { sc.committed = false; sc.commitP = null; });
+  }
+  return sc.commitP;
 }
-function scratchReveal() {
-  if (!scratch || scratch.revealed) return;
-  scratchCommit();
-  scratch.revealed = true; renderCoupons();
+function scAfterBtns() {
+  const left = scratch ? scratch.left - 1 : 0;
+  return (left > 0 ? `<button class="btn" type="button" data-act="scAgain">한 장 더 긁기 (${left}장)</button>` : "") + `<button class="btn${left > 0 ? " ghost" : ""}" type="button" data-act="scClose">닫기</button>`;
+}
+async function scratchReveal() {
+  const sc = scratch; if (!sc || sc.revealed) return;
+  const saving = scratchCommit();
+  sc.revealed = true; renderCoupons();
   $("scratchCanvas").classList.add("gone"); $("scHint").hidden = true;
-  const res = scratch.res, left = ticketsLeft() - (scratch.committed ? 0 : 1);
+  const res = sc.res, left = sc.left - 1;
+  $("scSub").textContent = left > 0 ? `남은 복권 ${left}장` : "남은 복권 없음";
   toast(res.kind === "coupon" ? (res.tier === "big" ? "🥇 대박!! " : "🎉 ") + res.title : res.kind === "pen" ? "😈 벌칙: " + res.title : "😐 꽝! 다음 기회에");
-  const gameBtn = res.kind !== "coupon" ? `<button class="btn" type="button" data-act="gmOpenLast">🎯 포인트 돌려받기 한 판</button>` : "";
-  $("scBtns").innerHTML = gameBtn + (left > 0 ? `<button class="btn${gameBtn ? " ghost" : ""}" type="button" data-act="scAgain">한 장 더 긁기 (${left}장)</button>` : "") + '<button class="btn ghost" type="button" data-act="scClose">닫기</button>';
+  $("scBtns").innerHTML = scAfterBtns();
+  if (res.kind === "coupon") return;
+  await saving;   // 꽝·벌칙: 저장되면 바로 아래에서 🎯 게임
+  if (scratch === sc && sc.id && $("scratchDlg").open) openGame(sc.id, true);
 }
 (() => {   // 문질러 긁기
   const cv = $("scratchCanvas"); let down = false, n = 0;
@@ -1200,28 +1214,36 @@ function dayExtraItems(d) {
 window.matchMedia("(max-width: 720px)").addEventListener("change", () => renderCalendar());
 
 // ---------- 🎯 타이밍 게임: 꽝·벌칙 뒤 한 판, 가운데 가까울수록 포인트 돌려받기 (wins.game = {pts, date}) ----------
-let game = null;   // { id, pos, dir, raf, last, done }
-function openGame(id) {
-  const w = S.wins.get(id); if (!w || w.game || !["miss", "pen"].includes(w.kind)) { toast("이 복권은 이미 게임을 했어요."); return; }
-  closeDlg($("scratchDlg"));
-  game = { id, pos: Math.random(), dir: Math.random() < .5 ? 1 : -1, last: 0, done: false };
-  $("tgRes").textContent = ""; $("gmBtns").innerHTML = '<button class="btn" type="button" data-act="gmStop">멈춰!</button>';
-  openDlg($("gameDlg"));
+let game = null;   // { id, pos, dir, raf, last, done, inline, ui }
+// inline = 긁기 창 바로 아래에서 (꽝·벌칙 나오면). 멈추기 전에 닫으면 안 한 걸로 → 쿠폰함에서 나중에 한 판
+function openGame(id, inline) {
+  const w = S.wins.get(id); if (!w || w.game || !["miss", "pen"].includes(w.kind)) { if (!inline) toast("이 복권은 이미 게임을 했어요."); return; }
+  cancelGame();
+  const ui = inline ? { needle: $("scTgNeedle"), res: $("scTgRes"), btns: $("scBtns") } : { needle: $("tgNeedle"), res: $("tgRes"), btns: $("gmBtns") };
+  game = { id, pos: Math.random(), dir: Math.random() < .5 ? 1 : -1, last: 0, done: false, inline: !!inline, ui };
+  ui.res.textContent = "";
+  ui.btns.innerHTML = '<button class="btn" type="button" data-act="gmStop">멈춰!</button>' + (inline ? '<button class="btn ghost" type="button" data-act="gmLater">나중에 할게요</button>' : "");
+  if (inline) $("scGame").hidden = false; else { closeDlg($("scratchDlg")); openDlg($("gameDlg")); }
   const step = (ts) => {
     if (!game || game.done) return;
     if (game.last) { game.pos += game.dir * (ts - game.last) / 750; if (game.pos > 1) { game.pos = 2 - game.pos; game.dir = -1; } if (game.pos < 0) { game.pos = -game.pos; game.dir = 1; } }
-    game.last = ts; $("tgNeedle").style.left = (game.pos * 100) + "%"; game.raf = requestAnimationFrame(step);
+    game.last = ts; game.ui.needle.style.left = (game.pos * 100) + "%"; game.raf = requestAnimationFrame(step);
   };
   game.raf = requestAnimationFrame(step);
 }
-$("gameDlg").addEventListener("cancel", (ev) => { if (game && !game.done) ev.preventDefault(); });   // 멈추기 전엔 못 닫음 (닫았다 다시 하기 막기)
+function cancelGame() {   // 긁기 창 안 게임을 멈추기 전에 그만둠 (저장 안 함)
+  if (!game || !game.inline || game.done) return;
+  cancelAnimationFrame(game.raf); game = null; $("scGame").hidden = true;
+}
+$("gameDlg").addEventListener("cancel", (ev) => { if (game && !game.done && !game.inline) ev.preventDefault(); });   // 멈추기 전엔 못 닫음 (닫았다 다시 하기 막기)
+$("scratchDlg").addEventListener("close", () => cancelGame());
 function stopGame() {
   if (!game || game.done) return;
   game.done = true; cancelAnimationFrame(game.raf);
   const d = Math.abs(game.pos - 0.5), pts = d <= 0.03 ? 300 : d <= 0.1 ? 150 : d <= 0.2 ? 50 : 0;
   const id = game.id;
-  $("tgRes").textContent = pts ? `🎉 +${pts}점 돌려받았어요!` : "😅 아깝다! 0점";
-  $("gmBtns").innerHTML = '<button class="btn" type="button" data-act="gmClose">확인</button>';
+  game.ui.res.textContent = pts ? `🎉 +${pts}점 돌려받았어요!` : "😅 아깝다! 0점";
+  game.ui.btns.innerHTML = game.inline ? scAfterBtns() : '<button class="btn" type="button" data-act="gmClose">확인</button>';
   quietly(() => backend.update("wins", id, { game: { pts, date: today() } })).catch(() => {});
 }
 
@@ -2046,7 +2068,7 @@ document.addEventListener("click", (ev) => {
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
   if (a === "gmOpen") { openGame(id); return; }
-  if (a === "gmOpenLast") { const w = rows(S.wins).find((z) => scratch && z.at === scratch.at); if (w) openGame(w.id); else toast("잠깐만요, 저장 중이에요. 다시 눌러 주세요."); return; }
+  if (a === "gmLater") { cancelGame(); $("scBtns").innerHTML = scAfterBtns(); toast("쿠폰함에서 나중에 한 판 할 수 있어요."); return; }
   if (a === "gmStop") { stopGame(); return; }
   if (a === "gmClose") { if (game && !game.done) return; closeDlg($("gameDlg")); game = null; return; }
   if (a === "laPreset") {
@@ -2064,7 +2086,7 @@ document.addEventListener("click", (ev) => {
   if (a === "crNo") { saveLotto({ reqs: { [id]: { status: "no" } } }, "거절로 표시했어요."); return; }
   if (a === "crDel") { saveLotto({ reqs: { [id]: null } }, "요청을 지웠어요."); return; }
   if (a === "scReveal") { scratchReveal(); return; }
-  if (a === "scAgain") { closeDlg($("scratchDlg")); setTimeout(openScratch, 150); return; }
+  if (a === "scAgain") { cancelGame(); closeDlg($("scratchDlg")); setTimeout(openScratch, 150); return; }
   if (a === "scClose") { if (scratch && scratch.committed && !scratch.revealed) scratchReveal(); else { closeDlg($("scratchDlg")); scratch = null; } return; }
   if (a === "liClose") { closeDlg($("lottoIntroDlg")); return; }
   if (a === "cpUse" && S.wins.get(id) && S.wins.get(id).effect === "streak") { openFill(id); return; }
@@ -2092,7 +2114,7 @@ document.addEventListener("click", (ev) => {
   if (a === "testPts") { testBonus += PT_TICKET; render(); toast("🧪 테스트 포인트 +1000점"); return; }
   if (a === "adminOff") { setAdminDevice(false); toast("이 기기에서 관리자를 껐어요."); return; }
   if (a === "adminChange") { const f = $("adminChangeForm"); if (f) { f.hidden = !f.hidden; } return; }
-  if (a === "openPoints") { closeMenu(); location.hash = "#coupons"; return; }
+  if (a === "openPoints") { closeMenu(); if (S.loaded && lottoVisible() && ticketsLeft() > 0) { openScratch(); return; } location.hash = "#coupons"; return; }
   if (a === "openPtsDlg") { renderPointsDlg(); openDlg($("pointsDlg")); return; }
   if (a === "ptClose") { closeDlg($("pointsDlg")); return; }
   if (a === "ptsToggle") { try { localStorage.setItem("ukjin-pts-show", ptsShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); renderPoints(); toast(ptsShown() ? "달력에 포인트를 보여요." : "달력에서 포인트를 숨겼어요."); return; }
