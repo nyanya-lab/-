@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014z";
-import { CHANGES } from "./changes.js?v=20261014z";
-import { firebaseConfig } from "./firebase-config.js?v=20261014z";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015a";
+import { CHANGES } from "./changes.js?v=20261015a";
+import { firebaseConfig } from "./firebase-config.js?v=20261015a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1146,7 +1146,7 @@ function syncPenTasks() {
   const jobs = [], byPen = new Map(rows(S.tasks).filter((x) => x.penId).map((x) => [x.penId, x]));
   S.wins.forEach((w, id) => {
     if (!w || w.kind !== "pen") return;
-    const x = byPen.get(id), open = w.left > 0, title = `😈 벌칙: ${w.title}${open && w.left > 1 ? ` ×${w.left}` : ""}`;
+    const x = byPen.get(id), open = w.left > 0, title = `😈 ${w.title}${open && w.left > 1 ? ` ×${w.left}` : ""}`;
     if (open && !x) jobs.push(() => backend.add("tasks", { title, repeat: "none", date: w.deadline, done: false, doneDate: null, penId: id, createdAt: Date.now() }));
     else if (open && (x.title !== title || x.date !== w.deadline || x.done)) jobs.push(() => backend.update("tasks", x.id, { title, date: w.deadline, done: false, doneDate: null }));
     else if (!open && x && (!x.done || x.title !== title)) jobs.push(() => backend.update("tasks", x.id, { title, done: true, doneDate: w.doneAt || today() }));
@@ -1186,26 +1186,25 @@ function renderCoupons() {
     : sort === "tier" && dueKey === "expires" ? (TR[a.tier] ?? 3) - (TR[b.tier] ?? 3) || String(a.expires).localeCompare(String(b.expires))
     : String(a[dueKey] || "9999").localeCompare(String(b[dueKey] || "9999")) || (b.at || 0) - (a.at || 0);
   const avail = ws.filter((w) => w.kind === "coupon" && !w.usedAt && (w.expires || "9999") >= t).sort(by("expires"));
-  const pens = ws.filter((w) => w.kind === "pen"), pOpen = pens.filter((w) => w.left > 0).sort(by("deadline")), pDone = pens.filter((w) => !(w.left > 0));
-  const past = ws.filter((w) => (w.kind === "coupon" && (w.usedAt || (w.expires || "9999") < t)) || w.kind === "miss");
+  const pens = ws.filter((w) => w.kind === "pen"), pOpen = pens.filter((w) => w.left > 0).sort(by("deadline"));
+  const past = ws.filter((w) => (w.kind === "coupon" && (w.usedAt || (w.expires || "9999") < t)) || w.kind === "miss" || (w.kind === "pen" && !(w.left > 0)));
   const TABS = { avail: ["🎟️ 쓸 쿠폰", avail.length], pens: ["😈 벌칙", pOpen.length], past: ["📜 지난 것", 0], reqs: ["💌 요청", 0] };
   $("cpTabs").querySelectorAll("button").forEach((b) => { const [lb, n] = TABS[b.dataset.k]; b.innerHTML = lb + (n ? ` <b>${n}</b>` : ""); b.setAttribute("aria-pressed", b.dataset.k === tab); });
   document.querySelectorAll("[data-cp]").forEach((el) => { el.hidden = el.dataset.cp !== tab; });
-  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "📸 꼭 인증샷 찍어서 보내기 · 기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 (최근 순)"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
+  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "📸 꼭 인증샷 찍어서 보내기 · 기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 · 끝낸 벌칙 (최근 순)"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
   $("cpTabTitle").textContent = HEAD[tab][0]; $("cpTabSub").textContent = HEAD[tab][1];
   const sel = $("cpSort"); sel.hidden = !(tab === "avail" || tab === "pens"); sel.value = sort; sel.querySelector('[value="tier"]').hidden = tab !== "avail";
   if (tab === "pens" && sort === "tier") sel.value = "due";
   $("cpAvail").innerHTML = avail.length ? avail.map((w) => `<div class="item cp-item"><span class="cp-tier">${tierIc(w)}</span><div class="body"><div class="title">${esc(w.title)}</div>` +
     `<div class="meta">${w.effect === "streak" ? '<span class="tag cat c-grape">🛡️ 연속일 채우기</span>' : ""}<span class="tag">${untilText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음${w.effect === "streak" || !payText(w) ? "" : " · " + esc(TIER_CAP[w.tier] || "")}</span></div></div>` +
     `<div class="actions"><button class="btn small" type="button" data-act="cpUse" data-id="${esc(w.id)}">쓰기</button></div></div>`).join("") : '<div class="empty">아직 쓸 쿠폰이 없어요.</div>';
-  $("cpPens").innerHTML = (pOpen.length ? pOpen.map((w) => `<div class="item cp-item"><span class="cp-tier">😈</span><div class="body"><div class="title">${esc(w.title)}${w.left > 1 ? ` <b style="color:var(--danger)">×${w.left}</b>` : ""}</div>` +
+  $("cpPens").innerHTML = pOpen.length ? pOpen.map((w) => `<div class="item cp-item"><span class="cp-tier">😈</span><div class="body"><div class="title">${esc(w.title)}${w.left > 1 ? ` <b style="color:var(--danger)">×${w.left}</b>` : ""}</div>` +
     `<div class="meta"><span class="tag late">${untilText(w.deadline)}</span><span class="small muted">못 하면 ×${w.left * 2}</span></div></div>` +
-    `<div class="actions" style="display:grid;gap:4px"><button class="btn small" type="button" data-act="penDone" data-id="${esc(w.id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>${w.game ? "" : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`}</div></div>`).join("") : '<div class="empty">미완료 벌칙이 없어요. 👍</div>') +
-    pDone.map((w) => `<div class="item done"><span class="cp-tier">✅</span><div class="body"><div class="title">${esc(w.title)}</div><div class="meta"><span class="small muted">${esc(shortDate(w.doneAt || w.wonAt))} 완료</span></div></div><div class="actions"></div></div>`).join("");
+    `<div class="actions" style="display:grid;gap:4px"><button class="btn small" type="button" data-act="penDone" data-id="${esc(w.id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>${w.game ? "" : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`}</div></div>`).join("") : '<div class="empty">지금 할 벌칙이 없어요. 👍 끝낸 벌칙은 📜 지난 것에 있어요.</div>';
   $("cpPast").innerHTML = past.length ? past.map((w) => {
-    const st = w.kind === "miss" ? "😐 꽝" : w.usedAt ? `${shortDate(w.usedAt)} 사용함${w.fillDate ? ` · 🛡️ ${shortDate(w.fillDate)} 채움` : ""}` : `${shortDate(w.expires)} 기한 만료`;
-    const gm = w.kind === "miss" ? (w.game ? `<span class="small muted">🎯 +${w.game.pts}</span>` : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`) : "";
-    return `<div class="item${w.kind === "miss" && !w.game ? "" : " done"}"><span class="cp-tier">${w.kind === "miss" ? "😐" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions">${gm}</div></div>`;
+    const st = w.kind === "pen" ? `✅ ${shortDate(w.doneAt || w.wonAt)} 벌칙 끝` : w.kind === "miss" ? "😐 꽝" : w.usedAt ? `${shortDate(w.usedAt)} 사용함${w.fillDate ? ` · 🛡️ ${shortDate(w.fillDate)} 채움` : ""}` : `${shortDate(w.expires)} 기한 만료`;
+    const gm = w.kind === "miss" || w.kind === "pen" ? (w.game ? `<span class="small muted">🎯 +${w.game.pts}</span>` : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`) : "";
+    return `<div class="item${w.kind !== "coupon" && !w.game ? "" : " done"}"><span class="cp-tier">${w.kind === "miss" ? "😐" : w.kind === "pen" ? "😈" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions">${gm}</div></div>`;
   }).join("") : '<div class="empty">아직 없어요.</div>';
 }
 // 쿠폰함 탭·정렬 (이 기기에만 기억)
