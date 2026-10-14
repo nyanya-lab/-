@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015e";
-import { CHANGES } from "./changes.js?v=20261015e";
-import { firebaseConfig } from "./firebase-config.js?v=20261015e";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015f";
+import { CHANGES } from "./changes.js?v=20261015f";
+import { firebaseConfig } from "./firebase-config.js?v=20261015f";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -809,7 +809,7 @@ function searchRows(q) {
     subsOf(g).forEach((v) => { if (has(v.title)) out.push({ date: v.due || "", icon: "🎯", time: v.due ? ddayText(v.due) : "", title: `${g.title} › ${v.title}`, act: "openGoal", id }); });
   });
   S.money.forEach((m, id) => {
-    if (!m || !m.date || !(has(m.memo) || has(m.cat))) return;
+    if (!m || !m.date || !(has(m.memo) || has(m.cat)) || !moneyShown(m)) return;
     const sign = m.kind === "income" ? "+" : m.kind === "move" ? "" : "-";
     out.push({ date: m.date, icon: "💰", time: sign + won(m.amount), title: [m.kind === "transfer" ? partner() + "에게" : m.cat, m.memo].filter(Boolean).join(" · "), act: "searchMoney", id });
   });
@@ -1293,7 +1293,7 @@ function renderDayPanel() {
   const d = ui.selDay || today(), t = today(), n = diffDays(d, t);
   const exams = rows(S.goals).filter((g) => g.due === d), ts = tasksOn(d).filter((x) => x.title);
   const ls = rows(S.logs).filter((l) => l.date === d && !l.taskId).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  const gs = gcalEventsOn(d), ms = rows(S.money).filter((x) => x.date === d);
+  const gs = gcalEventsOn(d), ms = rows(S.money).filter((x) => x.date === d && moneyShown(x));
   const pd = lottoVisible() && pointsLedger().day[d];
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출", move: "이체" };
   let h = `<div class="dp-head"><div><h3>${esc(prettyDate(d))}</h3><span class="muted small">${n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`}</span></div>${pd && pd.sum ? `<span class="dp-pts">+${pd.sum} ⭐</span>` : ""}</div>`;
@@ -1363,7 +1363,7 @@ function pointsLedger() {
     if (!m || !m.date) return; const x = at(m.date);
     if (m.kind === "income" && m.cat === "월급") { x.salary++; x.sum += 30; } else { x.money++; x.sum += 1; }
   });
-  praises().forEach((p) => { const x = at(p.date); x.sum += p.pts; x.lines.push(["👏", p.text ? `칭찬: ${p.text}` : "칭찬", p.pts]); });
+  praises().forEach((p) => { const x = at(p.date); x.sum += p.pts; x.lines.push(["👏", p.text || "칭찬", p.pts]); });
   S.wins.forEach((w) => { if (w && w.game && w.game.pts > 0 && w.game.date) { const x = at(w.game.date); x.sum += w.game.pts; x.lines.push(["🎯", "타이밍 게임", w.game.pts]); } });
   S.goals.forEach((g) => {
     if (!g) return;
@@ -1597,7 +1597,7 @@ function renderDaySide() {
   const gs = gcalEventsOn(d);
   $("dayGcalSec").hidden = !gs.length;
   $("dayGcal").innerHTML = gs.map((g) => `<div class="item"><span class="tag mono">${g.time || "종일"}</span><div class="body"><div class="title">${esc(g.title)}</div></div>${g.link ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("");
-  const ms = rows(S.money).filter((x) => x.date === d);
+  const ms = rows(S.money).filter((x) => x.date === d && moneyShown(x));
   $("dayMoneySec").hidden = !ms.length;
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출" };
   $("dayMoney").innerHTML = ms.map((x) => `<div class="item"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : "minus"}">${x.kind === "income" ? "+" : "-"}${won(x.amount)}</span></div>`).join("");
@@ -1814,17 +1814,22 @@ function savePlan(m, patch, msg) {
   return act(backend.saveSettingsDeep({ budgets: { [m]: patch } }), msg).catch(() => {});
 }
 function renderPlan(m, r) {
-  const pl = planOf(m), give = pl.income - pl.total;
+  const pl = planOf(m), give = pl.income - pl.total, adm = moneyAdminView();
   $("planSub").textContent = pl.from
     ? `${monthLabel(m)} · ${monthLabel(pl.from)} 예산을 이어서 쓰는 중 (고치면 이 달 것만 바뀌어요)`
     : `${monthLabel(m)} · 쓸 돈을 분류별로 정해 두는 곳 (다음 달로 그대로 이어져요)`;
   $("planTiles").innerHTML =
     `<div class="plan-tile"><span>예상 수입</span><b>${won(pl.income)}</b><small>${r.inc ? `실제 ${won(r.inc)}` : "아래에 넣어요"}</small></div>` +
-    `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
+    `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${adm ? `${pl.items.length}개 분류` : pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
     `<div class="plan-tile give${give < 0 ? " minus" : ""}"><span>${esc(partner())}에게 줄 돈 (예상)</span><b>${pl.income ? won(give) : "-"}</b><small>${r.out ? `실제 ${won(r.out)} 보냄` : "예상 수입 − 쓸 돈"}</small></div>`;
   if (document.activeElement !== $("planIncome")) $("planIncome").value = pl.income || "";
   const planned = new Set(pl.items.map((v) => v.cat));
   const extra = Object.entries(r.byCat).filter(([c]) => !planned.has(c)).reduce((t, [, v]) => t + v, 0);
+  if (adm) {
+    $("planRows").innerHTML = pl.items.map((v) => `<div class="plan-row plan-ro"><span class="plan-cat">${esc(v.cat)}</span><span class="won">${won(v.amount)}</span></div>`).join("") ||
+      '<p class="small muted" style="margin:0">아직 예산이 없어요.</p>';
+    return;
+  }
   $("planRows").innerHTML = pl.items.map((v) => {
     const used = r.byCat[v.cat] || 0, amt = Number(v.amount) || 0, over = used > amt;
     return `<div class="plan-row"><span class="plan-cat">${esc(v.cat)}</span>` +
@@ -1867,11 +1872,17 @@ const acctName = (id) => !id ? "자산 미지정" : S.accounts.has(id) ? S.accou
 const sortedAccts = () => rows(S.accounts).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷" };
 
+// 관리자(여자친구) 기기에선 지출·자산은 안 보이게 (예산 금액 · 수입 · 보낸 돈만). 화면에서만 숨김
+function moneyAdminView() { return isAdminDevice(); }
+function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 function renderMoney() {
-  const m = ui.month, r = monthTotals(m), bal = balances();
+  const m = ui.month, r = monthTotals(m), bal = balances(), adm = moneyAdminView();
   $("monthLabel").textContent = monthLabel(m);
-  $("moneyStats").innerHTML =
-    statTile("수입", won(r.inc)) +
+  $("moneyPage").classList.toggle("admin-view", adm);
+  $("moneyIntro").textContent = adm ? "관리자 화면: 예산 · 수입 · 보낸 돈만 보여요. 지출과 자산은 욱진이 화면에만 있어요." : "통장·카드별로 기록하면 자산마다 잔액이 계산돼요.";
+  $("moneyStats").innerHTML = adm
+    ? statTile("수입", won(r.inc)) + statTile(partner() + "에게 보낸 돈", won(r.out), r.inc ? `수입의 ${Math.round(r.out / r.inc * 100)}%` : "")
+    : statTile("수입", won(r.inc)) +
     statTile(partner() + "에게 보낸 돈", won(r.out), r.inc ? `수입의 ${Math.round(r.out / r.inc * 100)}%` : "") +
     statTile("지출", won(r.exp), r.inc ? `수입의 ${Math.round(r.exp / r.inc * 100)}%` : "") +
     statTile("남은 돈", won(r.left), r.inc ? `수입의 ${Math.round(r.left / r.inc * 100)}%` : "", r.left < 0 ? "minus" : "plus");
@@ -1912,25 +1923,27 @@ function renderMoney() {
   let trs = "";
   for (let i = 5; i >= 0; i--) {
     const mm = shiftMonth(m, -i), x = monthTotals(mm);
+    if (adm) { trs += `<tr class="${mm === m ? "cur" : ""}"><td class="mono">${monthLabel(mm)}</td><td class="num won">${won(x.inc)}</td><td class="num won">${won(x.out)}</td></tr>`; continue; }
     trs += `<tr class="${mm === m ? "cur" : ""}"><td class="mono">${monthLabel(mm)}</td><td class="num won">${won(x.inc)}</td><td class="num won">${won(x.out)}</td><td class="num won">${won(x.exp)}</td><td class="num won ${x.left < 0 ? "minus" : x.left > 0 ? "plus" : ""}">${won(x.left)}</td></tr>`;
   }
-  $("monthTable").innerHTML = `<thead><tr><th>월</th><th class="num">수입</th><th class="num">보낸 돈</th><th class="num">지출</th><th class="num">남은 돈</th></tr></thead><tbody>${trs}</tbody>`;
+  $("monthTable").innerHTML = adm ? `<thead><tr><th>월</th><th class="num">수입</th><th class="num">보낸 돈</th></tr></thead><tbody>${trs}</tbody>`
+    : `<thead><tr><th>월</th><th class="num">수입</th><th class="num">보낸 돈</th><th class="num">지출</th><th class="num">남은 돈</th></tr></thead><tbody>${trs}</tbody>`;
 
   renderMoneyForm();
 
   // 이번 달 내역 (자산별로 걸러 보기)
   $("acctFilter").innerHTML = accts.length ? [["all", "전체"]].concat(accts.map((a) => [a.id, a.name])).map(([k, l]) =>
     `<button class="chip" type="button" data-act="acctFilter" data-k="${esc(k)}" aria-pressed="${ui.acctFilter === k}">${esc(l)}</button>`).join("") : "";
-  const items = r.items.filter((x) => ui.acctFilter === "all" || x.account === ui.acctFilter || x.toAccount === ui.acctFilter)
+  const items = r.items.filter((x) => adm ? x.kind === "income" || x.kind === "transfer" : ui.acctFilter === "all" || x.account === ui.acctFilter || x.toAccount === ui.acctFilter)
     .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
-  $("moneyCount").textContent = items.length ? items.length + "건 · 줄을 누르면 고칠 수 있어요" : "";
+  $("moneyCount").textContent = items.length ? items.length + "건" + (adm ? " · 수입·보낸 돈만" : " · 줄을 누르면 고칠 수 있어요") : "";
   $("moneyTable").innerHTML = !S.loaded ? '<tbody><tr><td class="muted">불러오는 중…</td></tr></tbody>'
     : !items.length ? `<tbody><tr><td class="muted">${monthLabel(m)} 기록이 없어요.</td></tr></tbody>`
     : `<thead><tr><th>날짜</th><th>구분</th><th>분류</th><th>자산</th><th>메모</th><th class="num">금액</th></tr></thead><tbody>` +
       items.map((x) => {
         const kind = x.kind || "expense", sign = kind === "income" ? "+" : kind === "move" ? "" : "-";
         const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
-        return `<tr class="clickable${ui.mEdit === x.id ? " cur" : ""}" data-act="editMoney" data-id="${esc(x.id)}"><td class="mono">${shortDate(x.date)}</td>` +
+        return `<tr${adm ? "" : ` class="clickable${ui.mEdit === x.id ? " cur" : ""}" data-act="editMoney" data-id="${esc(x.id)}"`}><td class="mono">${shortDate(x.date)}</td>` +
           `<td>${esc(kind === "transfer" ? partner() + "에게" : KIND_LABEL[kind])}</td><td>${esc(kind === "move" ? "-" : x.cat || "")}</td><td>${where}</td><td>${esc(x.memo || "")}</td>` +
           `<td class="num won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${sign}${won(x.amount)}</td></tr>`;
       }).join("") + "</tbody>";
@@ -2256,7 +2269,7 @@ document.addEventListener("click", (ev) => {
   if (a === "histRedo") { askHist("redo"); return; }
   if (a === "histDo") { histApply(); return; }
   if (a === "searchClear") { $("calSearch").value = ""; renderSearch(); $("calSearch").focus(); return; }
-  if (a === "searchMoney") { const m = S.money.get(id); if (!m) return; ui.month = m.date.slice(0, 7); location.hash = "#money"; setTimeout(() => editMoney(id), 60); return; }
+  if (a === "searchMoney") { const m = S.money.get(id); if (!m) return; ui.month = m.date.slice(0, 7); location.hash = "#money"; if (!moneyAdminView()) setTimeout(() => editMoney(id), 60); return; }
   if (a === "logFire") { askLog(id); return; }
   if (a === "editLog") { openLog(id); return; }
   if (a === "logEditGo") { closeDlg($("moveDlg")); openLog(logFor); return; }

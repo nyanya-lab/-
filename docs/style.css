@@ -424,6 +424,9 @@ table.t tr.cur td { background: var(--sunk); }
 .plan-tile.give.minus { background: var(--coral-soft); } .plan-tile.give.minus b { color: var(--danger); }
 .plan-income { max-width: 260px; }
 .plan-rows { display: grid; gap: 8px; }
+#moneyPage.admin-view .no-admin { display: none !important; }
+#moneyPage.admin-view .grid { display: block; }
+.plan-row.plan-ro { grid-template-columns: minmax(0, 1fr) auto; padding: 4px 0; border-bottom: 1px dashed var(--line); }
 .plan-row { display: grid; grid-template-columns: 96px 130px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
 .plan-row input { padding: 6px 8px; text-align: right; }
 .plan-row .plan-cat { font-weight: 600; overflow-wrap: anywhere; }
