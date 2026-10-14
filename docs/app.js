@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014q";
-import { CHANGES } from "./changes.js?v=20261014q";
-import { firebaseConfig } from "./firebase-config.js?v=20261014q";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014r";
+import { CHANGES } from "./changes.js?v=20261014r";
+import { firebaseConfig } from "./firebase-config.js?v=20261014r";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -908,6 +908,9 @@ function renderAdminUi() {
 
 // ---------- 📝 복권 관리 (관리자만): settings.lotto = { on, used, odds, coupons{id:{tier,title,days}}, pens{id:{title,days}} } ----------
 const TIERS = { big: "🥇 대박", mid: "🥈 쿠폰", small: "🥉 작은 쿠폰" };
+const TIER_CAP = { big: "금액 제한 없음", mid: "3만 원까지", small: "1만 원까지" };
+// 쿠폰 값: 누가 사는지 안 적힌 쿠폰은 공통비용에서 (등급별 금액까지)
+function payText(w) { return /사\s?줌|사\s?줄|사\s?주기|쏘기|쏜다|내가 (사|내)|본인 돈|용돈으로|부담/.test(w.title || "") ? "" : `💳 돈 드는 건 공통비용 · ${TIER_CAP[w.tier] || ""}`; }
 const ODDS_DEF = { big: 3, mid: 25, small: 47, miss: 20, pen: 5 };
 const ODDS_LABEL = { big: "🥇 대박", mid: "🥈 쿠폰", small: "🥉 작은", miss: "😐 꽝", pen: "😈 벌칙" };
 function lotto() { return S.settings.lotto || {}; }
@@ -933,6 +936,9 @@ function renderLottoAdmin() {
   const sum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(o[k]) || 0), 0);
   $("laOddsSum").innerHTML = sum === 100 ? "합계 100% ✅" : `<span style="color:var(--danger)">합계 ${sum}% — 100이 되게 맞춰 주세요</span>`;
   $("laPresetSec").hidden = cs.length > 0 || ps.length > 0;
+  const rn = cs.filter((v) => PRESET_RENAMES[v.title]);
+  $("laRename").hidden = !rn.length;
+  $("laRename").innerHTML = rn.length ? `<span>💰 금액을 등급 기준으로 통일했어요. 예전 제목 ${rn.length}개에 금액이 남아 있어요 (예: ${esc(rn[0].title)} → ${esc(PRESET_RENAMES[rn[0].title])}).</span><button class="btn small" type="button" data-act="laRename">제목 고치기</button>` : "";
   const LF = { all: ["전체", () => true], big: ["🥇", (v) => v.tier === "big"], mid: ["🥈", (v) => v.tier === "mid"], small: ["🥉", (v) => v.tier === "small"], streak: ["🛡️", (v) => v.effect === "streak"] };
   const lf = LF[ui.laTier] ? ui.laTier : "all", shown = cs.filter(LF[lf][1]);
   $("laCpN").textContent = `모두 ${cs.length}개`;
@@ -1000,7 +1006,7 @@ function commitWin(res, at) {
 function untilText(d) { const n = diffDays(d, today()); return `${shortDate(d)}까지 (${n > 0 ? n + "일 남음" : n === 0 ? "오늘 마감" : "지남"})`; }
 function resHtml(res) {
   const due = addDays(today(), res.days);
-  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="tt">${esc(res.title)}</div>${res.effect === "streak" ? '<div class="sm">🛡️ 쓰면 실천 못 한 날 하루를 채워요</div>' : ""}<div class="sm">${untilText(due)}</div>`;
+  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="tt">${esc(res.title)}</div>${res.effect === "streak" ? '<div class="sm">🛡️ 쓰면 실천 못 한 날 하루를 채워요</div>' : payText(res) ? `<div class="sm">${payText(res)}</div>` : ""}<div class="sm">${untilText(due)}</div>`;
   if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${untilText(due)} · 못 하면 ×2</div>`;
   return `<div class="big">😐</div><div class="lv">꽝</div><div class="tt">아쉽다! 다음 기회에</div>`;
 }
@@ -1142,12 +1148,12 @@ function renderCoupons() {
   const TABS = { avail: ["🎟️ 쓸 쿠폰", avail.length], pens: ["😈 벌칙", pOpen.length], past: ["📜 지난 것", 0], reqs: ["💌 요청", 0] };
   $("cpTabs").querySelectorAll("button").forEach((b) => { const [lb, n] = TABS[b.dataset.k]; b.innerHTML = lb + (n ? ` <b>${n}</b>` : ""); b.setAttribute("aria-pressed", b.dataset.k === tab); });
   document.querySelectorAll("[data-cp]").forEach((el) => { el.hidden = el.dataset.cp !== tab; });
-  const HEAD = { avail: ["쓸 수 있는 쿠폰", avail.length ? avail.length + "장" : ""], pens: ["벌칙", "기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 (최근 순)"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
+  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 (최근 순)"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
   $("cpTabTitle").textContent = HEAD[tab][0]; $("cpTabSub").textContent = HEAD[tab][1];
   const sel = $("cpSort"); sel.hidden = !(tab === "avail" || tab === "pens"); sel.value = sort; sel.querySelector('[value="tier"]').hidden = tab !== "avail";
   if (tab === "pens" && sort === "tier") sel.value = "due";
   $("cpAvail").innerHTML = avail.length ? avail.map((w) => `<div class="item cp-item"><span class="cp-tier">${tierIc(w)}</span><div class="body"><div class="title">${esc(w.title)}</div>` +
-    `<div class="meta">${w.effect === "streak" ? '<span class="tag cat c-grape">🛡️ 연속일 채우기</span>' : ""}<span class="tag">${untilText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음</span></div></div>` +
+    `<div class="meta">${w.effect === "streak" ? '<span class="tag cat c-grape">🛡️ 연속일 채우기</span>' : ""}<span class="tag">${untilText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음${w.effect === "streak" || !payText(w) ? "" : " · " + esc(TIER_CAP[w.tier] || "")}</span></div></div>` +
     `<div class="actions"><button class="btn small" type="button" data-act="cpUse" data-id="${esc(w.id)}">쓰기</button></div></div>`).join("") : '<div class="empty">아직 쓸 쿠폰이 없어요.</div>';
   $("cpPens").innerHTML = (pOpen.length ? pOpen.map((w) => `<div class="item cp-item"><span class="cp-tier">😈</span><div class="body"><div class="title">${esc(w.title)}${w.left > 1 ? ` <b style="color:var(--danger)">×${w.left}</b>` : ""}</div>` +
     `<div class="meta"><span class="tag late">${untilText(w.deadline)}</span><span class="small muted">못 하면 ×${w.left * 2}</span></div></div>` +
@@ -2092,6 +2098,10 @@ document.addEventListener("click", (ev) => {
   if (a === "gmLater") { cancelGame(); $("scBtns").innerHTML = scAfterBtns(); toast("쿠폰함에서 나중에 한 판 할 수 있어요."); return; }
   if (a === "gmStop") { stopGame(); return; }
   if (a === "gmClose") { if (game && !game.done) return; closeDlg($("gameDlg")); game = null; return; }
+  if (a === "laRename") {
+    const patch = {}; lottoItems("coupons").forEach((v) => { if (PRESET_RENAMES[v.title]) patch[v.id] = { title: PRESET_RENAMES[v.title] }; });
+    if (Object.keys(patch).length) saveLotto({ coupons: patch }, `💰 제목 ${Object.keys(patch).length}개를 고쳤어요.`); return;
+  }
   if (a === "laPreset") {
     if (lottoItems("coupons").length || lottoItems("pens").length) { toast("이미 목록이 있어요."); return; }
     const now = Date.now(), coupons = {}, pens = {};
