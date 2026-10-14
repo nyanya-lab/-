@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015w";
-import { CHANGES } from "./changes.js?v=20261015w";
-import { firebaseConfig } from "./firebase-config.js?v=20261015w";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015x";
+import { CHANGES } from "./changes.js?v=20261015x";
+import { firebaseConfig } from "./firebase-config.js?v=20261015x";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2483,6 +2483,7 @@ document.addEventListener("click", (ev) => {
   if (a === "nagKeep") { const m = today().slice(0, 7); savePlan(m, {}, `🗓️ ${+m.slice(5)}월 예산은 지난달 그대로 써요.`); return; }
   if (a === "nagGive") { const m = today().slice(0, 7); saveSettingsReal({ giveConfirm: { [m]: { inc: Number(el.dataset.inc), give: Number(el.dataset.v), at: Date.now() } } }, `✅ ${+m.slice(5)}월 줄 돈 ${won(Number(el.dataset.v))} 확인했어요.`); return; }
   if (a === "updReload") { hardReload(true); return; }
+  if (a === "theme") { setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"); return; }
   if (a === "nagLater") { try { const v = sessionStorage.getItem("ukjin-nag-later") || ""; sessionStorage.setItem("ukjin-nag-later", v + "," + el.dataset.k + "@" + today().slice(0, 7)); } catch (e) { /* 무시 */ } renderNags(); return; }
   if (a === "histRange") { ui.histRange = el.dataset.k; renderMoney(); return; }
   if (a === "histMonth") { ui.month = el.dataset.m; renderMoney(); const p = $("planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); toast(`${monthLabel(el.dataset.m)} 예산·내역을 보여요.`); return; }
@@ -3012,6 +3013,25 @@ async function hardReload(keepPage) {
   if (!keepPage) history.replaceState(null, "", location.pathname + "#calendar");
   location.reload();
 }
+// 🌙 화면 색: 기본 밝게, 해·달 버튼으로 이 기기만 어둡게 (localStorage ukjin-theme). 처음 그리기 전 적용은 index.html 머리에서
+const MOON = '<svg viewBox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.6 6.6 0 0 0 10.7 10.7z"/></svg>';
+const SUN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>';
+function setTheme(t) {
+  const dark = t === "dark", root = document.documentElement;
+  if (dark) root.dataset.theme = "dark"; else delete root.dataset.theme;
+  try { localStorage.setItem("ukjin-theme", dark ? "dark" : "light"); } catch (e) { /* 무시 */ }
+  renderThemeBtns();
+}
+function renderThemeBtns() {
+  const dark = document.documentElement.dataset.theme === "dark", label = dark ? "밝게 보기" : "어둡게 보기";
+  const cs = document.querySelector('meta[name="color-scheme"]'); if (cs) cs.content = dark ? "dark" : "only light";
+  const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = dark ? "#11151C" : "#FFFFFF";
+  document.querySelectorAll("[data-theme-btn]").forEach((b) => {
+    b.setAttribute("aria-label", label); b.title = label;
+    b.innerHTML = (dark ? SUN : MOON) + (b.classList.contains("side-theme") ? `<span>${label}</span>` : "");
+  });
+}
+renderThemeBtns();
 // 🔄 새 버전 알림: 첫 페이지(index.html)를 캐시 없이 받아 app.js?v= 값이 지금 돌고 있는 것과 다르면 맨 위 띠
 // 화면으로 돌아올 때마다 + 켜 둔 동안 10분마다 (GitHub Pages는 올린 뒤 몇 분~10분쯤 늦게 바뀜)
 const RUN_VER = new URL(import.meta.url).searchParams.get("v") || "";

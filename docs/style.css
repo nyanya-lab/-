@@ -185,6 +185,7 @@ button { cursor: pointer; }
 .side-lotto:hover .ticket { transform: scale(1.03); }
 .side-lotto .lotto-badge { top: 8px; right: 4px; min-width: 24px; height: 24px; font-size: 13px; border-radius: 12px; }
 .side-lotto:not([hidden]) + .side-settings { margin-top: 8px; }
+.side-theme + .side-settings { margin-top: -10px; }   /* 🌙 버튼 바로 아래 설정 (사이 8px = 사이드 gap 18 − 10) */
 .ticket { width: 54px; height: 40px; flex-shrink: 0; overflow: visible; }
 .ticket.tk-w1 { animation: tkWob 1.6s ease-in-out infinite; transform-origin: 50% 85%; }
 .ticket.tk-w2 { animation: tkWob2 .9s ease-in-out infinite; transform-origin: 50% 85%; }
