@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015o";
-import { CHANGES } from "./changes.js?v=20261015o";
-import { firebaseConfig } from "./firebase-config.js?v=20261015o";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015p";
+import { CHANGES } from "./changes.js?v=20261015p";
+import { firebaseConfig } from "./firebase-config.js?v=20261015p";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -394,7 +394,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg", "picDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg", "picDlg", "winDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -524,8 +524,8 @@ function renderCalendar() {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
     const cpDue = couponsDueOn(d);
-    cpDue.forEach((w) => evs.push(`<div class="ev cpexp" data-act="goCoupons" title="${esc(w.title)} 쿠폰 마감 · 눌러서 쿠폰함">🎟️ ${esc(w.title)} 마감</div>`));
-    if (fills[d]) evs.push(`<div class="ev fill" data-act="goCoupons" title="🛡️ 연속일 채우기 쿠폰으로 실천한 날로 채웠어요">🛡️ 채운 날</div>`);
+    cpDue.forEach((w) => evs.push(`<div class="ev cpexp" data-act="winOpen" data-id="${esc(w.id)}" title="${esc(w.title)} 쿠폰 마감 · 눌러서 보기">🎟️ ${esc(w.title)} 마감</div>`));
+    if (fills[d]) evs.push(`<div class="ev fill" data-act="winOpen" data-id="${esc(fills[d])}" title="🛡️ 연속일 채우기 쿠폰으로 실천한 날로 채웠어요">🛡️ 채운 날</div>`);
     // 할 일은 칸 안에서 바로 체크 (반복하는 일도 날마다 하나씩, 앞으로의 날은 체크만 막음)
     rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => evs.push(calTask(x, d, false)));
     // 늦게 한 할 일: 원래 날짜에는 ❌ 흔적만 (실천은 한 날로 옮김)
@@ -1358,11 +1358,39 @@ function renderDayPanel() {
   h += `<div class="dp-btns"><button class="btn ghost small" type="button" data-act="dpAddTask" data-day="${d}">＋ 할 일</button><button class="btn ghost small" type="button" data-act="openDayLogs" data-day="${d}">＋ 실천한 일</button></div>`;
   box.innerHTML = h;
 }
-// 날짜 자세히(폰 패널·PC 창): 🎟️ 쿠폰 마감 · 🛡️ 채운 날 (누르면 쿠폰함)
+// 날짜 자세히(폰 패널·PC 창): 🎟️ 쿠폰 마감 · 🛡️ 채운 날 (누르면 팝업)
 function dayExtraItems(d) {
-  const row = (tag, title) => `<div class="item" data-act="goCoupons" style="cursor:pointer" title="눌러서 쿠폰함"><span class="tag cat c-grape">${tag}</span><div class="body"><div class="title">${title}</div></div></div>`;
-  return couponsDueOn(d).map((w) => row("🎟️ 쿠폰 마감", `${esc(w.title)} <span class="small muted">· 이 날까지 써요</span>`)).join("") +
-    (fillDays()[d] ? row("🛡️ 채운 날", "연속일 채우기 쿠폰으로 실천한 날로 쳤어요") : "");
+  const row = (id, tag, title) => `<div class="item" data-act="winOpen" data-id="${esc(id)}" style="cursor:pointer" title="눌러서 보기"><span class="tag cat c-grape">${tag}</span><div class="body"><div class="title">${title}</div></div></div>`;
+  const f = fillDays()[d];
+  return couponsDueOn(d).map((w) => row(w.id, "🎟️ 쿠폰 마감", `${esc(w.title)} <span class="small muted">· 이 날까지 써요</span>`)).join("") +
+    (f ? row(f, "🛡️ 채운 날", "연속일 채우기 쿠폰으로 실천한 날로 쳤어요") : "");
+}
+// 🎟️·😈 팝업: 달력에서 쿠폰·벌칙을 누르면 쿠폰함으로 안 가고 여기서 보고 바로 [쓰기]·[했어요]
+function openWin(id) {
+  const w = S.wins.get(id); if (!w) { toast("쿠폰함에 없어요."); return; }
+  const t = today(), tierIc = w.tier === "big" ? "🥇" : w.tier === "mid" ? "🥈" : "🥉", body = [], btns = [];
+  if (w.kind === "pen") {
+    const open = w.left > 0;
+    $("wnTitle").textContent = `😈 ${w.title}${open && w.left > 1 ? ` ×${w.left}` : ""}`;
+    $("wnSub").textContent = `${shortDate(w.wonAt)} 긁음`;
+    if (open) {
+      body.push(`<p><b>${untilText(w.deadline)}</b> · 못 하면 ×${w.left * 2}</p>`, `<p><b>📸 꼭 인증샷 찍어서 보내기!</b></p>`);
+      btns.push(`<button class="btn" type="button" data-act="penDone" data-id="${esc(id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>`);
+    } else body.push(`<p>✅ ${shortDate(w.doneAt || w.wonAt)} 벌칙 끝!</p>`);
+    if (!w.game) btns.push(`<button class="btn ghost" type="button" data-act="gmOpen" data-id="${esc(id)}">🎯 포인트 돌려받기 한 판</button>`);
+  } else if (w.kind === "coupon") {
+    const usable = !w.usedAt && (w.expires || "9999") >= t;
+    $("wnTitle").textContent = `${tierIc} ${w.title}`;
+    $("wnSub").textContent = `${shortDate(w.wonAt)} 받음`;
+    if (w.effect === "streak") body.push(`<p>🛡️ 쓰면 실천 못 한 날 하루를 채워요</p>`);
+    else if (payText(w)) body.push(`<p class="muted">${payText(w)}</p>`);
+    if (w.usedAt) body.push(`<p>✅ ${shortDate(w.usedAt)} 사용함${w.fillDate ? ` · 🛡️ ${shortDate(w.fillDate)} 채움` : ""}</p>`);
+    else body.push(`<p><b>${untilText(w.expires)}</b></p>`);
+    if (usable) btns.push(`<button class="btn" type="button" data-act="cpUse" data-id="${esc(id)}">쓰기</button>`);
+  } else return;
+  btns.push('<button class="btn ghost" type="button" data-act="winClose">닫기</button>');
+  $("wnBody").innerHTML = body.join(""); $("wnBtns").innerHTML = btns.join("");
+  openDlg($("winDlg"));
 }
 window.matchMedia("(max-width: 720px)").addEventListener("change", () => renderCalendar());
 
@@ -2213,6 +2241,7 @@ document.addEventListener("click", (ev) => {
   const el = ev.target.closest("[data-act]");
   if (!el) return;
   const a = el.dataset.act, id = el.dataset.id, t = today();
+  if ((a === "cpUse" || a === "penDone" || a === "gmOpen") && $("winDlg").open) closeDlg($("winDlg"));
 
   if (a === "menu") { openMenu(); return; }
   if (a === "menuClose") { closeMenu(); return; }
@@ -2226,7 +2255,7 @@ document.addEventListener("click", (ev) => {
   if (a === "dpAddTask") { openDay(el.dataset.day); return; }
   if (a === "dsMin") { saveTaskTime(+el.dataset.m); return; }
   if (a === "dsSkip") { hideDoneSheet(); return; }
-  if (a === "editTask") { openTask(id); return; }
+  if (a === "editTask") { const x = S.tasks.get(id); if (x && x.penId && S.wins.get(x.penId)) { openWin(x.penId); return; } openTask(id); return; }
   if (a === "closeTask") { closeDlg($("taskDlg")); return; }
   if (a === "tkRep") { tk.rep = el.dataset.k; renderTaskForm(); return; }
   if (a === "tkDay") { const n = +el.dataset.d; if (tk.days.has(n)) tk.days.delete(n); else tk.days.add(n); renderTaskForm(); return; }
@@ -2317,6 +2346,8 @@ document.addEventListener("click", (ev) => {
     if (!w || w.usedAt || !ready()) return;
     act(backend.update("wins", fid, { usedAt: t, fillDate: d }), `🛡️ ${shortDate(d)}, 실천한 날로 채웠어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return;
   }
+  if (a === "winOpen") { openWin(id); return; }
+  if (a === "winClose") { closeDlg($("winDlg")); return; }
   if (a === "goCoupons") { if ($("dayDlg").open) closeDlg($("dayDlg")); location.hash = "#coupons"; return; }
   if (a === "cpUse") { const w = S.wins.get(id); if (!w || !ready()) return; act(backend.update("wins", id, { usedAt: t }), `🎉 '${w.title}' 쿠폰을 썼어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return; }
   if (a === "penDone") { penDone(id); return; }
