@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015p";
-import { CHANGES } from "./changes.js?v=20261015p";
-import { firebaseConfig } from "./firebase-config.js?v=20261015p";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015q";
+import { CHANGES } from "./changes.js?v=20261015q";
+import { firebaseConfig } from "./firebase-config.js?v=20261015q";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -906,6 +906,7 @@ function toggleTestMode() {
 }
 function renderAdminUi() {
   const me = isAdminDevice();
+  document.querySelectorAll(".real-chk").forEach((e) => { e.hidden = !me; });
   ["testBtnSide", "testBtnTop"].forEach((id) => { $(id).hidden = !me && !testMode; $(id).classList.toggle("on", testMode); $(id).title = testMode ? "테스트 끝내기" : "테스트 모드 (저장 안 됨)"; });
   $("testBar").hidden = !testMode;
 }
@@ -2766,9 +2767,18 @@ $("goalTaskForm").addEventListener("submit", (ev) => {
     if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
     if (end) doc.end = end;
   }
-  act(backend.add("tasks", doc), once ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.").then(() => { $("gtTitle").value = ""; setMinInput("gtMin", ""); $("gtTitle").focus(); }).catch(() => {});
+  addTask(doc, "gtReal", once ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.").then(() => { $("gtTitle").value = ""; setMinInput("gtMin", ""); $("gtTitle").focus(); }).catch(() => {});
 });
 
+// 💜 관리자 기기에서 넣는 할 일: 제목 앞에 💜, [진짜 보드에도 추가]면 테스트 모드여도 진짜 보드에 같이 저장
+function addTask(doc, chkId, msg) {
+  const adm = isAdminDevice(), jobs = [];
+  if (adm && !doc.title.startsWith("💜")) doc.title = "💜 " + doc.title;
+  jobs.push(backend.add("tasks", doc));
+  const real = adm && $(chkId) && $(chkId).checked && testMode && realBackend;
+  if (real) jobs.push(realBackend.add("tasks", clone(doc)));
+  return act(Promise.all(jobs), msg + (adm && testMode ? (real ? " (진짜 보드에도 넣었어요)" : " (테스트에만)") : ""));
+}
 $("dayTaskForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!ready()) return;
@@ -2783,7 +2793,7 @@ $("dayTaskForm").addEventListener("submit", (ev) => {
     if (dt.rep === "weekly") doc.days = [...dt.days].sort();
     if (g && g.due && g.due >= ui.selDay) doc.end = g.due;
   }
-  act(backend.add("tasks", doc), dt.rep === "none" ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.")
+  addTask(doc, "dtReal", dt.rep === "none" ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.")
     .then(() => { $("dayTaskTitle").value = ""; setMinInput("dtMin", ""); }).catch(() => {});
 });
 $("dayLogForm").addEventListener("submit", (ev) => {

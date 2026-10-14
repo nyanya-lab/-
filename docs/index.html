@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015p">
+<link rel="stylesheet" href="style.css?v=20261015q">
 </head>
 <body>
 
@@ -334,6 +334,7 @@
           <li>그 날 창이나 목표 창에서 ＋ 추가. <b>한 번</b> / <b>매일</b> / <b>매주 요일</b>을 골라요. 반복은 끝나는 날을 정할 수 있어요 (비우면 계속).</li>
           <li><b>할 시간</b>(예: 1시간)을 넣어 두면 체크만 해도 그 시간이 실천으로 기록돼요. 안 넣으면 체크할 때 "얼마나 했어요?"라고 물어봐요.</li>
           <li>시간은 [시간][분] 두 칸. ＋30분 버튼을 누를 때마다 30분씩 더해져요.</li>
+          <li>제목 앞에 <b>💜</b>가 붙은 할 일은 여자친구가 넣어 준 할 일이에요. 체크하는 법은 똑같아요.</li>
         </ul>
         <h3>실천한 일 (할 일에 없던 것)</h3>
         <ul>
@@ -352,7 +353,7 @@
           <li>😈 벌칙은 기한 마감일에 달력 <b>할 일</b>로 자동으로 들어가요 (<code>😈 감사일기 3줄 ×2</code>). 체크하면 벌칙 한 장을 한 거예요.</li>
           <li>메뉴 <b>쿠폰함</b>에서 긁어요. 쿠폰은 기한 안에 [쓰기], 벌칙은 기한 안에 [했어요] — 못 하면 남은 장 수가 두 배가 되고 기한이 다시 생겨요.</li>
           <li>💳 쿠폰 값: 누가 사는지 안 적혀 있으면 <b>공통비용</b>에서 내요. 🥇 대박은 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지.</li>
-          <li>안 쓴 쿠폰은 마감 날 달력에 <code>🎟️ 치킨 시켜 먹기 마감</code>으로 보여요. 누르면 쿠폰함으로 가요.</li>
+          <li>안 쓴 쿠폰은 마감 날 달력에 <code>🎟️ 치킨 시켜 먹기 마감</code>으로 보여요. 누르면 그 자리에 쿠폰 창이 떠요.</li>
           <li><b>🛡️ 연속일 채우기</b> 쿠폰: [쓰기]를 누르면 최근 30일 중 50분을 못 채운 날이 나와요. 하루를 고르면 그 날이 실천한 날(초록 + 🛡️)이 돼서 연속 실천이 이어지고 연속 보너스도 받아요. 잘못 골랐으면 ↶로 되돌려요.</li>
         </ul>
         </div>
@@ -460,6 +461,7 @@
         <label class="f" id="dtSubWrap" hidden>세부목표<select id="dtSubGoal"></select></label>
         <div style="flex:0 0 auto"><button class="btn small" type="submit">추가</button></div>
       </div>
+      <label class="real-chk" hidden><input type="checkbox" id="dtReal" checked> 💜 진짜 보드에도 추가 (관리자)</label>
     </form>
     <div class="dlg-sec" id="dayGcalSec" hidden><h4>구글 캘린더</h4><div class="list" id="dayGcal"></div></div>
     <div class="dlg-sec" id="dayMoneySec"><h4>돈</h4><div class="list" id="dayMoney"></div></div>
@@ -508,6 +510,7 @@
     <div class="f">할 시간 (선택)<input type="hidden" id="gtMin"><div class="hm"><input type="number" data-hm="gtMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="gtMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="chips" data-min-for="gtMin"></div>
     <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
+    <label class="real-chk" hidden><input type="checkbox" id="gtReal" checked> 💜 진짜 보드에도 추가 (관리자)</label>
     <div style="display:flex;gap:8px"><button class="btn small" type="submit">추가</button><button class="btn ghost small" type="button" data-act="gtClose">닫기</button></div>
   </form>
   <div class="dlg-foot"><button class="icon-btn" type="button" id="gDelBtn" data-act="del" data-col="goals">목표 삭제</button><span class="small muted">목표와 그 할 일이 같이 지워져요. 구글 캘린더에 들어간 일정도 지워져요.</span></div>
@@ -653,6 +656,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015p"></script>
+<script type="module" src="app.js?v=20261015q"></script>
 </body>
 </html>
