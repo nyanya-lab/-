@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014y";
-import { CHANGES } from "./changes.js?v=20261014y";
-import { firebaseConfig } from "./firebase-config.js?v=20261014y";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014z";
+import { CHANGES } from "./changes.js?v=20261014z";
+import { firebaseConfig } from "./firebase-config.js?v=20261014z";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -915,6 +915,10 @@ const ODDS_DEF = { big: 3, mid: 25, small: 47, miss: 20, pen: 5 };
 const ODDS_LABEL = { big: "🥇 대박", mid: "🥈 쿠폰", small: "🥉 작은", miss: "😐 꽝", pen: "😈 벌칙" };
 function lotto() { return S.settings.lotto || {}; }
 function lottoOdds() { return { ...ODDS_DEF, ...(lotto().odds || {}) }; }
+// 연속 실천 30일+ 보너스 (확률에 더하고 빼는 %p, settings.lotto.bonus) · 결과는 0 아래로 안 내려감
+const BONUS_DEF = { big: 1, mid: 2, small: 0, miss: -2, pen: -1 };
+function lottoBonus() { return { ...BONUS_DEF, ...(lotto().bonus || {}) }; }
+function streakOdds(o) { const b = lottoBonus(), r = {}; Object.keys(ODDS_DEF).forEach((k) => { r[k] = Math.max(0, (Number(o[k]) || 0) + (Number(b[k]) || 0)); }); return r; }
 function lottoItems(kind) {
   return Object.entries(lotto()[kind] || {}).filter(([, v]) => v && v.title).map(([id, v]) => ({ id, ...v })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
@@ -940,6 +944,10 @@ function renderLottoAdmin() {
   if (!keepFocus($("laOdds"))) $("laOdds").innerHTML = Object.keys(ODDS_DEF).map((k) => `<label>${ODDS_LABEL[k]}<input type="number" min="0" max="100" step="1" value="${o[k]}" data-odds="${k}"></label>`).join("");
   const sum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(o[k]) || 0), 0);
   $("laOddsSum").innerHTML = sum === 100 ? "합계 100% ✅" : `<span style="color:var(--danger)">합계 ${sum}% — 100이 되게 맞춰 주세요</span>`;
+  const b = lottoBonus(), so = streakOdds(o), bsum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(b[k]) || 0), 0), ssum = Object.keys(ODDS_DEF).reduce((t, k) => t + so[k], 0);
+  if (!keepFocus($("laBonus"))) $("laBonus").innerHTML = Object.keys(ODDS_DEF).map((k) => `<label>${ODDS_LABEL[k]}<input type="number" min="-100" max="100" step="1" value="${Number(b[k]) || 0}" data-bonus="${k}"></label>`).join("");
+  $("laBonusSum").innerHTML = `30일+ 확률: ${Object.keys(ODDS_DEF).map((k) => `${ODDS_LABEL[k].split(" ")[0]} <b>${so[k]}</b>`).join(" · ")}` +
+    (bsum !== 0 ? ` <span style="color:var(--danger)">· 보너스 합계 ${bsum > 0 ? "+" : ""}${bsum} (0으로 맞추면 합계가 그대로 100)</span>` : ssum !== 100 ? ` <span class="muted">· 0 아래는 0으로 쳐서 합계 ${ssum} (비율대로 나눠 뽑아요)</span>` : " ✅");
   $("laPresetSec").hidden = tab !== "cp" || cs.length > 0 || ps.length > 0;
   const rn = cs.filter((v) => PRESET_RENAMES[v.title]);
   $("laRename").hidden = !rn.length;
@@ -1005,6 +1013,7 @@ $("laStreak").addEventListener("change", (ev) => {   // 🛡️ 켜면 보통 �
 });
 $("lottoPage").addEventListener("change", (ev) => {
   const el = ev.target;
+  if (el.dataset.bonus) { saveLotto({ bonus: { [el.dataset.bonus]: Math.max(-100, Math.min(100, parseInt(el.value, 10) || 0)) } }, "🔥 30일+ 보너스를 바꿨어요."); return; }
   if (el.dataset.odds) { saveLotto({ odds: { [el.dataset.odds]: Math.max(0, Math.min(100, parseInt(el.value, 10) || 0)) } }, "확률을 바꿨어요."); return; }
   if (!el.dataset.la) return;
   let v = el.value; if (el.dataset.f === "days") v = Math.max(1, parseInt(v, 10) || 1); if (el.dataset.f === "title") { v = v.trim(); if (!v) { toast("내용을 적어 주세요."); renderLottoAdmin(); return; } }
@@ -1016,8 +1025,7 @@ $("lottoPage").addEventListener("change", (ev) => {
 let scratch = null;   // { res, committed, revealed }
 function ticketsLeft() { return Math.max(0, Math.floor(pointsLedger().total / PT_TICKET) - S.wins.size); }
 function drawLotto() {
-  const o = lottoOdds(), pm = practiceMinutes();
-  if (streak(pm) >= 30) { o.big += 1; o.mid += 2; o.miss = Math.max(0, o.miss - 2); o.pen = Math.max(0, o.pen - 1); }   // 연속 30일+ 덤
+  const o0 = lottoOdds(), o = streak(practiceMinutes()) >= 30 ? streakOdds(o0) : o0;   // 연속 30일+ 보너스
   const keys = Object.keys(ODDS_DEF), tot = keys.reduce((t, k) => t + (Number(o[k]) || 0), 0) || 1;
   let r = Math.random() * tot, pick = "miss";
   for (const k of keys) { r -= Number(o[k]) || 0; if (r < 0) { pick = k; break; } }

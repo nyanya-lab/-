@@ -166,6 +166,8 @@ button { cursor: pointer; }
 .seg.la-filter { grid-template-columns: repeat(5, 1fr); margin-bottom: 10px; }
 .la-filter b { font-family: var(--f-mono); font-weight: 500; color: var(--muted); font-size: 12px; }
 .la-add { padding-top: 8px; border-top: 1px dashed var(--line); margin-top: 4px; }
+.la-bonus { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.la-bonus h4 { margin: 0 0 4px; font-size: 14px; }
 .la-odds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .la-odds label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); text-align: center; }
 .la-odds input { text-align: center; padding: 6px 4px; }

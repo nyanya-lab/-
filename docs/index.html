@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261014y">
+<link rel="stylesheet" href="style.css?v=20261014z">
 </head>
 <body>
 
@@ -259,7 +259,9 @@
         </div>
         <div class="panel" id="laPresetSec" data-la-tab="cp" hidden><div class="panel-head"><h3>📦 추천 목록</h3></div><p class="small muted" style="margin:0">쿠폰 200개(🥇 25 · 🥈 75 · 🥉 100)와 벌칙 50개를 한 번에 넣어요. 넣은 뒤에 마음대로 고치고 지우면 돼요.</p><div><button class="btn" type="button" data-act="laPreset">📦 추천 목록 한 번에 넣기</button></div></div>
         <div class="panel" data-la-tab="reqs"><div class="panel-head"><h3>💌 쿠폰 요청</h3><span class="muted small">욱진이가 쿠폰함에서 보낸 요청</span></div><div class="list" id="laReqs"></div></div>
-        <div class="panel" data-la-tab="odds"><div class="panel-head"><h3>확률 (%)</h3><span class="muted small">연속 실천 30일 넘으면 대박·쿠폰 확률이 조금 올라가요</span></div><div class="la-odds" id="laOdds"></div><p class="small muted" id="laOddsSum" style="margin:0"></p></div>
+        <div class="panel" data-la-tab="odds"><div class="panel-head"><h3>확률 (%)</h3><span class="muted small">기본 확률</span></div><div class="la-odds" id="laOdds"></div><p class="small muted" id="laOddsSum" style="margin:0"></p>
+          <div class="la-bonus"><h4>🔥 연속 실천 30일 넘으면 (%p 더하기·빼기)</h4><p class="small muted" style="margin:0 0 6px">연속이 30일 이상인 동안 위 확률에 이만큼 더하고 빼요. 끊기면 바로 기본 확률로. 0 아래로는 안 내려가요.</p>
+          <div class="la-odds" id="laBonus"></div><p class="small muted" id="laBonusSum" style="margin:6px 0 0"></p></div></div>
         <div class="panel" data-la-tab="cp"><div class="panel-head"><h3>쿠폰 목록</h3><span class="muted small" id="laCpN"></span></div><div class="la-on la-rename" id="laRename" hidden></div><p class="small muted" style="margin:0">등급마다 나오는 확률이 달라요. 금액은 <b>🥇 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지</b>, 누가 사는지 안 적으면 <b>공통비용</b>에서 내요. 기한 = 받은 날부터 며칠 안에 써야 하는지. <b>🛡️</b>를 켜면 <b>연속일 채우기</b> 쿠폰 — 쓸 때 최근 30일 중 실천 안 한 날 하루를 골라 실천한 날로 쳐요 (보통 🥇 대박 · 30일).</p><div class="la-tools"><input type="search" data-la-q="cp" placeholder="🔍 쿠폰 찾기" aria-label="쿠폰 찾기" autocomplete="off"><select data-la-sort="cp" aria-label="정렬"><option value="new">등록순</option><option value="abc">가나다순</option><option value="short">기한 짧은 순</option><option value="long">기한 긴 순</option><option value="won">당첨 많은 순</option></select></div><div class="seg la-filter" id="laFilter" role="tablist" aria-label="쿠폰 등급 거르기"></div><div class="la-list" id="laCoupons"></div>
     <form class="la-row la-cp la-add" id="laCouponForm" autocomplete="off"><select name="tier" aria-label="등급"><option value="big">🥇 대박</option><option value="mid" selected>🥈 쿠폰</option><option value="small">🥉 작은 쿠폰</option></select><input type="text" name="title" maxlength="60" placeholder="예: 치킨 시켜 먹기" aria-label="쿠폰 내용"><label class="la-days"><input type="number" name="days" min="1" value="30" data-steps aria-label="기한(일)">일</label><span class="la-won"></span><label class="la-eff" title="🛡️ 연속일 채우기 효과"><input type="checkbox" name="streak" id="laStreak">🛡️</label><button class="btn small" type="submit">＋ 추가</button></form></div>
         <div class="panel" data-la-tab="pen"><div class="panel-head"><h3>벌칙 목록</h3><span class="muted small" id="laPenN"></span></div><p class="small muted" style="margin:0">기한 = 받은 날부터 며칠 안에. 못 하면 남은 장 수가 두 배가 되고 기한이 다시 생겨요 (끝없이).</p><div class="la-tools"><input type="search" data-la-q="pen" placeholder="🔍 벌칙 찾기" aria-label="벌칙 찾기" autocomplete="off"><select data-la-sort="pen" aria-label="정렬"><option value="new">등록순</option><option value="abc">가나다순</option><option value="short">기한 짧은 순</option><option value="long">기한 긴 순</option><option value="won">당첨 많은 순</option></select></div><div class="la-list" id="laPens"></div>
@@ -616,6 +618,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261014y"></script>
+<script type="module" src="app.js?v=20261014z"></script>
 </body>
 </html>
