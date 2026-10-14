@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015q">
+<link rel="stylesheet" href="style.css?v=20261015r">
 </head>
 <body>
 
@@ -237,8 +237,8 @@
         <button class="btn ghost small" type="button" data-act="openPtsDlg">⭐ 포인트 내역</button>
       </div>
       <div class="panel cp-ticket" id="cpTicket"></div>
-      <div class="seg seg4 cp-tabs" id="cpTabs" role="tablist" aria-label="쿠폰함 보기">
-        <button type="button" data-act="cpTab" data-k="avail">🎟️ 쓸 쿠폰</button><button type="button" data-act="cpTab" data-k="pens">😈 벌칙</button><button type="button" data-act="cpTab" data-k="past">📜 지난 것</button><button type="button" data-act="cpTab" data-k="reqs">💌 요청</button>
+      <div class="seg seg5 cp-tabs" id="cpTabs" role="tablist" aria-label="쿠폰함 보기">
+        <button type="button" data-act="cpTab" data-k="avail">🎟️ 쓸 쿠폰</button><button type="button" data-act="cpTab" data-k="pens">😈 벌칙</button><button type="button" data-act="cpTab" data-k="past">📜 지난 것</button><button type="button" data-act="cpTab" data-k="pics">📸 추억</button><button type="button" data-act="cpTab" data-k="reqs">💌 요청</button>
       </div>
       <div class="panel">
         <div class="panel-head"><div><h3 id="cpTabTitle"></h3><span class="muted small" id="cpTabSub"></span></div>
@@ -247,6 +247,7 @@
         <div class="list" id="cpPens" data-cp="pens" hidden></div>
         <div class="seg cp-pf" id="cpPastFilter" data-cp="past" role="tablist" aria-label="지난 것 거르기" hidden></div>
         <div class="list" id="cpPast" data-cp="past" hidden></div>
+        <div class="pic-grid" id="cpPics" data-cp="pics" hidden></div>
         <div data-cp="reqs" hidden>
           <form class="mini-row" id="cpReqForm" autocomplete="off"><input type="text" id="cpReqText" maxlength="100" placeholder="예: 족발 쿠폰 넣어 줘" aria-label="쿠폰 요청"><button class="btn small" type="submit">보내기</button></form>
           <div class="list" id="cpReqs" style="margin-top:8px"></div></div>
@@ -349,8 +350,8 @@
           <li>달력 칸 오른쪽 아래 <b>+75</b> = 그 날 받은 포인트 (달력 위 ⭐로 켜고 꺼요). 날짜를 누르면 어디서 받았는지 보여요.</li>
           <li><b>1000점마다 복권 한 장.</b> 🎟️ 아이콘이 125점마다 한 칸씩 8칸 차올라요.</li>
           <li>😐 꽝이나 😈 벌칙이 나오면 <b>🎯 타이밍 게임</b> 한 판으로 포인트를 돌려받을 수 있어요 (가운데 300 · 가까우면 150 · 조금 빗나가면 50).</li>
-          <li>📸 <b>벌칙은 꼭 인증샷을 찍어서 보내야 해요.</b></li>
-          <li>😈 벌칙은 기한 마감일에 달력 <b>할 일</b>로 자동으로 들어가요 (<code>😈 감사일기 3줄 ×2</code>). 체크하면 벌칙 한 장을 한 거예요.</li>
+          <li>📸 <b>벌칙 [했어요]·쿠폰 [쓰기]는 인증샷을 올려야 눌러져요.</b> 폰은 바로 찍거나 앨범에서 고르고, PC는 캡처해서 Ctrl+V. 올린 사진은 쿠폰함 <b>📸 추억</b> 탭에 날짜순으로 모여요 (9장씩, 아래로 내리면 더). 🛡️ 연속일 채우기 쿠폰은 사진 없이 써요.</li>
+          <li>😈 벌칙은 기한 마감일에 달력 <b>할 일</b>로 자동으로 들어가요 (<code>😈 감사일기 3줄 ×2</code>). 체크하면 인증샷 올리는 창이 떠요. 사진을 올리면 벌칙 한 장을 한 거예요.</li>
           <li>메뉴 <b>쿠폰함</b>에서 긁어요. 쿠폰은 기한 안에 [쓰기], 벌칙은 기한 안에 [했어요] — 못 하면 남은 장 수가 두 배가 되고 기한이 다시 생겨요.</li>
           <li>💳 쿠폰 값: 누가 사는지 안 적혀 있으면 <b>공통비용</b>에서 내요. 🥇 대박은 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지.</li>
           <li>안 쓴 쿠폰은 마감 날 달력에 <code>🎟️ 치킨 시켜 먹기 마감</code>으로 보여요. 누르면 그 자리에 쿠폰 창이 떠요.</li>
@@ -612,6 +613,15 @@
   <div class="dlg-sec mv-btns"><button class="btn" type="button" data-act="newsClose">확인</button><a class="btn ghost" href="#help" data-act="newsAll">전체 내역 보기</a></div>
 </dialog>
 
+<dialog class="dlg" id="proofDlg" aria-labelledby="pfTitle">
+  <div class="dlg-head"><div><h3 id="pfTitle"></h3><span class="muted small" id="pfSub"></span></div><button class="icon-round" type="button" data-act="pfClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec"><div class="mv-text" id="pfBody"></div>
+    <div class="proof-pic" id="pfPic"></div>
+    <label class="btn ghost req-pick"><span id="pfPickTxt">📷 사진 찍기·고르기</span><input type="file" id="pfFile" accept="image/*" hidden></label>
+    <p class="small muted" style="margin:6px 0 0">PC에선 캡처한 그림을 Ctrl+V로 붙여도 돼요.</p></div>
+  <div class="dlg-sec mv-btns"><button class="btn" type="button" id="pfOk" data-act="pfOk" disabled>했어요</button><button class="btn ghost" type="button" data-act="pfClose">취소</button></div>
+</dialog>
+
 <dialog class="dlg pic-dlg" id="picDlg" aria-label="사진 크게 보기"><img id="picImg" alt="요청 사진"><button class="btn ghost small" type="button" data-act="picClose">닫기</button></dialog>
 
 <dialog class="dlg" id="moveDlg" aria-labelledby="mvTitle">
@@ -656,6 +666,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015q"></script>
+<script type="module" src="app.js?v=20261015r"></script>
 </body>
 </html>

@@ -34,7 +34,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 
 - 로그인 없음. **비밀번호 = 저장 위치**: `ukjin/{SHA-256("ukjin-board:"+비밀번호)}` 아래에 저장 (watch-log 방식).
   규칙: `ukjin/$room` 은 `$room.length === 64` 일 때만 읽기/쓰기.
-- 모음(`COLS`): `goals`, `tasks`, `logs`(실천 기록), `money`, `accounts`(통장·카드·현금), `requests`(기능 요청), `wins`(긁은 복권: kind coupon{tier,title,expires,usedAt} | pen{title,left,deadline,days,doneAt} | miss, 꽝·벌칙엔 `game{pts,date}` (🎯 타이밍 게임으로 돌려받은 포인트, 한 장에 한 번) — 긁은 장 수 = wins 개수, 긁을 때는 되돌리기 기록 안 남김). 그 외 `settings`, `_backup/{prev,daily,undo}`, `gevents`·`gsync`(Apps Script가 씀), `history`(↶↷ 되돌리기 기록 최근 30개, 모든 기기 공유: 묶음마다 keys `"모음|id"`, before/after 문서, label, date, dev, undone).
+- 모음(`COLS`): `goals`, `tasks`, `logs`(실천 기록), `money`, `accounts`(통장·카드·현금), `requests`(기능 요청), `wins`(긁은 복권: kind coupon{tier,title,expires,usedAt} | pen{title,left,deadline,days,doneAt} | miss, 꽝·벌칙엔 `game{pts,date}` (🎯 타이밍 게임으로 돌려받은 포인트, 한 장에 한 번), 인증샷 `pics{사진id:날짜}` (벌칙 [했어요]·쿠폰 [쓰기]는 사진 필수, 🛡️ 쿠폰만 빼고) — 긁은 장 수 = wins 개수, 긁을 때는 되돌리기 기록 안 남김). `pics/{사진id}` = {full(긴 쪽 1280px), thumb(360px), win, kind, title, date, at} — 보드 열 때 안 받고 쿠폰함 📸 추억 탭에서 9장씩, 백업에도 안 넣음. 그 외 `settings`, `_backup/{prev,daily,undo}`, `gevents`·`gsync`(Apps Script가 씀), `history`(↶↷ 되돌리기 기록 최근 30개, 모든 기기 공유: 묶음마다 keys `"모음|id"`, before/after 문서, label, date, dev, undone).
 - 항목·칸 단위로 따로 저장해서 여러 기기가 서로 덮어쓰지 않음. 업데이트는 `flattenPaths`로 경로별 update.
 - 할 일: `repeat` = `none`(date, done, doneDate) / `daily` / `weekly`(days 0=일…6=토, start, end, doneDates{날짜:true}).
   `subId` = 세부목표(선택). 목표 `goals/{id}/subs/{subId}` = {title, due, createdAt, doneAt}. 목표 달성은 `goals/{id}/achievedAt`(날짜). 진행률은 큰 목표만.
