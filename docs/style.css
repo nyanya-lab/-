@@ -600,6 +600,9 @@ tr.clickable:hover td { background: var(--sunk); }
 .cal-legend { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); align-items: center; }
 .cal-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 .mini-row { display: flex; gap: 6px; }
+#praiseForm { align-items: center; }
+#praiseForm .la-days { flex: 0 0 auto; }
+#praiseForm .la-days input { flex: 0 0 72px; width: 72px; }
 .mini-row input { flex: 1; min-width: 0; }
 
 /* ---------- login ---------- */

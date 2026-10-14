@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015j";
-import { CHANGES } from "./changes.js?v=20261015j";
-import { firebaseConfig } from "./firebase-config.js?v=20261015j";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015k";
+import { CHANGES } from "./changes.js?v=20261015k";
+import { firebaseConfig } from "./firebase-config.js?v=20261015k";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1014,8 +1014,10 @@ $("praiseForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!isAdminDevice()) return;
   const text = $("praiseText").value.trim(), id = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  saveLotto({ praises: { [id]: { text, at: Date.now(), date: today(), pts: PT_PRAISE } } }, `👏 칭찬했어요! 욱진이에게 +${PT_PRAISE}점`).then(() => { $("praiseText").value = ""; });
+  const pts = Math.max(10, Math.round((parseInt($("praisePts").value, 10) || PT_PRAISE) / 10) * 10);
+  saveLotto({ praises: { [id]: { text, at: Date.now(), date: today(), pts } } }, `👏 칭찬했어요! 욱진이에게 +${pts}점`).then(() => { $("praiseText").value = ""; $("praisePts").value = PT_PRAISE; $("praiseBtn").textContent = `👏 칭찬 +${PT_PRAISE}`; });
 });
+$("praisePts").addEventListener("input", () => { $("praiseBtn").textContent = `👏 칭찬 +${Math.max(10, parseInt($("praisePts").value, 10) || 0)}`; });
 function openLottoAdmin() {
   if (!isAdminDevice()) { toast("관리자만 열 수 있어요."); return; }
   closeSettings(); location.hash = "#lotto";
@@ -1918,7 +1920,7 @@ function renderMoney() {
   const m = ui.month, r = monthTotals(m), bal = balances(), adm = moneyAdminView();
   $("monthLabel").textContent = monthLabel(m);
   $("moneyPage").classList.toggle("admin-view", adm);
-  $("moneyIntro").textContent = adm ? "관리자 화면: 예산 · 수입 · 보낸 돈만 보여요. 지출과 자산은 욱진이 화면에만 있어요." : "통장·카드별로 기록하면 자산마다 잔액이 계산돼요.";
+  $("moneyIntro").textContent = adm ? "💡 지출은 욱진이만 보여요. 기능 오류나 추가 기능이 있으면 욱진이에게 자세히 설명해 달라고 하자!" : "통장·카드별로 기록하면 자산마다 잔액이 계산돼요.";
   $("moneyStats").innerHTML = adm
     ? statTile("수입", won(r.inc)) + statTile(partner() + "에게 보낸 돈", won(r.out), r.inc ? `수입의 ${Math.round(r.out / r.inc * 100)}%` : "")
     : statTile("수입", won(r.inc)) +
