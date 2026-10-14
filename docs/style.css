@@ -567,6 +567,9 @@ tr.clickable:hover td { background: var(--sunk); }
 .help-topics button { border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 6px 12px; font-size: 14px; white-space: nowrap; cursor: pointer; }
 .help-topics button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #FFFFFF; font-weight: 600; }
 @media (max-width: 720px) { .help-topics button { font-size: 13px; padding: 6px 10px; } }
+.seg.hist-range { margin-bottom: 10px; }
+.hist-custom { margin-bottom: 10px; }
+#monthTable tr.sum td { font-weight: 700; border-top: 2px solid var(--line); }
 .help-seg { max-width: 360px; grid-template-columns: repeat(2, 1fr); margin-bottom: 12px; }
 .help h3 { margin: 18px 0 6px; font-size: 16px; }
 .help h3:first-child { margin-top: 0; }

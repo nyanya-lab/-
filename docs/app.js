@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015i";
-import { CHANGES } from "./changes.js?v=20261015i";
-import { firebaseConfig } from "./firebase-config.js?v=20261015i";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015j";
+import { CHANGES } from "./changes.js?v=20261015j";
+import { firebaseConfig } from "./firebase-config.js?v=20261015j";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1958,15 +1958,26 @@ function renderMoney() {
     `<div class="catbar"><span>${esc(c)}</span><div class="bar"><i style="width:${Math.max(2, Math.round(r.byCat[c] / max * 100))}%"></i></div><span class="won">${won(r.byCat[c])}</span></div>`
   ).join("") : '<div class="muted small">이번 달 지출 기록이 아직 없어요.</div>';
 
-  // 최근 6개월 표
+  // 최근 내역 조회: 6개월 · 1년 · 기간 (오늘 기준, 새 달이 위). 줄을 누르면 그 달로 (위 예산·내역이 그 달 것으로)
+  const tm = today().slice(0, 7), hr = ui.histRange || "6";
+  let from = shiftMonth(tm, -5), to = tm;
+  if (hr === "12") from = shiftMonth(tm, -11);
+  if (hr === "custom") { from = ui.histFrom || shiftMonth(tm, -5); to = ui.histTo || tm; if (from > to) [from, to] = [to, from]; }
+  document.querySelectorAll("#histRange button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === hr)));
+  $("histCustom").hidden = hr !== "custom";
+  if (hr === "custom" && document.activeElement !== $("histFrom") && document.activeElement !== $("histTo")) { $("histFrom").value = from; $("histTo").value = to; }
+  const months = []; for (let mm = to; mm >= from && months.length < 60; mm = shiftMonth(mm, -1)) months.push(mm);
+  const sum = { inc: 0, plan: 0, out: 0, exp: 0, left: 0 };
   let trs = "";
-  for (let i = 5; i >= 0; i--) {
-    const mm = shiftMonth(m, -i), x = monthTotals(mm);
-    if (adm) { trs += `<tr class="${mm === m ? "cur" : ""}"><td class="mono">${monthLabel(mm)}</td><td class="num won">${won(x.inc)}</td><td class="num won">${won(x.out)}</td></tr>`; continue; }
-    trs += `<tr class="${mm === m ? "cur" : ""}"><td class="mono">${monthLabel(mm)}</td><td class="num won">${won(x.inc)}</td><td class="num won">${won(x.out)}</td><td class="num won">${won(x.exp)}</td><td class="num won ${x.left < 0 ? "minus" : x.left > 0 ? "plus" : ""}">${won(x.left)}</td></tr>`;
-  }
-  $("monthTable").innerHTML = adm ? `<thead><tr><th>월</th><th class="num">수입</th><th class="num">보낸 돈</th></tr></thead><tbody>${trs}</tbody>`
-    : `<thead><tr><th>월</th><th class="num">수입</th><th class="num">보낸 돈</th><th class="num">지출</th><th class="num">남은 돈</th></tr></thead><tbody>${trs}</tbody>`;
+  months.forEach((mm) => {
+    const x = monthTotals(mm), p = planOf(mm).total;
+    sum.inc += x.inc; sum.plan += p; sum.out += x.out; sum.exp += x.exp; sum.left += x.left;
+    trs += `<tr class="clickable${mm === m ? " cur" : ""}" data-act="histMonth" data-m="${mm}" title="눌러서 ${monthLabel(mm)} 보기"><td class="mono">${monthLabel(mm)}</td><td class="num won">${won(x.inc)}</td><td class="num won">${p ? won(p) : "-"}</td><td class="num won">${won(x.out)}</td>` +
+      (adm ? "" : `<td class="num won">${won(x.exp)}</td><td class="num won ${x.left < 0 ? "minus" : "plus"}">${won(x.left)}</td>`) + "</tr>";
+  });
+  const tot = months.length > 1 ? `<tr class="sum"><td>합계 (${months.length}달)</td><td class="num won">${won(sum.inc)}</td><td class="num won">${won(sum.plan)}</td><td class="num won">${won(sum.out)}</td>` +
+    (adm ? "" : `<td class="num won">${won(sum.exp)}</td><td class="num won ${sum.left < 0 ? "minus" : "plus"}">${won(sum.left)}</td>`) + "</tr>" : "";
+  $("monthTable").innerHTML = `<thead><tr><th>월</th><th class="num">수입</th><th class="num">예산 (쓸 돈)</th><th class="num">보낸 돈</th>${adm ? "" : '<th class="num">지출</th><th class="num">남은 돈</th>'}</tr></thead><tbody>${trs}${tot}</tbody>`;
 
   renderMoneyForm();
 
@@ -2241,6 +2252,8 @@ document.addEventListener("click", (ev) => {
   if (a === "nagKeep") { const m = today().slice(0, 7); savePlan(m, {}, `🗓️ ${+m.slice(5)}월 예산은 지난달 그대로 써요.`); return; }
   if (a === "nagGive") { const m = today().slice(0, 7); saveSettingsReal({ giveConfirm: { [m]: { inc: Number(el.dataset.inc), give: Number(el.dataset.v), at: Date.now() } } }, `✅ ${+m.slice(5)}월 줄 돈 ${won(Number(el.dataset.v))} 확인했어요.`); return; }
   if (a === "nagLater") { try { const v = sessionStorage.getItem("ukjin-nag-later") || ""; sessionStorage.setItem("ukjin-nag-later", v + "," + el.dataset.k + "@" + today().slice(0, 7)); } catch (e) { /* 무시 */ } renderNags(); return; }
+  if (a === "histRange") { ui.histRange = el.dataset.k; renderMoney(); return; }
+  if (a === "histMonth") { ui.month = el.dataset.m; renderMoney(); const p = $("planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); toast(`${monthLabel(el.dataset.m)} 예산·내역을 보여요.`); return; }
   if (a === "cpPf") { try { localStorage.setItem("ukjin-cp-pf", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); return; }
   if (a === "cpTab") { try { localStorage.setItem("ukjin-cp-tab", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); renderCouponReqs(); return; }
   if (a === "gmOpen") { openGame(id); return; }
@@ -2564,6 +2577,7 @@ $("catEditor").addEventListener("submit", (ev) => {
   list.push(v); saveCats(k, list);
 });
 
+["histFrom", "histTo"].forEach((k) => $(k).addEventListener("change", () => { ui[k] = $(k).value || null; renderMoney(); }));
 $("planAddForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   const m = ui.month, cat = $("planCat").value.trim(), memo = $("planMemo").value.trim(), amount = parseInt($("planAmt").value, 10) || 0;
