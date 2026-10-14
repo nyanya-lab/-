@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014s";
-import { CHANGES } from "./changes.js?v=20261014s";
-import { firebaseConfig } from "./firebase-config.js?v=20261014s";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014t";
+import { CHANGES } from "./changes.js?v=20261014t";
+import { firebaseConfig } from "./firebase-config.js?v=20261014t";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1211,13 +1211,14 @@ function renderAdminN() {
   const lb = document.querySelector('#adminBox [data-act="openLottoAdmin"]'); if (lb) lb.textContent = "🎟️ 복권 관리 (쿠폰·벌칙 목록)" + (crNew ? " · 💌 새 요청" : "");
   if (me && ui.page === "requests" && reqNew) lsSet("ukjin-req-seen", Date.now());   // 보고 있으면 본 걸로
 }
-// 관리자 기기: 왼쪽 복권 위에 아직 처리 안 한 요청 (본 것도 처리 전이면 계속). 🛠️ 기능 요청(완료 전) · 💌 쿠폰 요청(보냄)
+// 관리자 기기: 왼쪽 복권 위에 아직 처리 안 한 요청 (본 것도 처리 전이면 계속, 없으면 '없음 👍'). 🛠️ 기능 요청(완료 전) · 💌 쿠폰 요청(보냄)
 function renderSideReqs(me) {
   const box = $("sideReqs");
   const fr = me ? rows(S.requests).filter((r) => r.text && r.status !== "done").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)) : [];
   const cr = me ? couponReqs().filter((r) => (r.status || "new") === "new").reverse() : [];
-  box.hidden = !(fr.length + cr.length);
-  if (box.hidden) { box.innerHTML = ""; return; }
+  box.hidden = !me;
+  if (!me) { box.innerHTML = ""; return; }
+  if (!fr.length && !cr.length) { box.innerHTML = '<div class="side-reqs-h"><b>📋 처리할 요청 없음 👍</b></div>'; return; }
   const items = [...cr.map((r) => ["goCreqs", "💌", r.text]), ...fr.map((r) => ["goReqs", "🛠️", r.text])], MAX = 5;
   box.innerHTML = `<div class="side-reqs-h"><b>📋 처리할 요청</b><span>🛠️ ${fr.length} · 💌 ${cr.length}</span></div>` +
     items.slice(0, MAX).map(([a, ic, t]) => `<button type="button" data-act="${a}" title="${esc(t)}"><span>${ic}</span><span class="t">${esc(t)}</span></button>`).join("") +
