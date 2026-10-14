@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014x";
-import { CHANGES } from "./changes.js?v=20261014x";
-import { firebaseConfig } from "./firebase-config.js?v=20261014x";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014y";
+import { CHANGES } from "./changes.js?v=20261014y";
+import { firebaseConfig } from "./firebase-config.js?v=20261014y";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -956,7 +956,7 @@ function renderLottoAdmin() {
   const psShown = laArrange("pen", ps, "pen", won);
   $("laPenN").textContent = `모두 ${ps.length}개` + (psShown.length !== ps.length ? ` · 보이는 ${psShown.length}개` : "");
   if (!keepFocus($("laPens"))) $("laPens").innerHTML = psShown.length ? psShown.map((v) => `<div class="la-row la-pn"><span class="la-tier">😈</span>` +
-    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-steps="3,7,15" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` + wonHtml(won["pen|" + v.title]) +
+    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-steps="1,3,7,15" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` + wonHtml(won["pen|" + v.title]) +
     `<button class="icon-btn" type="button" data-act="laDel" data-k="pens" data-id="${esc(v.id)}">삭제</button></div>`).join("") : `<p class="small muted" style="margin:0">${ps.length ? "찾는 벌칙이 없어요." : "아직 없어요."}</p>`;
 }
 // 복권 관리 목록: 검색 · 정렬 · 당첨 횟수 (긁은 복권 wins에서 같은 내용을 셈)
@@ -986,7 +986,7 @@ function openLottoAdmin() {
   if (kind === "coupons") { doc.tier = f.elements.tier.value; if (f.elements.streak.checked) doc.effect = "streak"; }
   saveLotto({ [kind]: { [id]: doc } }, kind === "pens" ? "벌칙을 넣었어요." : "쿠폰을 넣었어요.").then(() => { f.elements.title.value = ""; if (f.elements.streak) f.elements.streak.checked = false; f.elements.title.focus(); });
 }));
-// 기한 칸 화살표(▲▼·키보드)는 하루씩 말고 단계로: 쿠폰 7 → 15 → 30 → 60 → 90일, 벌칙 3 → 7 → 15일 (data-steps, 직접 치는 건 그대로)
+// 기한 칸 화살표(▲▼·키보드)는 하루씩 말고 단계로: 쿠폰 7 → 15 → 30 → 60 → 90일, 벌칙 1 → 3 → 7 → 15일 (data-steps, 직접 치는 건 그대로)
 const DAY_STEPS = [7, 15, 30, 60, 90];
 ["pointerdown", "keydown"].forEach((t) => $("lottoPage").addEventListener(t, (ev) => { const el = ev.target; if (el.matches && el.matches("input[data-steps]")) el.dataset.prev = el.value; }, true));
 $("lottoPage").addEventListener("input", (ev) => {
