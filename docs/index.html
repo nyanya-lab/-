@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261014n">
+<link rel="stylesheet" href="style.css?v=20261014o">
 </head>
 <body>
 
@@ -498,6 +498,11 @@
     <div class="scratch" id="scratchCard"><div class="scratch-under" id="scratchUnder"></div><canvas id="scratchCanvas" aria-label="손가락이나 마우스로 문질러 긁어요"></canvas></div>
     <p class="small muted" id="scHint" style="margin:0;text-align:center">은색 부분을 손가락이나 마우스로 문질러요</p>
   </div>
+  <div class="dlg-sec" id="scGame" hidden>
+    <p class="small muted" style="margin:0;text-align:center">🎯 <b>포인트 돌려받기 한 판!</b> 바늘을 가운데에 맞춰 멈춰요 (가운데 300 · 옆 150 · 연한 칸 50)</p>
+    <div class="tg" data-act="gmStop" role="button" aria-label="멈추기"><span class="tg-z z1"></span><span class="tg-z z2"></span><span class="tg-z z3"></span><span class="tg-needle" id="scTgNeedle"></span></div>
+    <p class="tg-res" id="scTgRes"></p>
+  </div>
   <div class="dlg-sec mv-btns" id="scBtns"></div>
 </dialog>
 
@@ -591,6 +596,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261014n"></script>
+<script type="module" src="app.js?v=20261014o"></script>
 </body>
 </html>
