@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014k";
-import { CHANGES } from "./changes.js?v=20261014k";
-import { firebaseConfig } from "./firebase-config.js?v=20261014k";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014l";
+import { CHANGES } from "./changes.js?v=20261014l";
+import { firebaseConfig } from "./firebase-config.js?v=20261014l";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -828,7 +828,8 @@ $("calSearch").addEventListener("keydown", (ev) => { if (ev.key === "Escape") { 
 
 // ---------- 🔐 관리자 (복권 쿠폰·벌칙 목록, 요청 알림) · 🧪 테스트 모드 ----------
 // 관리자 비밀번호는 해시만 settings.adminHash에 저장. 맞게 넣은 기기는 localStorage ukjin-admin=1
-let testMode = false, testBonus = 0;
+let testMode = false, testBonus = 0, realBackend = null, autoTestDone = false;
+function sessionReal() { try { return sessionStorage.getItem("ukjin-real") === "1"; } catch (e) { return false; } }
 async function adminHash(pw) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ukjin-admin:" + pw));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -847,7 +848,7 @@ function renderAdminBox() {
     box.innerHTML = `<form class="admin-row" id="adminOpenForm" autocomplete="off"><input type="password" name="pw" placeholder="관리자 비밀번호" aria-label="관리자 비밀번호"><button class="btn small" type="submit">열기</button></form>`;
   }
 }
-function setAdminDevice(on) { try { if (on) localStorage.setItem("ukjin-admin", "1"); else localStorage.removeItem("ukjin-admin"); } catch (e) { /* 무시 */ } render(); renderAdminBox(); }
+function setAdminDevice(on) { try { if (on) localStorage.setItem("ukjin-admin", "1"); else { localStorage.removeItem("ukjin-admin"); sessionStorage.removeItem("ukjin-real"); } } catch (e) { /* 무시 */ } if (!on && testMode) { location.reload(); return; } render(); renderAdminBox(); }
 document.addEventListener("submit", async (ev) => {
   const f = ev.target; if (!["adminSetForm", "adminOpenForm", "adminChangeForm"].includes(f.id)) return;
   ev.preventDefault();
@@ -859,7 +860,8 @@ document.addEventListener("submit", async (ev) => {
     setAdminDevice(true); toast("관리자로 열었어요."); return;
   }
   if (pw !== pw2) { toast("두 번 넣은 비밀번호가 달라요."); return; }
-  act(backend.saveSettings({ adminHash: await adminHash(pw) }), f.id === "adminSetForm" ? "관리자 비밀번호를 정했어요." : "관리자 비밀번호를 바꿨어요.").then(() => setAdminDevice(true)).catch(() => {});
+  const h = await adminHash(pw);
+  act(Promise.all([backend.saveSettings({ adminHash: h }), testMode && realBackend ? realBackend.saveSettings({ adminHash: h }) : null]), f.id === "adminSetForm" ? "관리자 비밀번호를 정했어요." : "관리자 비밀번호를 바꿨어요.").then(() => setAdminDevice(true)).catch(() => {});
 });
 // 테스트 모드: 지금 보드를 복사한 연습판 (저장 안 됨). 끝내면 새로 불러와서 진짜 보드로
 function testBackend(snapshot) {
@@ -878,14 +880,15 @@ function testBackend(snapshot) {
   };
 }
 function toggleTestMode() {
-  if (testMode) { toast("진짜 보드로 돌아가요…"); setTimeout(() => location.reload(), 300); return; }
+  if (testMode) { try { sessionStorage.setItem("ukjin-real", "1"); } catch (e) { /* 무시 */ } toast("진짜 보드로 돌아가요… (이번에 연 동안만)"); setTimeout(() => location.reload(), 300); return; }
   if (!isAdminDevice() || !backend) return;
   const snap = {}; COLS.forEach((c) => { snap[c] = Object.fromEntries(clone([...S[c]])); });
   snap.settings = clone(S.settings); snap.history = clone(S.history || []);
-  testMode = true; testBonus = 0;
+  testMode = true; testBonus = 0; realBackend = backend;
   backend = wrapHistory(testBackend(snap));
   closeMenu(); closeSettings();
-  toast("🧪 테스트 모드예요. 여기서 한 건 저장 안 돼요.");
+  try { sessionStorage.removeItem("ukjin-real"); } catch (e) { /* 무시 */ }
+  toast("🧪 테스트 모드예요. 복권 관리만 진짜로 저장돼요.");
 }
 function renderAdminUi() {
   const me = isAdminDevice();
@@ -902,7 +905,13 @@ function lottoOdds() { return { ...ODDS_DEF, ...(lotto().odds || {}) }; }
 function lottoItems(kind) {
   return Object.entries(lotto()[kind] || {}).filter(([, v]) => v && v.title).map(([id, v]) => ({ id, ...v })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
-function saveLotto(patch, msg) { if (!ready()) return Promise.resolve(); return act(backend.saveSettingsDeep({ lotto: patch }), msg).catch(() => {}); }
+// 복권 관리는 테스트 모드에서도 진짜 보드에 저장 (연습판에도 같이 반영)
+function saveLotto(patch, msg) {
+  if (!ready()) return Promise.resolve();
+  const p = { lotto: patch }, jobs = [backend.saveSettingsDeep(p)];
+  if (testMode && realBackend) jobs.push(realBackend.saveSettingsDeep(clone(p)));
+  return act(Promise.all(jobs), msg).catch(() => {});
+}
 function renderLottoAdmin() {
   if (!$("lottoAdminDlg").open) return;
   const on = lottoOn(), cs = lottoItems("coupons"), ps = lottoItems("pens"), o = lottoOdds();
@@ -1898,6 +1907,7 @@ function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
+  if (S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
