@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015g";
-import { CHANGES } from "./changes.js?v=20261015g";
-import { firebaseConfig } from "./firebase-config.js?v=20261015g";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015h";
+import { CHANGES } from "./changes.js?v=20261015h";
+import { firebaseConfig } from "./firebase-config.js?v=20261015h";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -923,6 +923,32 @@ function lottoItems(kind) {
   return Object.entries(lotto()[kind] || {}).filter(([, v]) => v && v.title).map(([id, v]) => ({ id, ...v })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
 // 복권 관리는 테스트 모드에서도 진짜 보드에 저장 (연습판에도 같이 반영)
+// 설정 저장을 테스트 모드여도 진짜 보드에 (관리자 확인 같은 것)
+function saveSettingsReal(patch, msg) {
+  if (!ready()) return Promise.resolve();
+  const jobs = [backend.saveSettingsDeep(patch)];
+  if (testMode && realBackend) jobs.push(realBackend.saveSettingsDeep(clone(patch)));
+  return act(Promise.all(jobs), msg).catch(() => {});
+}
+// ---------- 💰 돈 알림 띠 (맨 위) ----------
+// 욱진이: 이 달 예산을 아직 안 정했으면 · 15일부터 이 달 수입 기록이 없으면. 관리자: 실제 수입이 들어왔는데 줄 돈 확인 전이면
+function renderNags() {
+  const box = $("nags"); if (!box || !S.loaded) return;
+  const t = today(), m = t.slice(0, 7), mon = +m.slice(5) + "월", r = monthTotals(m), pl = planOf(m), list = [];
+  let later = ""; try { later = sessionStorage.getItem("ukjin-nag-later") || ""; } catch (e) { /* 무시 */ }
+  const skip = (k) => later.split(",").includes(k + "@" + m);
+  if (!isAdminDevice()) {
+    if (!(S.settings.budgets || {})[m] && !skip("budget")) list.push(["budget", `🗓️ <b>${mon} 예산</b>을 확인해 주세요`, `<button class="btn small" type="button" data-act="nagGo" data-k="plan">예산 보기</button>` +
+      (planSource(m) ? `<button class="btn ghost small" type="button" data-act="nagKeep">지난달 그대로 쓸게요</button>` : "")]);
+    if (+t.slice(8) >= 15 && !r.inc && !skip("income")) list.push(["income", `💰 <b>${mon} 수입</b>이 들어왔으면 기록해 주세요`, `<button class="btn small" type="button" data-act="nagGo" data-k="income">수입 기록하기</button>`]);
+  } else if (r.inc > 0) {
+    const conf = (S.settings.giveConfirm || {})[m], g = r.inc - pl.total;
+    if (!(conf && conf.inc === r.inc) && !skip("give")) list.push(["give", `💰 ${mon} 실제 수입 <b>${won(r.inc)}</b> <span class="muted">(예상 ${won(pl.income)})</span> → 줄 돈 <b>${won(g)}</b> <span class="muted">(예상 ${won(pl.income - pl.total)})</span>`,
+      `<button class="btn small" type="button" data-act="nagGive" data-v="${g}" data-inc="${r.inc}">확인했어요</button>`]);
+  }
+  box.hidden = !list.length;
+  box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
+}
 function saveLotto(patch, msg) {
   if (!ready()) return Promise.resolve();
   const p = { lotto: patch }, jobs = [backend.saveSettingsDeep(p)];
@@ -1816,15 +1842,23 @@ function savePlan(m, patch, msg) {
   }
   return act(backend.saveSettingsDeep({ budgets: { [m]: patch } }), msg).catch(() => {});
 }
+// 줄 돈: 네(관리자)가 [확인했어요] 한 금액 → 실제 수입 기준 → 예상 수입 기준. settings.giveConfirm[월] = {inc, give, at}
+function giveOf(m, r, pl) {
+  const conf = (S.settings.giveConfirm || {})[m];
+  if (conf && r.inc > 0 && conf.inc === r.inc) return { give: Number(conf.give) || 0, state: "ok" };
+  if (r.inc > 0) return { give: r.inc - pl.total, state: "real" };
+  return { give: pl.income - pl.total, state: "plan" };
+}
 function renderPlan(m, r) {
-  const pl = planOf(m), give = pl.income - pl.total, adm = moneyAdminView();
+  const pl = planOf(m), g = giveOf(m, r, pl), give = g.give, adm = moneyAdminView();
   $("planSub").textContent = pl.from
     ? `${monthLabel(m)} · ${monthLabel(pl.from)} 예산을 이어서 쓰는 중 (고치면 이 달 것만 바뀌어요)`
     : `${monthLabel(m)} · 쓸 돈을 분류별로 정해 두는 곳 (다음 달로 그대로 이어져요)`;
   $("planTiles").innerHTML =
     `<div class="plan-tile"><span>예상 수입</span><b>${won(pl.income)}</b><small>${pl.incAuto ? `${monthLabel(pl.incFrom)} 실제 수입` : ""}${r.inc ? `${pl.incAuto ? " · " : ""}이번 달 실제 ${won(r.inc)}` : pl.incAuto ? "" : "아래에 넣어요"}</small></div>` +
     `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${adm ? `${pl.items.length}개 분류` : pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
-    `<div class="plan-tile give${give < 0 ? " minus" : ""}"><span>${esc(partner())}에게 줄 돈 (예상)</span><b>${pl.income ? won(give) : "-"}</b><small>${r.out ? `실제 ${won(r.out)} 보냄` : "예상 수입 − 쓸 돈"}</small></div>`;
+    `<div class="plan-tile give${give < 0 ? " minus" : ""}"><span>${esc(partner())}에게 줄 돈 ${g.state === "ok" ? "✅ 확인함" : g.state === "real" ? "(실제 수입 기준)" : "(예상)"}</span><b>${pl.income || r.inc ? won(give) : "-"}</b>` +
+    `<small>${r.out ? `${won(r.out)} 보냄 · 남은 ${won(give - r.out)}` : g.state === "plan" ? "예상 수입 − 쓸 돈" : "실제 수입 − 쓸 돈"}</small></div>`;
   if (document.activeElement !== $("planIncome")) $("planIncome").value = pl.incAuto ? "" : pl.income || "";
   $("planIncome").placeholder = pl.incAuto ? `${won(pl.income)} (${monthLabel(pl.incFrom)} 실제 수입, 비우면 이걸로)` : "예: 2500000";
   const planned = new Set(pl.items.map((v) => v.cat));
@@ -2115,7 +2149,7 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); renderCouponReqs(); renderAdminN();
+  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   if (S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
@@ -2202,6 +2236,10 @@ document.addEventListener("click", (ev) => {
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
   if (a === "helpTopic") { try { localStorage.setItem("ukjin-help-topic", el.dataset.k); } catch (e) { /* 무시 */ } renderHelp(); return; }
+  if (a === "nagGo") { ui.month = today().slice(0, 7); if (el.dataset.k === "income") ui.kind = "income"; location.hash = "#money"; setTimeout(() => { const p = $(el.dataset.k === "income" ? "moneyPanel" : "planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.dataset.k === "income") renderMoneyForm(); }, 80); return; }
+  if (a === "nagKeep") { const m = today().slice(0, 7); savePlan(m, {}, `🗓️ ${+m.slice(5)}월 예산은 지난달 그대로 써요.`); return; }
+  if (a === "nagGive") { const m = today().slice(0, 7); saveSettingsReal({ giveConfirm: { [m]: { inc: Number(el.dataset.inc), give: Number(el.dataset.v), at: Date.now() } } }, `✅ ${+m.slice(5)}월 줄 돈 ${won(Number(el.dataset.v))} 확인했어요.`); return; }
+  if (a === "nagLater") { try { const v = sessionStorage.getItem("ukjin-nag-later") || ""; sessionStorage.setItem("ukjin-nag-later", v + "," + el.dataset.k + "@" + today().slice(0, 7)); } catch (e) { /* 무시 */ } renderNags(); return; }
   if (a === "cpPf") { try { localStorage.setItem("ukjin-cp-pf", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); return; }
   if (a === "cpTab") { try { localStorage.setItem("ukjin-cp-tab", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); renderCouponReqs(); return; }
   if (a === "gmOpen") { openGame(id); return; }
