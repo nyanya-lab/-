@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="only light">
+<script>/* 🌙 이 기기에서 고른 화면 색 (기본 밝게) — 그리기 전에 먼저 */try{if(localStorage.getItem("ukjin-theme")==="dark"){document.documentElement.dataset.theme="dark";document.querySelector('meta[name="color-scheme"]').content="dark";}}catch(e){}</script>
 <title>욱진 실천 보드</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -16,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015w">
+<link rel="stylesheet" href="style.css?v=20261015x">
 </head>
 <body>
 
@@ -25,7 +26,8 @@
   <a class="brand" href="#calendar" title="새로 받아오기 (캐시 비우고 다시 열기)"><span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><b>욱진 실천 보드</b></a>
   <button class="icon-round test-btn" type="button" data-act="testMode" id="testBtnTop" hidden aria-label="테스트 모드">🧪</button>
   <button class="icon-round top-lotto" type="button" data-act="openPoints" id="topLotto" aria-label="포인트·복권" hidden><svg class="ticket" viewBox="-12 -16 124 92" aria-hidden="true" id="topTicket"></svg><b class="lotto-badge" id="topTickets" hidden></b></button>
-  <button class="icon-round" type="button" data-act="openSettings" aria-label="설정"><b class="lotto-badge" data-admin-n hidden>N</b><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span class="sync-dot" data-sync></span></button>
+  <button class="icon-round" type="button" data-act="theme" data-theme-btn aria-label="어둡게 보기"></button>
+  <button class="icon-round" type="button" data-act="openSettings" aria-label="설정"><b class="lotto-badge" data-admin-n hidden>N</b><svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="sync-dot" data-sync></span></button>
 </div>
 <div class="scrim" data-act="menuClose" hidden></div>
 
@@ -44,7 +46,8 @@
   </nav>
   <div class="side-reqs" id="sideReqs" hidden></div>
   <button class="side-lotto" type="button" data-act="openPoints" id="sideLotto" hidden><svg class="ticket" viewBox="-12 -16 124 92" aria-hidden="true" id="sideTicket"></svg><span class="lotto-txt"><span><b id="sidePts"></b></span><small class="lotto-stage" id="sideStage"></small></span><b class="lotto-badge" id="sideTickets" hidden></b></button>
-  <button class="side-settings" type="button" data-act="openSettings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>설정</span><b class="nav-badge admin-n" data-admin-n hidden>N</b><span class="sync-dot" data-sync></span></button>
+  <button class="side-settings side-theme" type="button" data-act="theme" data-theme-btn></button>
+  <button class="side-settings" type="button" data-act="openSettings"><svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span>설정</span><b class="nav-badge admin-n" data-admin-n hidden>N</b><span class="sync-dot" data-sync></span></button>
 </aside>
 
 <div class="wrap" id="wrap">
@@ -316,6 +319,8 @@
           <li>비밀번호를 넣으면 열려요. 한 번 열면 그 기기에서는 <b>잠그기</b> 전까지 바로 열려요.</li>
           <li>폰·PC 어디서 열어도 같은 보드예요. 저장은 자동이에요 (⚙ 옆 점: 초록 = 저장됨).</li>
           <li>화면이 이상하거나 업데이트가 안 보이면 <b>맨 위 로고</b>를 눌러요. 새로 받아와요.</li>
+          <li>사이트가 새로 바뀌면 맨 위에 <b>🔄 새 버전이 나왔어요</b> 띠가 떠요. [새로고침]을 누르면 돼요.</li>
+          <li>화면은 늘 밝게 보여요. 어둡게 보고 싶으면 <b>🌙 버튼</b>(폰은 맨 위 ⚙ 옆, PC는 왼쪽 아래)을 눌러요. 다시 누르면 ☀️ 밝게. 이 기기에만 기억해요.</li>
         </ul>
         </div>
         <div data-help="cal" hidden>
@@ -671,6 +676,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015w"></script>
+<script type="module" src="app.js?v=20261015x"></script>
 </body>
 </html>
