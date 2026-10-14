@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261014o">
+<link rel="stylesheet" href="style.css?v=20261014p">
 </head>
 <body>
 
@@ -231,12 +231,19 @@
         <button class="btn ghost small" type="button" data-act="openPtsDlg">⭐ 포인트 내역</button>
       </div>
       <div class="panel cp-ticket" id="cpTicket"></div>
-      <div class="panel"><div class="panel-head"><h3>사용 가능 쿠폰</h3><span class="muted small" id="cpAvailN"></span></div><div class="list" id="cpAvail"></div></div>
-      <div class="panel"><div class="panel-head"><h3>😈 벌칙</h3><span class="muted small">기한 안에 다 못 하면 남은 장 수가 두 배</span></div><div class="list" id="cpPens"></div></div>
-      <div class="panel"><div class="panel-head"><h3>💌 쿠폰 요청</h3><span class="muted small">있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요</span></div>
-        <form class="mini-row" id="cpReqForm" autocomplete="off"><input type="text" id="cpReqText" maxlength="100" placeholder="예: 족발 쿠폰 넣어 줘" aria-label="쿠폰 요청"><button class="btn small" type="submit">보내기</button></form>
-        <div class="list" id="cpReqs" style="margin-top:8px"></div></div>
-      <div class="panel"><div class="panel-head"><h3>지난 쿠폰</h3><span class="muted small">사용함 · 기한 만료 · 꽝</span></div><div class="list" id="cpPast"></div></div>
+      <div class="seg seg4 cp-tabs" id="cpTabs" role="tablist" aria-label="쿠폰함 보기">
+        <button type="button" data-act="cpTab" data-k="avail">🎟️ 쓸 쿠폰</button><button type="button" data-act="cpTab" data-k="pens">😈 벌칙</button><button type="button" data-act="cpTab" data-k="past">📜 지난 것</button><button type="button" data-act="cpTab" data-k="reqs">💌 요청</button>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3 id="cpTabTitle"></h3><span class="muted small" id="cpTabSub"></span></div>
+          <select id="cpSort" aria-label="정렬"><option value="due">남은 기한 짧은 순</option><option value="recent">최근 받은 순</option><option value="tier">등급 순</option></select></div>
+        <div class="list" id="cpAvail" data-cp="avail"></div>
+        <div class="list" id="cpPens" data-cp="pens" hidden></div>
+        <div class="list" id="cpPast" data-cp="past" hidden></div>
+        <div data-cp="reqs" hidden>
+          <form class="mini-row" id="cpReqForm" autocomplete="off"><input type="text" id="cpReqText" maxlength="100" placeholder="예: 족발 쿠폰 넣어 줘" aria-label="쿠폰 요청"><button class="btn small" type="submit">보내기</button></form>
+          <div class="list" id="cpReqs" style="margin-top:8px"></div></div>
+      </div>
     </section>
 
     <section class="page" data-page="requests" hidden>
@@ -596,6 +603,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261014o"></script>
+<script type="module" src="app.js?v=20261014p"></script>
 </body>
 </html>

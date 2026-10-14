@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014o";
-import { CHANGES } from "./changes.js?v=20261014o";
-import { firebaseConfig } from "./firebase-config.js?v=20261014o";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014p";
+import { CHANGES } from "./changes.js?v=20261014p";
+import { firebaseConfig } from "./firebase-config.js?v=20261014p";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1129,23 +1129,37 @@ function renderCoupons() {
   const hide = scratch && !scratch.revealed ? scratch.at : null;   // 긁는 중인 건 다 긁기 전까지 목록에 안 보이게
   const ws = rows(S.wins).filter((w) => w.at !== hide).sort((a, b) => (b.at || 0) - (a.at || 0));
   const tierIc = (w) => w.tier === "big" ? "🥇" : w.tier === "mid" ? "🥈" : "🥉";
-  const avail = ws.filter((w) => w.kind === "coupon" && !w.usedAt && (w.expires || "9999") >= t);
-  $("cpAvailN").textContent = avail.length ? avail.length + "장" : "";
+  const tab = cpTab(), sort = cpSort(), TR = { big: 0, mid: 1, small: 2 };
+  const by = (dueKey) => (a, b) => sort === "recent" ? (b.at || 0) - (a.at || 0)
+    : sort === "tier" && dueKey === "expires" ? (TR[a.tier] ?? 3) - (TR[b.tier] ?? 3) || String(a.expires).localeCompare(String(b.expires))
+    : String(a[dueKey] || "9999").localeCompare(String(b[dueKey] || "9999")) || (b.at || 0) - (a.at || 0);
+  const avail = ws.filter((w) => w.kind === "coupon" && !w.usedAt && (w.expires || "9999") >= t).sort(by("expires"));
+  const pens = ws.filter((w) => w.kind === "pen"), pOpen = pens.filter((w) => w.left > 0).sort(by("deadline")), pDone = pens.filter((w) => !(w.left > 0));
+  const past = ws.filter((w) => (w.kind === "coupon" && (w.usedAt || (w.expires || "9999") < t)) || w.kind === "miss");
+  const TABS = { avail: ["🎟️ 쓸 쿠폰", avail.length], pens: ["😈 벌칙", pOpen.length], past: ["📜 지난 것", 0], reqs: ["💌 요청", 0] };
+  $("cpTabs").querySelectorAll("button").forEach((b) => { const [lb, n] = TABS[b.dataset.k]; b.innerHTML = lb + (n ? ` <b>${n}</b>` : ""); b.setAttribute("aria-pressed", b.dataset.k === tab); });
+  document.querySelectorAll("[data-cp]").forEach((el) => { el.hidden = el.dataset.cp !== tab; });
+  const HEAD = { avail: ["쓸 수 있는 쿠폰", avail.length ? avail.length + "장" : ""], pens: ["벌칙", "기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 (최근 순)"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
+  $("cpTabTitle").textContent = HEAD[tab][0]; $("cpTabSub").textContent = HEAD[tab][1];
+  const sel = $("cpSort"); sel.hidden = !(tab === "avail" || tab === "pens"); sel.value = sort; sel.querySelector('[value="tier"]').hidden = tab !== "avail";
+  if (tab === "pens" && sort === "tier") sel.value = "due";
   $("cpAvail").innerHTML = avail.length ? avail.map((w) => `<div class="item cp-item"><span class="cp-tier">${tierIc(w)}</span><div class="body"><div class="title">${esc(w.title)}</div>` +
-    `<div class="meta">${w.effect === "streak" ? '<span class="tag cat c-grape">🛡️ 연속일 채우기</span>' : ""}<span class="tag">${esc(shortDate(w.expires))}까지 · ${ddayText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음</span></div></div>` +
+    `<div class="meta">${w.effect === "streak" ? '<span class="tag cat c-grape">🛡️ 연속일 채우기</span>' : ""}<span class="tag">${untilText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음</span></div></div>` +
     `<div class="actions"><button class="btn small" type="button" data-act="cpUse" data-id="${esc(w.id)}">쓰기</button></div></div>`).join("") : '<div class="empty">아직 쓸 쿠폰이 없어요.</div>';
-  const pens = ws.filter((w) => w.kind === "pen"), pOpen = pens.filter((w) => w.left > 0), pDone = pens.filter((w) => !(w.left > 0));
   $("cpPens").innerHTML = (pOpen.length ? pOpen.map((w) => `<div class="item cp-item"><span class="cp-tier">😈</span><div class="body"><div class="title">${esc(w.title)}${w.left > 1 ? ` <b style="color:var(--danger)">×${w.left}</b>` : ""}</div>` +
-    `<div class="meta"><span class="tag late">${esc(shortDate(w.deadline))}까지 · ${ddayText(w.deadline)}</span><span class="small muted">못 하면 ×${w.left * 2}</span></div></div>` +
+    `<div class="meta"><span class="tag late">${untilText(w.deadline)}</span><span class="small muted">못 하면 ×${w.left * 2}</span></div></div>` +
     `<div class="actions" style="display:grid;gap:4px"><button class="btn small" type="button" data-act="penDone" data-id="${esc(w.id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>${w.game ? "" : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`}</div></div>`).join("") : '<div class="empty">미완료 벌칙이 없어요. 👍</div>') +
     pDone.map((w) => `<div class="item done"><span class="cp-tier">✅</span><div class="body"><div class="title">${esc(w.title)}</div><div class="meta"><span class="small muted">${esc(shortDate(w.doneAt || w.wonAt))} 완료</span></div></div><div class="actions"></div></div>`).join("");
-  const past = ws.filter((w) => (w.kind === "coupon" && (w.usedAt || (w.expires || "9999") < t)) || w.kind === "miss");
   $("cpPast").innerHTML = past.length ? past.map((w) => {
     const st = w.kind === "miss" ? "😐 꽝" : w.usedAt ? `${shortDate(w.usedAt)} 사용함${w.fillDate ? ` · 🛡️ ${shortDate(w.fillDate)} 채움` : ""}` : `${shortDate(w.expires)} 기한 만료`;
     const gm = w.kind === "miss" ? (w.game ? `<span class="small muted">🎯 +${w.game.pts}</span>` : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`) : "";
     return `<div class="item${w.kind === "miss" && !w.game ? "" : " done"}"><span class="cp-tier">${w.kind === "miss" ? "😐" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions">${gm}</div></div>`;
   }).join("") : '<div class="empty">아직 없어요.</div>';
 }
+// 쿠폰함 탭·정렬 (이 기기에만 기억)
+function cpTab() { try { const v = localStorage.getItem("ukjin-cp-tab"); return ["avail", "pens", "past", "reqs"].includes(v) ? v : "avail"; } catch (e) { return "avail"; } }
+function cpSort() { try { const v = localStorage.getItem("ukjin-cp-sort"); return ["due", "recent", "tier"].includes(v) ? v : "due"; } catch (e) { return "due"; } }
+$("cpSort").addEventListener("change", (ev) => { try { localStorage.setItem("ukjin-cp-sort", ev.target.value); } catch (e) { /* 무시 */ } renderCoupons(); });
 function maybeLottoIntro() {   // 공개된 뒤 처음 여는 기기에 한 번 소개
   if (!lottoOn() || isAdminDevice()) return;
   try { if (localStorage.getItem("ukjin-lotto-intro")) return; localStorage.setItem("ukjin-lotto-intro", "1"); } catch (e) { return; }
@@ -2067,6 +2081,7 @@ document.addEventListener("click", (ev) => {
   if (a === "testMode") { toggleTestMode(); return; }
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
+  if (a === "cpTab") { try { localStorage.setItem("ukjin-cp-tab", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); renderCouponReqs(); return; }
   if (a === "gmOpen") { openGame(id); return; }
   if (a === "gmLater") { cancelGame(); $("scBtns").innerHTML = scAfterBtns(); toast("쿠폰함에서 나중에 한 판 할 수 있어요."); return; }
   if (a === "gmStop") { stopGame(); return; }

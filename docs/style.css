@@ -522,6 +522,11 @@ tr.clickable:hover td { background: var(--sunk); }
 .log-fire:hover { transform: scale(1.2); }
 .btn.danger-txt { color: var(--danger); }
 /* 설명서 */
+.cp-tabs { margin-bottom: 12px; }
+.cp-tabs button { white-space: nowrap; }
+@media (max-width: 720px) { .cp-tabs button { font-size: 12.5px; padding: 8px 2px; letter-spacing: -.3px; } }
+.cp-tabs b { font-family: var(--f-mono); color: var(--accent, var(--blue)); }
+#cpSort { width: auto; padding: 6px 8px; font-size: 13px; }
 .help-seg { max-width: 360px; grid-template-columns: repeat(2, 1fr); margin-bottom: 12px; }
 .help h3 { margin: 18px 0 6px; font-size: 16px; }
 .help h3:first-child { margin-top: 0; }
