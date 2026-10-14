@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014j";
-import { CHANGES } from "./changes.js?v=20261014j";
-import { firebaseConfig } from "./firebase-config.js?v=20261014j";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014k";
+import { CHANGES } from "./changes.js?v=20261014k";
+import { firebaseConfig } from "./firebase-config.js?v=20261014k";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1216,7 +1216,7 @@ function ticketSvg(stage, n, since) {
   g += `<text x="37" y="14" text-anchor="middle" font-size="7.5" fill="#FFFFFF" font-family="Do Hyeon, sans-serif" letter-spacing=".5">실천 복권</text>`;
   g += `<path d="M71 16v40" stroke="var(--sun)" stroke-width="1.3" stroke-dasharray="2.5 2.5"/>`;
   g += `<text x="83" y="13.6" text-anchor="middle" font-size="5.6" fill="#FFFFFF" font-family="IBM Plex Mono, monospace">No.${String(n || 1).padStart(3, "0")}</text>`;
-  if (since) g += `<text x="80" y="26" text-anchor="middle" font-size="5.6" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${since.slice(5).replace("-", ".")}~</text>`;
+  if (since) g += `<text x="83.5" y="21.6" text-anchor="middle" font-size="5" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${since.slice(5).replace("-", ".")}~</text>`;   // No. 바로 밑
   const nums = luckyNums(n), cols = ["var(--coral)", "var(--blue)", "var(--mint)"];
   const balls = nums.map((v, i) => `<circle cx="${22 + i * 15}" cy="34" r="6.5" fill="${cols[i]}"/><text x="${22 + i * 15}" y="37.5" text-anchor="middle" font-size="9" fill="#FFFFFF" font-family="IBM Plex Mono, monospace" font-weight="600">${v}</text>`).join("");
   if (stage === 2) g += `<path d="M30 16l-6 40M62 18l8 36M4 40l92 -6" stroke="var(--tk-line)" stroke-width="1.2" fill="none"/><path d="M14 30h40M14 40h26" stroke="var(--tk-line)" stroke-width="2.4" stroke-linecap="round"/>`;
@@ -1261,7 +1261,7 @@ function renderPoints() {
   const tst = lottoStage(L);
   ["sideTicket", "topTicket"].forEach((id) => paintTicket($(id), tst));
   $("sideStage").textContent = LOTTO_STAGES[tst.stage - 1];
-  $("sidePts").textContent = prog.toLocaleString("ko-KR");
+  $("sidePts").textContent = left ? `긁을 복권 ${left}장!` : `${(PT_TICKET - prog).toLocaleString("ko-KR")}점 남음`;   // 다음 복권까지 남은 점수
   ["sideTickets", "topTickets", "navTickets"].forEach((id) => { $(id).hidden = !left; $(id).textContent = left; });
   $("sideLotto").title = $("topLotto").title = `⭐ 모두 ${L.total.toLocaleString("ko-KR")}점 · 다음 복권까지 ${PT_TICKET - prog}점${left ? ` · 긁을 복권 ${left}장` : ""}`;
   $("ptsBtn").classList.toggle("off", !ptsShown());
