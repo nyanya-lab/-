@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015x";
-import { CHANGES } from "./changes.js?v=20261015x";
-import { firebaseConfig } from "./firebase-config.js?v=20261015x";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015y";
+import { CHANGES } from "./changes.js?v=20261015y";
+import { firebaseConfig } from "./firebase-config.js?v=20261015y";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -3023,12 +3023,13 @@ function setTheme(t) {
   renderThemeBtns();
 }
 function renderThemeBtns() {
-  const dark = document.documentElement.dataset.theme === "dark", label = dark ? "밝게 보기" : "어둡게 보기";
+  // 아이콘·글자는 지금 상태 (밝음 ☀️ / 어두움 🌙), 마우스를 올리면 누르면 어떻게 되는지
+  const dark = document.documentElement.dataset.theme === "dark", now = dark ? "어두운 화면" : "밝은 화면", tip = dark ? "눌러서 밝게" : "눌러서 어둡게";
   const cs = document.querySelector('meta[name="color-scheme"]'); if (cs) cs.content = dark ? "dark" : "only light";
   const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = dark ? "#11151C" : "#FFFFFF";
   document.querySelectorAll("[data-theme-btn]").forEach((b) => {
-    b.setAttribute("aria-label", label); b.title = label;
-    b.innerHTML = (dark ? SUN : MOON) + (b.classList.contains("side-theme") ? `<span>${label}</span>` : "");
+    b.setAttribute("aria-label", `${now} (${tip})`); b.title = tip;
+    b.innerHTML = (dark ? MOON : SUN) + (b.classList.contains("side-theme") ? `<span>${now}</span>` : "");
   });
 }
 renderThemeBtns();
