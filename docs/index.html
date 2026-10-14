@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015o">
+<link rel="stylesheet" href="style.css?v=20261015p">
 </head>
 <body>
 
@@ -597,6 +597,12 @@
   <div class="dlg-sec"><h4>포인트 받는 법</h4><div class="pt-rules small muted">🔥 실천 1분 = 1점 · 세부목표 달성 50 · 목표 달성 300 · 연속 실천 7일 30 · 15일 100 · 30일 250 · 90일 1000 · 그 뒤 30일마다 300 · 💰 돈 기록 1건 1 (월급 30) · 👏 칭찬 30 · <b>1000점마다 복권 한 장</b></div></div>
 </dialog>
 
+<dialog class="dlg" id="winDlg" aria-labelledby="wnTitle">
+  <div class="dlg-head"><div><h3 id="wnTitle"></h3><span class="muted small" id="wnSub"></span></div><button class="icon-round" type="button" data-act="winClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-sec"><div class="mv-text" id="wnBody"></div></div>
+  <div class="dlg-sec mv-btns" id="wnBtns"></div>
+</dialog>
+
 <dialog class="dlg" id="newsDlg" aria-labelledby="nwTitle">
   <div class="dlg-head"><h3 id="nwTitle">✨ 새로 바뀐 것</h3><button class="icon-round" type="button" data-act="newsClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="dlg-sec help" id="nwBody"></div>
@@ -647,6 +653,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015o"></script>
+<script type="module" src="app.js?v=20261015p"></script>
 </body>
 </html>
