@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015i">
+<link rel="stylesheet" href="style.css?v=20261015j">
 </head>
 <body>
 
@@ -215,11 +215,13 @@
               <div style="flex:0 0 auto"><button class="btn ghost" type="submit">예산 저장</button></div>
             </form>
           </div>
-          <div class="panel">
-            <div class="panel-head"><h3>최근 6개월</h3></div>
-            <div class="table-scroll"><table class="t" id="monthTable"></table></div>
-          </div>
         </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>최근 내역 조회</h3><span class="muted small">줄을 누르면 그 달 예산·내역</span></div>
+        <div class="seg hist-range" id="histRange"><button type="button" data-act="histRange" data-k="6">6개월</button><button type="button" data-act="histRange" data-k="12">1년</button><button type="button" data-act="histRange" data-k="custom">기간 조회</button></div>
+        <div class="row hist-custom" id="histCustom" hidden><label class="f">부터<input type="month" id="histFrom"></label><label class="f">까지<input type="month" id="histTo"></label></div>
+        <div class="table-scroll"><table class="t" id="monthTable"></table></div>
       </div>
       <div class="panel">
         <div class="panel-head"><h3>이번 달 내역</h3><span class="muted small" id="moneyCount"></span></div>
@@ -640,6 +642,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015i"></script>
+<script type="module" src="app.js?v=20261015j"></script>
 </body>
 </html>
