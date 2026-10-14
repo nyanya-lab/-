@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014t";
-import { CHANGES } from "./changes.js?v=20261014t";
-import { firebaseConfig } from "./firebase-config.js?v=20261014t";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014u";
+import { CHANGES } from "./changes.js?v=20261014u";
+import { firebaseConfig } from "./firebase-config.js?v=20261014u";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -970,6 +970,9 @@ function openLottoAdmin() {
   if (kind === "coupons") { doc.tier = f.elements.tier.value; if (f.elements.streak.checked) doc.effect = "streak"; }
   saveLotto({ [kind]: { [id]: doc } }, kind === "pens" ? "벌칙을 넣었어요." : "쿠폰을 넣었어요.").then(() => { f.elements.title.value = ""; if (f.elements.streak) f.elements.streak.checked = false; f.elements.title.focus(); });
 }));
+// 등급을 고르면 기한 기본값: 🥇 60일 · 🥈 30일 · 🥉 7일
+const TIER_DAYS = { big: 60, mid: 30, small: 7 };
+$("laCouponForm").elements.tier.addEventListener("change", (ev) => { const f = $("laCouponForm"); f.elements.days.value = f.elements.streak.checked ? 30 : TIER_DAYS[ev.target.value] || 30; });
 $("laStreak").addEventListener("change", (ev) => {   // 🛡️ 켜면 보통 대박 · 30일
   const f = $("laCouponForm"); if (!ev.target.checked) return;
   f.elements.tier.value = "big"; f.elements.days.value = 30; if (!f.elements.title.value.trim()) f.elements.title.value = "🛡️ 연속일 하루 채우기";
