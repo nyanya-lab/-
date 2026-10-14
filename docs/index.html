@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015c">
+<link rel="stylesheet" href="style.css?v=20261015d">
 </head>
 <body>
 
@@ -296,12 +296,18 @@
         <button type="button" data-act="helpTab" data-k="changes">업데이트 내역</button>
       </div>
       <div class="panel help" id="helpGuide">
+        <div class="help-topics" id="helpTopics" role="tablist" aria-label="설명서 주제">
+          <button type="button" data-act="helpTopic" data-k="start">🚀 시작</button><button type="button" data-act="helpTopic" data-k="cal">📅 달력</button><button type="button" data-act="helpTopic" data-k="todo">✅ 할 일·실천</button><button type="button" data-act="helpTopic" data-k="goal">🎯 목표</button><button type="button" data-act="helpTopic" data-k="money">💰 돈</button><button type="button" data-act="helpTopic" data-k="lotto" id="helpLottoBtn">🎟️ 복권</button><button type="button" data-act="helpTopic" data-k="etc">🔧 구글·문제 해결</button>
+        </div>
+        <div data-help="start">
         <h3>처음 열 때</h3>
         <ul>
           <li>비밀번호를 넣으면 열려요. 한 번 열면 그 기기에서는 <b>잠그기</b> 전까지 바로 열려요.</li>
           <li>폰·PC 어디서 열어도 같은 보드예요. 저장은 자동이에요 (⚙ 옆 점: 초록 = 저장됨).</li>
           <li>화면이 이상하거나 업데이트가 안 보이면 <b>맨 위 로고</b>를 눌러요. 새로 받아와요.</li>
         </ul>
+        </div>
+        <div data-help="cal" hidden>
         <h3>달력 (첫 화면)</h3>
         <ul>
           <li>맨 위 4칸: 오늘 할 일 · 오늘 실천 · 이번 주 실천 · 연속 실천한 날.</li>
@@ -314,6 +320,8 @@
           <li>앞으로 할 일을 미리 하면 <b>[오늘로 당기기]</b>. 체크를 풀면 원래 날짜로 돌아가요.</li>
           <li>달력 아래에는 <b>목표 → 세부목표 → 할 일</b>이 보여요. 여기서도 바로 체크할 수 있어요.</li>
         </ul>
+        </div>
+        <div data-help="todo" hidden>
         <h3>할 일 · 반복하는 일</h3>
         <ul>
           <li>그 날 창이나 목표 창에서 ＋ 추가. <b>한 번</b> / <b>매일</b> / <b>매주 요일</b>을 골라요. 반복은 끝나는 날을 정할 수 있어요 (비우면 계속).</li>
@@ -325,7 +333,8 @@
           <li>달력 칸의 빈 곳 → <b>[실천한 일]</b> → 시간·메모 넣고 기록. 예: 1시간 · 현장에서 줄눈 배움.</li>
           <li>달력의 🔥를 누르면 <b>[편집하기]·[삭제하기]</b>, 글자를 누르면 바로 편집 창.</li>
         </ul>
-        <div id="helpLotto" hidden>
+        </div>
+        <div id="helpLotto" data-help="lotto" hidden>
         <h3>🎟️ 포인트 · 복권</h3>
         <ul>
           <li>⭐ 포인트: 실천 1분 = 1점 · 세부목표 달성 50 · 목표 달성 300 · 연속 실천 7일 30 / 15일 100 / 30일 250 / 90일 1000, 그 뒤 30일마다 300 · 돈 기록 1건 1 (월급 30) · 👏 칭찬 받으면 30. 지난 기록도 다 쳐요.</li>
@@ -340,6 +349,7 @@
           <li><b>🛡️ 연속일 채우기</b> 쿠폰: [쓰기]를 누르면 최근 30일 중 실천 안 한 날이 나와요. 하루를 고르면 그 날이 실천한 날(초록 + 🛡️)이 돼서 연속 실천이 이어지고 연속 보너스도 받아요. 잘못 골랐으면 ↶로 되돌려요.</li>
         </ul>
         </div>
+        <div data-help="goal" hidden>
         <h3>목표</h3>
         <ul>
           <li>＋ 목표로 추가하고 시험일을 넣으면 D-day가 보여요. 진행률은 큰 목표의 할 일 기준이에요.</li>
@@ -347,12 +357,16 @@
           <li>＋ 세부목표로 나눌 수 있어요 (예: 필기 합격, 실기 합격). 할 일을 추가·편집할 때 세부목표를 골라요 (안 골라도 돼요).</li>
           <li>목표를 누르면 목표 창: 목표 정보, 세부목표, 반복하는 일, 할 일, 추천 할 일 넣기.</li>
         </ul>
+        </div>
+        <div data-help="money" hidden>
         <h3>돈 관리</h3>
         <ul>
           <li><b>돈 기록하기</b>: 수입 · 지출 · 보낸 돈(여자친구에게) · 이체(내 통장끼리). 어느 통장·카드인지 고르면 자산마다 잔액이 계산돼요.</li>
           <li><b>한 달 예산</b>: 예상 수입과 분류별로 쓸 돈(예: 식비 300,000)을 넣으면 <b>여자친구에게 줄 돈(예상)</b>이 보여요. 분류 이름을 지출 기록과 같게 쓰면 실제로 쓴 돈도 같이 보여요. 다음 달로 자동으로 이어지고, 고치면 그 달만 바뀌어요.</li>
           <li>이번 달 내역 줄을 누르면 고칠 수 있어요.</li>
         </ul>
+        </div>
+        <div data-help="etc" hidden>
         <h3>구글 캘린더</h3>
         <ul>
           <li>5분마다 자동으로 맞춰요. 📌 할 일 · 🔥 끝낸 일·실천 · ❌ 지난 날 못 한 일 · 🎯 D-DAY.</li>
@@ -364,6 +378,7 @@
           <li>로고를 눌러 새로 받아오기 → 그래도 이상하면 ⚙ 설정 → <b>백업</b>에서 1시간·하루 전으로 되돌릴 수 있어요.</li>
           <li>있으면 좋겠는 기능은 <a href="#requests">기능 요청</a>에 적어 주세요.</li>
         </ul>
+        </div>
       </div>
       <div class="panel help" id="helpChanges" hidden></div>
     </section>
@@ -621,6 +636,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015c"></script>
+<script type="module" src="app.js?v=20261015d"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015c";
-import { CHANGES } from "./changes.js?v=20261015c";
-import { firebaseConfig } from "./firebase-config.js?v=20261015c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015d";
+import { CHANGES } from "./changes.js?v=20261015d";
+import { firebaseConfig } from "./firebase-config.js?v=20261015d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1445,7 +1445,7 @@ function paintTicket(el, st) {
 }
 function renderPoints() {
   const vis = lottoVisible() && S.loaded;
-  ["sideLotto", "topLotto", "ptsBtn", "navCoupons", "helpLotto"].forEach((id) => { $(id).hidden = !vis; });
+  ["sideLotto", "topLotto", "ptsBtn", "navCoupons"].forEach((id) => { $(id).hidden = !vis; });
   if (!vis) return;
   const L = pointsLedger(), used = S.wins.size;
   const earned = Math.floor(L.total / PT_TICKET), left = Math.max(0, earned - used), prog = L.total % PT_TICKET, stage = Math.floor(prog / (PT_TICKET / 8));
@@ -1485,6 +1485,12 @@ function renderHelp() {
   const tab = ui.helpTab || "guide";
   document.querySelectorAll("#helpSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === tab)));
   $("helpGuide").hidden = tab !== "guide"; $("helpChanges").hidden = tab !== "changes";
+  // 설명서 주제 탭 (복권은 보일 때만, 이 기기에 기억)
+  const lv = lottoVisible(); let topic = "start"; try { topic = localStorage.getItem("ukjin-help-topic") || "start"; } catch (e) { /* 무시 */ }
+  if (!document.querySelector(`[data-help="${topic}"]`) || (topic === "lotto" && !lv)) topic = "start";
+  $("helpLottoBtn").hidden = !lv;
+  document.querySelectorAll("#helpTopics button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === topic)));
+  document.querySelectorAll("[data-help]").forEach((el) => { el.hidden = el.dataset.help !== topic; });
   $("helpChanges").innerHTML = chgHtml(CHANGES);
   $("newsBadge").hidden = !CHANGES.length || newsSeen() >= CHANGES[0].date;
 }
@@ -2174,6 +2180,7 @@ document.addEventListener("click", (ev) => {
   if (a === "testMode") { toggleTestMode(); return; }
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
+  if (a === "helpTopic") { try { localStorage.setItem("ukjin-help-topic", el.dataset.k); } catch (e) { /* 무시 */ } renderHelp(); return; }
   if (a === "cpPf") { try { localStorage.setItem("ukjin-cp-pf", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); return; }
   if (a === "cpTab") { try { localStorage.setItem("ukjin-cp-tab", el.dataset.k); } catch (e) { /* 무시 */ } renderCoupons(); renderCouponReqs(); return; }
   if (a === "gmOpen") { openGame(id); return; }
