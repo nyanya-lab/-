@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015s">
+<link rel="stylesheet" href="style.css?v=20261015t">
 </head>
 <body>
 
@@ -156,13 +156,13 @@
           <div><h3>한 달 예산</h3><span class="muted small" id="planSub"></span></div>
         </div>
         <div class="plan-tiles" id="planTiles"></div>
-        <label class="f plan-income no-admin">예상 수입 (비워 두면 지난달 실제 수입, 원)<input type="number" id="planIncome" min="0" step="1" inputmode="numeric" placeholder="예: 2500000"></label>
+        <label class="f plan-income no-admin">예상 수입 (비워 두면 지난달 실제 수입, 원)<input type="text" class="amt-in" id="planIncome" inputmode="numeric" autocomplete="off" placeholder="예: 2,500,000"></label>
         <div class="plan-rows" id="planRows"></div>
         <form class="plan-add no-admin" id="planAddForm" autocomplete="off">
           <input type="text" id="planCat" list="planCatList" maxlength="20" placeholder="분류 (예: 식비)" aria-label="예산 분류">
           <datalist id="planCatList"></datalist>
           <input type="text" id="planMemo" maxlength="40" placeholder="메모 (예: 점심·장보기)" aria-label="예산 메모">
-          <input type="number" id="planAmt" min="0" step="1" inputmode="numeric" placeholder="금액 (원)" aria-label="예산 금액">
+          <input type="text" class="amt-in" id="planAmt" inputmode="numeric" autocomplete="off" placeholder="금액 (원)" aria-label="예산 금액">
           <button class="btn small" type="submit">＋ 추가</button>
         </form>
       </div>
@@ -187,7 +187,7 @@
             </div>
             <form class="form" id="moneyForm" autocomplete="off">
               <div class="row">
-                <label class="f">금액 (원)<input type="number" id="mAmount" min="0" step="1" inputmode="numeric" placeholder="0" required></label>
+                <label class="f">금액 (원)<input type="text" class="amt-in" id="mAmount" inputmode="numeric" autocomplete="off" placeholder="0" required></label>
                 <label class="f">날짜<input type="date" id="mDate"></label>
               </div>
               <div class="row">
@@ -211,7 +211,7 @@
             <div class="catbars" id="catBars"></div>
             <p class="small muted" id="budgetFromPlan" hidden style="margin:0">예산은 위 '한 달 예산' 합계로 계산해요.</p>
             <form class="row" id="budgetForm" autocomplete="off" style="align-items:end">
-              <label class="f">한 달 지출 예산 (원)<input type="number" id="budgetIn" min="0" step="1" inputmode="numeric" placeholder="예: 1500000"></label>
+              <label class="f">한 달 지출 예산 (원)<input type="text" class="amt-in" id="budgetIn" inputmode="numeric" autocomplete="off" placeholder="예: 1,500,000"></label>
               <div style="flex:0 0 auto"><button class="btn ghost" type="submit">예산 저장</button></div>
             </form>
           </div>
@@ -651,7 +651,7 @@
       <button type="button" data-act="acType" data-k="cash">현금</button>
       <button type="button" data-act="acType" data-k="save">저축</button>
     </div>
-    <label class="f"><span id="acInitLabel">지금 잔액 (원)</span><input type="number" id="acInit" step="1" inputmode="numeric" placeholder="0"></label>
+    <label class="f"><span id="acInitLabel">지금 잔액 (원)</span><input type="text" class="amt-in" id="acInit" data-neg inputmode="numeric" autocomplete="off" placeholder="0"></label>
     <p class="small muted" id="acHint"></p>
     <div class="row" style="align-items:center;flex:0 0 auto">
       <button class="btn" type="submit">저장</button>
@@ -666,6 +666,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015s"></script>
+<script type="module" src="app.js?v=20261015t"></script>
 </body>
 </html>
