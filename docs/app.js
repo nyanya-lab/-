@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015n";
-import { CHANGES } from "./changes.js?v=20261015n";
-import { firebaseConfig } from "./firebase-config.js?v=20261015n";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015o";
+import { CHANGES } from "./changes.js?v=20261015o";
+import { firebaseConfig } from "./firebase-config.js?v=20261015o";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -410,7 +410,7 @@ function practiceMinutes() {
     if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v && !timed.has(id + "|" + d)) add(d, 15); });
     else if (t.done && t.doneDate && !timed.has(id + "|" + t.doneDate)) add(t.doneDate, 15);
   });
-  Object.keys(fillDays()).forEach((d) => { if (!m[d]) m[d] = 1; });   // 🛡️ 연속일 채우기 쿠폰으로 채운 날 = 실천한 날 (실천 시간 점수는 없음)
+  Object.keys(fillDays()).forEach((d) => { if ((m[d] || 0) < PRACTICE_MIN) m[d] = PRACTICE_MIN; });   // 🛡️ 연속일 채우기 쿠폰으로 채운 날 = 실천한 날 (실천 시간 점수는 없음)
   return m;
 }
 // 🛡️ 쿠폰으로 채운 날 {날짜: 쿠폰 id}
@@ -420,9 +420,12 @@ function couponsDueOn(d) { return lottoVisible() && d >= today() ? rows(S.wins).
 // 할 일을 체크할 때 같이 기록한 시간 (실천 기록에 taskId로 연결)
 function taskLogs(taskId, day) { return rows(S.logs).filter((l) => l.taskId === taskId && (!day || l.date === day)); }
 function taskMinutes(taskId, day) { return taskLogs(taskId, day).reduce((s, l) => s + (Number(l.minutes) || 0), 0); }
+// 실천한 날 = 하루 50분 이상 (달력 초록 · 연속 실천 · 연속 보너스 모두 이 기준)
+const PRACTICE_MIN = 50;
+const practiced = (days, d) => (days[d] || 0) >= PRACTICE_MIN;
 function streak(days) {
-  const t = today(); let d = days[t] ? t : addDays(t, -1), n = 0;
-  while (days[d]) { n++; d = addDays(d, -1); }
+  const t = today(); let d = practiced(days, t) ? t : addDays(t, -1), n = 0;
+  while (practiced(days, d)) { n++; d = addDays(d, -1); }
   return n;
 }
 function logMinutes(from, to) { let m = 0; S.logs.forEach((l) => { if (l.date >= from && l.date <= to) m += Number(l.minutes) || 0; }); return m; }
@@ -536,8 +539,8 @@ function renderCalendar() {
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
     if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
-    const mm = prac[d] || 0, lv = mm >= 120 ? 4 : mm >= 60 ? 3 : mm >= 30 ? 2 : mm > 0 ? 1 : 0;
-    const missed = !lv && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 없음
+    const mm = prac[d] || 0, lv = mm >= 120 ? 4 : mm >= 90 ? 3 : mm >= 70 ? 2 : mm >= PRACTICE_MIN ? 1 : 0;   // 50분부터 초록
+    const missed = !mm && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 하나도 없음 (50분 안 되는 날은 색 없음)
     const cls = ["day", lv ? "p" + lv : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
     // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
     const pts = ptsDay && ptsDay[d] && ptsDay[d].sum;
@@ -1165,13 +1168,13 @@ let fillFor = null;
 function openFill(id) {
   const w = S.wins.get(id); if (!w || w.usedAt || !ready()) return;
   const t = today(), pm = practiceMinutes(), st = boardStart(), ds = [];
-  for (let i = 1; i <= 30; i++) { const d = addDays(t, -i); if (st && d < st) break; if (!pm[d]) ds.push(d); }
+  for (let i = 1; i <= 30; i++) { const d = addDays(t, -i); if (st && d < st) break; if (!practiced(pm, d)) ds.push(d); }
   if (!ds.length) { toast("최근 30일에 빈 날이 없어요. 쿠폰은 아껴 둬요! 👍"); return; }
   const now = streak(pm);
   fillFor = id;
   $("mvTitle").textContent = "🛡️ 어느 날을 채울까요?";
-  $("mvText").innerHTML = `<p class="small muted">최근 30일 중 실천 안 한 날이에요. 고른 날은 실천한 날로 쳐서 연속 실천이 이어지고 연속 보너스도 받아요. (실천 시간 점수는 없어요) 지금 연속 ${now}일.</p>` +
-    `<div class="fill-list">${ds.map((d) => { const n = streak({ ...pm, [d]: 1 }); return `<button class="btn ghost small" type="button" data-act="fillDo" data-day="${d}">${shortDate(d)}${n > now ? ` <b>→ 연속 ${n}일</b>` : ""}</button>`; }).join("")}</div>`;
+  $("mvText").innerHTML = `<p class="small muted">최근 30일 중 실천을 50분 못 채운 날이에요. 고른 날은 실천한 날로 쳐서 연속 실천이 이어지고 연속 보너스도 받아요. (실천 시간 점수는 없어요) 지금 연속 ${now}일.</p>` +
+    `<div class="fill-list">${ds.map((d) => { const n = streak({ ...pm, [d]: PRACTICE_MIN }); return `<button class="btn ghost small" type="button" data-act="fillDo" data-day="${d}">${shortDate(d)}${n > now ? ` <b>→ 연속 ${n}일</b>` : ""}</button>`; }).join("")}</div>`;
   $("mvBtns").innerHTML = '<button class="btn ghost" type="button" data-act="mvClose">취소</button>';
   openDlg($("moveDlg"));
 }
@@ -1419,7 +1422,7 @@ function pointsLedger() {
     subsOf(g).forEach((v) => { if (v.doneAt) { const x = at(v.doneAt); x.sum += PT_SUB; x.lines.push(["🎉", `세부목표 '${v.title}' 달성`, PT_SUB]); } });
   });
   // 연속 실천: 실천한 날(달력 초록 칸과 같은 기준)을 이어서 세고, 7·15·30·90일…에 닿는 날 보너스
-  const pm = practiceMinutes(), days = Object.keys(pm).filter((d) => pm[d] > 0).sort();
+  const pm = practiceMinutes(), days = Object.keys(pm).filter((d) => practiced(pm, d)).sort();
   let run = 0, prev = null;
   days.forEach((d) => {
     run = prev && addDays(prev, 1) === d ? run + 1 : 1; prev = d;
@@ -1665,7 +1668,7 @@ function renderToday() {
     statTile(STAT_ICON.task + "오늘 할 일", `${dn}/${list.length}`, list.length ? (dn === list.length ? "다 끝냈어요!" : "누르면 체크하러 가요") : "아직 없음", "click", "openToday") +
     statTile(STAT_ICON.clock + "오늘 실천", fmtHM(logMinutes(t, t))) +
     statTile(STAT_ICON.week + "이번 주 실천", fmtHM(logMinutes(wk, addDays(wk, 6)))) +
-    statTile(STAT_ICON.fire + "연속 실천", streak(days) + "일", "기록이나 완료가 있는 날");
+    statTile(STAT_ICON.fire + "연속 실천", streak(days) + "일", "50분 이상 실천한 날");
   renderHomeGoals();
 }
 
