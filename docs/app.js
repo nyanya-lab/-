@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014m";
-import { CHANGES } from "./changes.js?v=20261014m";
-import { firebaseConfig } from "./firebase-config.js?v=20261014m";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014n";
+import { CHANGES } from "./changes.js?v=20261014n";
+import { firebaseConfig } from "./firebase-config.js?v=20261014n";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -409,8 +409,13 @@ function practiceMinutes() {
     if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v && !timed.has(id + "|" + d)) add(d, 15); });
     else if (t.done && t.doneDate && !timed.has(id + "|" + t.doneDate)) add(t.doneDate, 15);
   });
+  Object.keys(fillDays()).forEach((d) => { if (!m[d]) m[d] = 1; });   // 🛡️ 연속일 채우기 쿠폰으로 채운 날 = 실천한 날 (실천 시간 점수는 없음)
   return m;
 }
+// 🛡️ 쿠폰으로 채운 날 {날짜: 쿠폰 id}
+function fillDays() { const o = {}; S.wins.forEach((w, id) => { if (w && w.effect === "streak" && w.usedAt && w.fillDate) o[w.fillDate] = id; }); return o; }
+// 🎟️ 그 날이 마감인 안 쓴 쿠폰 (지난 마감은 안 보임, 공개 전엔 관리자 기기만)
+function couponsDueOn(d) { return lottoVisible() && d >= today() ? rows(S.wins).filter((w) => w.kind === "coupon" && !w.usedAt && w.expires === d) : []; }
 // 할 일을 체크할 때 같이 기록한 시간 (실천 기록에 taskId로 연결)
 function taskLogs(taskId, day) { return rows(S.logs).filter((l) => l.taskId === taskId && (!day || l.date === day)); }
 function taskMinutes(taskId, day) { return taskLogs(taskId, day).reduce((s, l) => s + (Number(l.minutes) || 0), 0); }
@@ -508,11 +513,15 @@ function renderCalendar() {
   // 보드를 쓰기 시작한 날 (그 전 날짜는 '안 한 날'로 칠하지 않음)
   const startedAt = boardStart();
   const ptsDay = lottoVisible() && ptsShown() ? pointsLedger().day : null;   // 칸 오른쪽 아래 +포인트
+  const fills = fillDays();
   const logsByDay = {}; rows(S.logs).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((l) => { if (l.date && !l.taskId) (logsByDay[l.date] ||= []).push(l); });   // 할 일에 붙은 시간은 그 할 일 옆에 보임
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
+    const cpDue = couponsDueOn(d);
+    cpDue.forEach((w) => evs.push(`<div class="ev cpexp" data-act="goCoupons" title="${esc(w.title)} 쿠폰 마감 · 눌러서 쿠폰함">🎟️ ${esc(w.title)} 마감</div>`));
+    if (fills[d]) evs.push(`<div class="ev fill" data-act="goCoupons" title="🛡️ 연속일 채우기 쿠폰으로 실천한 날로 채웠어요">🛡️ 채운 날</div>`);
     // 할 일은 칸 안에서 바로 체크 (반복하는 일도 날마다 하나씩, 앞으로의 날은 체크만 막음)
     rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => evs.push(calTask(x, d, false)));
     // 늦게 한 할 일: 원래 날짜에는 ❌ 흔적만 (실천은 한 날로 옮김)
@@ -535,7 +544,8 @@ function renderCalendar() {
     const dayTs = rows(S.tasks).filter((x) => x.title && activeOn(x, d)), doneN = dayTs.filter((x) => isDone(x, d)).length, openN = dayTs.length - doneN;
     const ics = [];
     if ((exams[d] || []).length) ics.push("🎯");
-    if (doneN || (logsByDay[d] || []).length) ics.push("🔥");
+    if (cpDue.length) ics.push("🎟️");
+    if (doneN || (logsByDay[d] || []).length) ics.push("🔥"); else if (fills[d]) ics.push("🛡️");
     if (openN) ics.push(d < t ? "❌" : "📌");
     if (gcalEventsOn(d).length) ics.push("📅");
     if (income[d]) ics.push("💰");
@@ -716,7 +726,7 @@ function histDescribe(e) {
   }
   if (c === "accounts") return { label: `자산 '${d.name || ""}' ${verb}`, date: null };
   if (c === "wins") {
-    if (a && b && !b.usedAt && a.usedAt) return { label: `쿠폰 '${d.title}' 쓰기`, date: a.usedAt };
+    if (a && b && !b.usedAt && a.usedAt) return a.fillDate ? { label: "🛡️ 쿠폰으로 실천 안 한 날 채우기", date: a.fillDate } : { label: `쿠폰 '${d.title}' 쓰기`, date: a.usedAt };
     if (a && b && (a.left || 0) < (b.left || 0)) return { label: `벌칙 '${d.title}' 했어요`, date: a.doneAt || null };
     return { label: `쿠폰함 '${d.title}' ${verb}`, date: null };
   }
@@ -923,8 +933,9 @@ function renderLottoAdmin() {
   const sum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(o[k]) || 0), 0);
   $("laOddsSum").innerHTML = sum === 100 ? "합계 100% ✅" : `<span style="color:var(--danger)">합계 ${sum}% — 100이 되게 맞춰 주세요</span>`;
   $("laPresetSec").hidden = cs.length > 0 || ps.length > 0;
-  if (!keepFocus($("laCoupons"))) $("laCoupons").innerHTML = cs.length ? cs.map((v) => `<div class="la-row"><select data-la="coupons" data-id="${esc(v.id)}" data-f="tier" aria-label="등급">${Object.keys(TIERS).map((k) => `<option value="${k}"${v.tier === k ? " selected" : ""}>${TIERS[k]}</option>`).join("")}</select>` +
+  if (!keepFocus($("laCoupons"))) $("laCoupons").innerHTML = cs.length ? cs.map((v) => `<div class="la-row la-cp"><select data-la="coupons" data-id="${esc(v.id)}" data-f="tier" aria-label="등급">${Object.keys(TIERS).map((k) => `<option value="${k}"${v.tier === k ? " selected" : ""}>${TIERS[k]}</option>`).join("")}</select>` +
     `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="coupons" data-id="${esc(v.id)}" data-f="title" aria-label="쿠폰 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 30}" data-la="coupons" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
+    `<button class="la-eff${v.effect === "streak" ? " on" : ""}" type="button" data-act="laEff" data-id="${esc(v.id)}" aria-pressed="${v.effect === "streak"}" title="🛡️ 연속일 채우기 효과 ${v.effect === "streak" ? "켜짐" : "꺼짐"}">🛡️</button>` +
     `<button class="icon-btn" type="button" data-act="laDel" data-k="coupons" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
   if (!keepFocus($("laPens"))) $("laPens").innerHTML = ps.length ? ps.map((v) => `<div class="la-row"><span class="la-tier">😈</span>` +
     `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="pens" data-id="${esc(v.id)}" data-f="title" aria-label="벌칙 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 7}" data-la="pens" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
@@ -941,9 +952,13 @@ function openLottoAdmin() {
   if (!title) { toast("내용을 적어 주세요."); return; }
   const id = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   const doc = { title, days: Math.max(1, parseInt(f.elements.days.value, 10) || (kind === "pens" ? 7 : 30)), createdAt: Date.now() };
-  if (kind === "coupons") doc.tier = f.elements.tier.value;
-  saveLotto({ [kind]: { [id]: doc } }, kind === "pens" ? "벌칙을 넣었어요." : "쿠폰을 넣었어요.").then(() => { f.elements.title.value = ""; f.elements.title.focus(); });
+  if (kind === "coupons") { doc.tier = f.elements.tier.value; if (f.elements.streak.checked) doc.effect = "streak"; }
+  saveLotto({ [kind]: { [id]: doc } }, kind === "pens" ? "벌칙을 넣었어요." : "쿠폰을 넣었어요.").then(() => { f.elements.title.value = ""; if (f.elements.streak) f.elements.streak.checked = false; f.elements.title.focus(); });
 }));
+$("laStreak").addEventListener("change", (ev) => {   // 🛡️ 켜면 보통 대박 · 30일
+  const f = $("laCouponForm"); if (!ev.target.checked) return;
+  f.elements.tier.value = "big"; f.elements.days.value = 30; if (!f.elements.title.value.trim()) f.elements.title.value = "🛡️ 연속일 하루 채우기";
+});
 $("lottoAdminDlg").addEventListener("change", (ev) => {
   const el = ev.target;
   if (el.dataset.odds) { saveLotto({ odds: { [el.dataset.odds]: Math.max(0, Math.min(100, parseInt(el.value, 10) || 0)) } }, "확률을 바꿨어요."); return; }
@@ -967,20 +982,20 @@ function drawLotto() {
   if (["big", "mid", "small"].includes(pick)) {
     let list = cs.filter((v) => v.tier === pick);
     if (!list.length) list = cs;   // 그 등급이 비었으면 아무 쿠폰
-    const v = any(list); if (v) return { kind: "coupon", tier: v.tier, title: v.title, days: Number(v.days) || 30 };
+    const v = any(list); if (v) return { kind: "coupon", tier: v.tier, title: v.title, days: Number(v.days) || 30, effect: v.effect || null };
   }
   return { kind: "miss", title: "꽝" };
 }
 async function quietly(fn) { histApplying = true; try { return await fn(); } finally { histApplying = false; } }   // 되돌리기 기록에 안 남김
 function commitWin(res, at) {
   const t = today(), doc = { kind: res.kind, title: res.title, wonAt: t, at };
-  if (res.kind === "coupon") Object.assign(doc, { tier: res.tier, days: res.days, expires: addDays(t, res.days) });
+  if (res.kind === "coupon") Object.assign(doc, { tier: res.tier, days: res.days, expires: addDays(t, res.days) }, res.effect ? { effect: res.effect } : {});
   if (res.kind === "pen") Object.assign(doc, { days: res.days, left: 1, deadline: addDays(t, res.days) });
   return quietly(() => backend.add("wins", doc));
 }
 function luckyHtml(n) { const c = ["var(--coral)", "var(--blue)", "var(--mint)"]; return `<div class="lucky">No.${String(n).padStart(3, "0")} 행운 번호 ${luckyNums(n).map((v, i) => `<i style="background:${c[i]}">${v}</i>`).join("")}</div>`; }
 function resHtml(res) {
-  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="lv">${res.tier === "big" ? "대박!!" : res.tier === "mid" ? "쿠폰 당첨!" : "작은 쿠폰"}</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.days}일 안에 쓰기</div>`;
+  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="lv">${res.tier === "big" ? "대박!!" : res.tier === "mid" ? "쿠폰 당첨!" : "작은 쿠폰"}</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.effect === "streak" ? "🛡️ 쓰면 실천 못 한 날 하루를 채워요 · " : ""}${res.days}일 안에 쓰기</div>`;
   if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${res.days}일 안에 못 하면 ×2</div>`;
   return `<div class="big">😐</div><div class="lv">꽝</div><div class="tt">아쉽다! 다음 기회에</div>`;
 }
@@ -1039,6 +1054,21 @@ function scratchReveal() {
   cv.addEventListener("pointermove", rub);
   ["pointerup", "pointercancel", "pointerleave"].forEach((e) => cv.addEventListener(e, () => { down = false; }));
 })();
+// 🛡️ 연속일 채우기: 최근 30일 중 실천 안 한 날 하나를 골라 wins.fillDate (보드 쓰기 전 날은 빼고)
+let fillFor = null;
+function openFill(id) {
+  const w = S.wins.get(id); if (!w || w.usedAt || !ready()) return;
+  const t = today(), pm = practiceMinutes(), st = boardStart(), ds = [];
+  for (let i = 1; i <= 30; i++) { const d = addDays(t, -i); if (st && d < st) break; if (!pm[d]) ds.push(d); }
+  if (!ds.length) { toast("최근 30일에 빈 날이 없어요. 쿠폰은 아껴 둬요! 👍"); return; }
+  const now = streak(pm);
+  fillFor = id;
+  $("mvTitle").textContent = "🛡️ 어느 날을 채울까요?";
+  $("mvText").innerHTML = `<p class="small muted">최근 30일 중 실천 안 한 날이에요. 고른 날은 실천한 날로 쳐서 연속 실천이 이어지고 연속 보너스도 받아요. (실천 시간 점수는 없어요) 지금 연속 ${now}일.</p>` +
+    `<div class="fill-list">${ds.map((d) => { const n = streak({ ...pm, [d]: 1 }); return `<button class="btn ghost small" type="button" data-act="fillDo" data-day="${d}">${shortDate(d)}${n > now ? ` <b>→ 연속 ${n}일</b>` : ""}</button>`; }).join("")}</div>`;
+  $("mvBtns").innerHTML = '<button class="btn ghost" type="button" data-act="mvClose">취소</button>';
+  openDlg($("moveDlg"));
+}
 function penDone(id) {
   const w = S.wins.get(id); if (!w || !ready()) return; const left = Math.max(0, (w.left || 1) - 1);
   act(backend.update("wins", id, left ? { left } : { left: 0, doneAt: today() }), left ? `💪 한 장 했어요! ${left}장 남았어요. 기한 안에 다 해요.` : "✅ 벌칙 끝!").catch(() => {});
@@ -1088,7 +1118,7 @@ function renderCoupons() {
   const avail = ws.filter((w) => w.kind === "coupon" && !w.usedAt && (w.expires || "9999") >= t);
   $("cpAvailN").textContent = avail.length ? avail.length + "장" : "";
   $("cpAvail").innerHTML = avail.length ? avail.map((w) => `<div class="item cp-item"><span class="cp-tier">${tierIc(w)}</span><div class="body"><div class="title">${esc(w.title)}</div>` +
-    `<div class="meta"><span class="tag">${esc(shortDate(w.expires))}까지 · ${ddayText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음</span></div></div>` +
+    `<div class="meta">${w.effect === "streak" ? '<span class="tag cat c-grape">🛡️ 연속일 채우기</span>' : ""}<span class="tag">${esc(shortDate(w.expires))}까지 · ${ddayText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음</span></div></div>` +
     `<div class="actions"><button class="btn small" type="button" data-act="cpUse" data-id="${esc(w.id)}">쓰기</button></div></div>`).join("") : '<div class="empty">아직 쓸 쿠폰이 없어요.</div>';
   const pens = ws.filter((w) => w.kind === "pen"), pOpen = pens.filter((w) => w.left > 0), pDone = pens.filter((w) => !(w.left > 0));
   $("cpPens").innerHTML = (pOpen.length ? pOpen.map((w) => `<div class="item cp-item"><span class="cp-tier">😈</span><div class="body"><div class="title">${esc(w.title)}${w.left > 1 ? ` <b style="color:var(--danger)">×${w.left}</b>` : ""}</div>` +
@@ -1097,7 +1127,7 @@ function renderCoupons() {
     pDone.map((w) => `<div class="item done"><span class="cp-tier">✅</span><div class="body"><div class="title">${esc(w.title)}</div><div class="meta"><span class="small muted">${esc(shortDate(w.doneAt || w.wonAt))} 완료</span></div></div><div class="actions"></div></div>`).join("");
   const past = ws.filter((w) => (w.kind === "coupon" && (w.usedAt || (w.expires || "9999") < t)) || w.kind === "miss");
   $("cpPast").innerHTML = past.length ? past.map((w) => {
-    const st = w.kind === "miss" ? "😐 꽝" : w.usedAt ? `${shortDate(w.usedAt)} 사용함` : `${shortDate(w.expires)} 기한 만료`;
+    const st = w.kind === "miss" ? "😐 꽝" : w.usedAt ? `${shortDate(w.usedAt)} 사용함${w.fillDate ? ` · 🛡️ ${shortDate(w.fillDate)} 채움` : ""}` : `${shortDate(w.expires)} 기한 만료`;
     const gm = w.kind === "miss" ? (w.game ? `<span class="small muted">🎯 +${w.game.pts}</span>` : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`) : "";
     return `<div class="item${w.kind === "miss" && !w.game ? "" : " done"}"><span class="cp-tier">${w.kind === "miss" ? "😐" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions">${gm}</div></div>`;
   }).join("") : '<div class="empty">아직 없어요.</div>';
@@ -1152,6 +1182,7 @@ function renderDayPanel() {
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출", move: "이체" };
   let h = `<div class="dp-head"><div><h3>${esc(prettyDate(d))}</h3><span class="muted small">${n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`}</span></div>${pd && pd.sum ? `<span class="dp-pts">+${pd.sum} ⭐</span>` : ""}</div>`;
   if (exams.length) h += `<div class="dp-sec">${exams.map((g) => `<div class="item"><span class="tag cat c-coral">🎯 D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div></div>`).join("")}</div>`;
+  const extra = dayExtraItems(d); if (extra) h += `<div class="dp-sec"><div class="list">${extra}</div></div>`;
   h += `<div class="dp-sec"><h4>할 일</h4>${ts.length ? `<div class="list">${ts.map((x) => taskItem(x, d)).join("")}</div>` : '<div class="small muted">이 날 할 일이 없어요.</div>'}</div>`;
   if (ls.length) h += `<div class="dp-sec"><h4>🔥 실천한 일</h4><div class="list">${ls.map((l) => `<div class="item"><button type="button" class="log-fire" data-act="logFire" data-id="${esc(l.id)}" aria-label="실천한 일 편집·삭제">🔥</button>` +
     `<div class="body" data-act="editLog" data-id="${esc(l.id)}" style="cursor:pointer"><div class="title">${esc(l.text || "기록")}</div><div class="meta"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "-"}</span></div></div><div class="actions"></div></div>`).join("")}</div></div>`;
@@ -1159,6 +1190,12 @@ function renderDayPanel() {
   if (ms.length) h += `<div class="dp-sec"><h4>💰 돈</h4><div class="list">${ms.map((x) => `<div class="item" data-act="searchMoney" data-id="${esc(x.id)}" style="cursor:pointer"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : x.kind === "move" ? "" : "minus"}">${x.kind === "income" ? "+" : x.kind === "move" ? "" : "-"}${won(x.amount)}</span></div>`).join("")}</div></div>`;
   h += `<div class="dp-btns"><button class="btn ghost small" type="button" data-act="dpAddTask" data-day="${d}">＋ 할 일</button><button class="btn ghost small" type="button" data-act="openDayLogs" data-day="${d}">＋ 실천한 일</button></div>`;
   box.innerHTML = h;
+}
+// 날짜 자세히(폰 패널·PC 창): 🎟️ 쿠폰 마감 · 🛡️ 채운 날 (누르면 쿠폰함)
+function dayExtraItems(d) {
+  const row = (tag, title) => `<div class="item" data-act="goCoupons" style="cursor:pointer" title="눌러서 쿠폰함"><span class="tag cat c-grape">${tag}</span><div class="body"><div class="title">${title}</div></div></div>`;
+  return couponsDueOn(d).map((w) => row("🎟️ 쿠폰 마감", `${esc(w.title)} <span class="small muted">· 이 날까지 써요</span>`)).join("") +
+    (fillDays()[d] ? row("🛡️ 채운 날", "연속일 채우기 쿠폰으로 실천한 날로 쳤어요") : "");
 }
 window.matchMedia("(max-width: 720px)").addEventListener("change", () => renderCalendar());
 
@@ -1415,8 +1452,9 @@ function renderDaySide() {
   $("daySub").textContent = n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`;
   const exams = rows(S.goals).filter((g) => g.due === d);
   const ts = tasksOn(d);
-  $("dayTasks").innerHTML = exams.map((g) => `<div class="item"><span class="tag cat c-coral">D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div></div>`).join("") +
-    (ts.length ? ts.map((x) => taskItem(x, d)).join("") : (exams.length ? "" : '<div class="empty">이 날 할 일이 없어요.</div>'));
+  const extra = dayExtraItems(d);
+  $("dayTasks").innerHTML = exams.map((g) => `<div class="item"><span class="tag cat c-coral">D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div></div>`).join("") + extra +
+    (ts.length ? ts.map((x) => taskItem(x, d)).join("") : (exams.length || extra ? "" : '<div class="empty">이 날 할 일이 없어요.</div>'));
   renderDayPts(d);
   const ls = rows(S.logs).filter((l) => l.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   $("dayLogs").innerHTML = ls.length ? ls.map((l) => `<div class="item"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "기록"}</span><div class="body" data-act="editLog" data-id="${esc(l.id)}" style="cursor:pointer" title="눌러서 편집"><div class="title">${l.text ? esc(l.text) : '<span class="muted">메모 없음</span>'}</div></div>` +
@@ -2003,7 +2041,7 @@ document.addEventListener("click", (ev) => {
   if (a === "helpTab") { ui.helpTab = el.dataset.k; if (ui.helpTab === "changes") markNewsSeen(); renderHelp(); return; }
   if (a === "newsClose") { closeDlg($("newsDlg")); markNewsSeen(); return; }
   if (a === "newsAll") { closeDlg($("newsDlg")); markNewsSeen(); ui.helpTab = "changes"; renderHelp(); return; }
-  if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; return; }
+  if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; fillFor = null; return; }
   if (a === "testMode") { toggleTestMode(); return; }
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
@@ -2029,8 +2067,16 @@ document.addEventListener("click", (ev) => {
   if (a === "scAgain") { closeDlg($("scratchDlg")); setTimeout(openScratch, 150); return; }
   if (a === "scClose") { if (scratch && scratch.committed && !scratch.revealed) scratchReveal(); else { closeDlg($("scratchDlg")); scratch = null; } return; }
   if (a === "liClose") { closeDlg($("lottoIntroDlg")); return; }
+  if (a === "cpUse" && S.wins.get(id) && S.wins.get(id).effect === "streak") { openFill(id); return; }
+  if (a === "fillDo") {
+    const fid = fillFor, w = fid && S.wins.get(fid), d = el.dataset.day; fillFor = null; closeDlg($("moveDlg"));
+    if (!w || w.usedAt || !ready()) return;
+    act(backend.update("wins", fid, { usedAt: t, fillDate: d }), `🛡️ ${shortDate(d)}, 실천한 날로 채웠어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return;
+  }
+  if (a === "goCoupons") { if ($("dayDlg").open) closeDlg($("dayDlg")); location.hash = "#coupons"; return; }
   if (a === "cpUse") { const w = S.wins.get(id); if (!w || !ready()) return; act(backend.update("wins", id, { usedAt: t }), `🎉 '${w.title}' 쿠폰을 썼어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return; }
   if (a === "penDone") { penDone(id); return; }
+  if (a === "laEff") { const v = (lotto().coupons || {})[id]; if (!v) return; saveLotto({ coupons: { [id]: { effect: v.effect === "streak" ? null : "streak" } } }, v.effect === "streak" ? "🛡️ 효과를 껐어요." : "🛡️ 연속일 채우기 쿠폰으로 바꿨어요."); return; }
   if (a === "laClose") { closeDlg($("lottoAdminDlg")); return; }
   if (a === "laDel") {
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말?"; setTimeout(() => { if (el.isConnected) { el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "삭제"; } }, 3000); return; }

@@ -146,6 +146,10 @@ button { cursor: pointer; }
 .la-tier { text-align: center; font-size: 18px; }
 .la-days { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
 .la-days input { width: 60px; text-align: right; }
+.la-row.la-cp { grid-template-columns: 136px minmax(0, 1fr) 86px auto auto; }
+.la-eff { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 7px; font-size: 15px; line-height: 1.2; opacity: .35; filter: grayscale(1); cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+.la-eff.on, .la-eff:has(input:checked) { opacity: 1; filter: none; background: var(--grape-soft); border-color: var(--grape); }
+.la-eff input { margin: 0; }
 .la-add { padding-top: 8px; border-top: 1px dashed var(--line); margin-top: 4px; }
 .la-odds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .la-odds label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); text-align: center; }
@@ -534,6 +538,9 @@ tr.clickable:hover td { background: var(--sunk); }
 .mini-check.on { background: var(--cat, var(--blue)); }
 .mini-check.on svg { opacity: 1; }
 .mini-check:hover { box-shadow: 0 0 0 3px var(--cat-soft, var(--blue-soft)); }
+.ev.cpexp { background: var(--grape-soft); border-left-color: var(--grape); color: var(--fg); cursor: pointer; }
+.ev.fill { background: var(--mint-soft); border-left-color: var(--mint); color: var(--fg); cursor: pointer; }
+.fill-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .ev.exam { background: var(--coral); color: #FFFFFF; border-left-color: var(--coral); font-weight: 600; }
 .ev.money { background: var(--mint-soft); color: var(--ok); border-left-color: var(--mint); font-family: var(--f-mono); }
 .ev.habit { background: transparent; border-left-color: var(--grape); color: var(--grape); font-weight: 600; }
@@ -608,6 +615,8 @@ tr.clickable:hover td { background: var(--sunk); }
   .cp-ticket .btn { grid-column: 1 / -1; }
   .la-row { grid-template-columns: 128px minmax(0, 1fr) auto; }
   .la-row .la-days { grid-column: 2; grid-row: 2; }
+  .la-row.la-cp { grid-template-columns: 128px minmax(0, 1fr) auto; }
+  .la-cp .la-eff { grid-column: 3; grid-row: 2; justify-self: center; }
   .la-odds { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cal-head { padding: 10px 12px; gap: 8px; }
   .cal-search { order: 3; flex-basis: 100%; }
