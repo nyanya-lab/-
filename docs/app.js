@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015l";
-import { CHANGES } from "./changes.js?v=20261015l";
-import { firebaseConfig } from "./firebase-config.js?v=20261015l";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015m";
+import { CHANGES } from "./changes.js?v=20261015m";
+import { firebaseConfig } from "./firebase-config.js?v=20261015m";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -931,19 +931,21 @@ function saveSettingsReal(patch, msg) {
   return act(Promise.all(jobs), msg).catch(() => {});
 }
 // ---------- 💰 돈 알림 띠 (맨 위) ----------
-// 욱진이: 이 달 예산을 아직 안 정했으면 · 15일부터 이 달 수입 기록이 없으면. 관리자: 실제 수입이 들어왔는데 줄 돈 확인 전이면
+// 1일부터 이 달 예산이 없으면 · 15일부터 이 달 수입이 없으면 (모든 기기). 관리자: 수입이 들어왔는데 줄 돈 확인 전이면
 function renderNags() {
   const box = $("nags"); if (!box || !S.loaded) return;
   const t = today(), m = t.slice(0, 7), mon = +m.slice(5) + "월", r = monthTotals(m), pl = planOf(m), list = [];
   let later = ""; try { later = sessionStorage.getItem("ukjin-nag-later") || ""; } catch (e) { /* 무시 */ }
   const skip = (k) => later.split(",").includes(k + "@" + m);
-  if (!isAdminDevice()) {
-    if (!(S.settings.budgets || {})[m] && !skip("budget")) list.push(["budget", `🗓️ <b>${mon} 예산</b>을 확인해 주세요`, `<button class="btn small" type="button" data-act="nagGo" data-k="plan">예산 보기</button>` +
-      (planSource(m) ? `<button class="btn ghost small" type="button" data-act="nagKeep">지난달 그대로 쓸게요</button>` : "")]);
-    if (+t.slice(8) >= 15 && !r.inc && !skip("income")) list.push(["income", `💰 <b>${mon} 수입</b>이 들어왔으면 기록해 주세요`, `<button class="btn small" type="button" data-act="nagGo" data-k="income">수입 기록하기</button>`]);
-  } else if (r.inc > 0) {
+  const adm = isAdminDevice();
+  // 1일부터: 이 달 예산이 없으면 · 15일부터: 이 달 수입 기록이 없으면 (둘 다 모든 기기, 버튼은 욱진이만)
+  if (!(S.settings.budgets || {})[m] && !skip("budget")) list.push(["budget", `🗓️ <b>이번 달 예산</b>이 아직 입력 안 됐어요. 입력해 주세요!`, adm ? "" : `<button class="btn small" type="button" data-act="nagGo" data-k="plan">예산 입력하기</button>` +
+    (planSource(m) ? `<button class="btn ghost small" type="button" data-act="nagKeep">지난달 그대로 쓸게요</button>` : "")]);
+  if (+t.slice(8) >= 15 && !r.inc && !skip("income")) list.push(["income", `💰 <b>이번 달 수입</b>이 아직 입력 안 됐어요.`, adm ? "" : `<button class="btn small" type="button" data-act="nagGo" data-k="income">수입 입력하기</button>`]);
+  // 관리자: 수입이 들어오면 줄 돈 확인
+  if (adm && r.inc > 0) {
     const conf = (S.settings.giveConfirm || {})[m], g = r.inc - pl.total;
-    if (!(conf && conf.inc === r.inc) && !skip("give")) list.push(["give", `💰 ${mon} 실제 수입 <b>${won(r.inc)}</b> <span class="muted">(예상 ${won(pl.income)})</span> → 줄 돈 <b>${won(g)}</b> <span class="muted">(예상 ${won(pl.income - pl.total)})</span>`,
+    if (!(conf && conf.inc === r.inc) && !skip("give")) list.push(["give", `💰 ${esc(me())}이가 ${mon} 수입 <b>${won(r.inc)}</b>을 입력했어요 → 줄 돈 <b>${won(g)}</b> <span class="muted">(수입 − 예산 ${won(pl.total)})</span>`,
       `<button class="btn small" type="button" data-act="nagGive" data-v="${g}" data-inc="${r.inc}">확인했어요</button>`]);
   }
   box.hidden = !list.length;
