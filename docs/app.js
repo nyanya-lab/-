@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014p";
-import { CHANGES } from "./changes.js?v=20261014p";
-import { firebaseConfig } from "./firebase-config.js?v=20261014p";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014q";
+import { CHANGES } from "./changes.js?v=20261014q";
+import { firebaseConfig } from "./firebase-config.js?v=20261014q";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -394,7 +394,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoAdminDlg", "lottoIntroDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
@@ -923,7 +923,7 @@ function saveLotto(patch, msg) {
   return act(Promise.all(jobs), msg).catch(() => {});
 }
 function renderLottoAdmin() {
-  if (!$("lottoAdminDlg").open) return;
+  if (ui.page !== "lotto") return;
   const on = lottoOn(), cs = lottoItems("coupons"), ps = lottoItems("pens"), o = lottoOdds();
   $("laOn").innerHTML = `<div class="la-on"><span>${on ? "✅ <b>공개 중</b> · 욱진이도 복권·포인트가 보여요" : "🙈 <b>숨김</b> · 지금은 관리자 기기에서만 보여요"}</span>` +
     `<button class="btn small${on ? " ghost" : ""}" type="button" data-act="laToggleOn">${on ? "다시 숨기기" : "욱진이에게 공개하기"}</button></div>` +
@@ -933,7 +933,11 @@ function renderLottoAdmin() {
   const sum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(o[k]) || 0), 0);
   $("laOddsSum").innerHTML = sum === 100 ? "합계 100% ✅" : `<span style="color:var(--danger)">합계 ${sum}% — 100이 되게 맞춰 주세요</span>`;
   $("laPresetSec").hidden = cs.length > 0 || ps.length > 0;
-  if (!keepFocus($("laCoupons"))) $("laCoupons").innerHTML = cs.length ? cs.map((v) => `<div class="la-row la-cp"><select data-la="coupons" data-id="${esc(v.id)}" data-f="tier" aria-label="등급">${Object.keys(TIERS).map((k) => `<option value="${k}"${v.tier === k ? " selected" : ""}>${TIERS[k]}</option>`).join("")}</select>` +
+  const LF = { all: ["전체", () => true], big: ["🥇", (v) => v.tier === "big"], mid: ["🥈", (v) => v.tier === "mid"], small: ["🥉", (v) => v.tier === "small"], streak: ["🛡️", (v) => v.effect === "streak"] };
+  const lf = LF[ui.laTier] ? ui.laTier : "all", shown = cs.filter(LF[lf][1]);
+  $("laCpN").textContent = `모두 ${cs.length}개`;
+  $("laFilter").innerHTML = Object.keys(LF).map((k) => `<button type="button" data-act="laFilter" data-k="${k}" aria-pressed="${k === lf}">${LF[k][0]} <b>${cs.filter(LF[k][1]).length}</b></button>`).join("");
+  if (!keepFocus($("laCoupons"))) $("laCoupons").innerHTML = shown.length ? shown.map((v) => `<div class="la-row la-cp"><select data-la="coupons" data-id="${esc(v.id)}" data-f="tier" aria-label="등급">${Object.keys(TIERS).map((k) => `<option value="${k}"${v.tier === k ? " selected" : ""}>${TIERS[k]}</option>`).join("")}</select>` +
     `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="coupons" data-id="${esc(v.id)}" data-f="title" aria-label="쿠폰 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 30}" data-la="coupons" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
     `<button class="la-eff${v.effect === "streak" ? " on" : ""}" type="button" data-act="laEff" data-id="${esc(v.id)}" aria-pressed="${v.effect === "streak"}" title="🛡️ 연속일 채우기 효과 ${v.effect === "streak" ? "켜짐" : "꺼짐"}">🛡️</button>` +
     `<button class="icon-btn" type="button" data-act="laDel" data-k="coupons" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
@@ -943,8 +947,7 @@ function renderLottoAdmin() {
 }
 function openLottoAdmin() {
   if (!isAdminDevice()) { toast("관리자만 열 수 있어요."); return; }
-  closeSettings(); openDlg($("lottoAdminDlg")); renderLottoAdmin(); renderCouponReqs();
-  lsSet("ukjin-creq-seen", Date.now()); renderAdminN();   // 열면 새 요청은 본 걸로 (빨간 줄은 이번엔 그대로)
+  closeSettings(); location.hash = "#lotto";
 }
 ["laCouponForm", "laPenForm"].forEach((fid) => $(fid).addEventListener("submit", (ev) => {
   ev.preventDefault();
@@ -959,7 +962,7 @@ $("laStreak").addEventListener("change", (ev) => {   // 🛡️ 켜면 보통 �
   const f = $("laCouponForm"); if (!ev.target.checked) return;
   f.elements.tier.value = "big"; f.elements.days.value = 30; if (!f.elements.title.value.trim()) f.elements.title.value = "🛡️ 연속일 하루 채우기";
 });
-$("lottoAdminDlg").addEventListener("change", (ev) => {
+$("lottoPage").addEventListener("change", (ev) => {
   const el = ev.target;
   if (el.dataset.odds) { saveLotto({ odds: { [el.dataset.odds]: Math.max(0, Math.min(100, parseInt(el.value, 10) || 0)) } }, "확률을 바꿨어요."); return; }
   if (!el.dataset.la) return;
@@ -1174,7 +1177,7 @@ const REQ_ST = { new: "보냄", added: "✅ 목록에 넣었어요", no: "😅 �
 function renderCouponReqs() {
   const rs = couponReqs();
   if (ui.page === "coupons") $("cpReqs").innerHTML = rs.length ? rs.map((r) => `<div class="item"><span class="cp-tier">💌</span><div class="body"><div class="title">${esc(r.text)}</div><div class="meta"><span class="small muted">${esc(fmtTime(r.at))} · ${REQ_ST[r.status || "new"]}</span></div></div><div class="actions"></div></div>`).join("") : "";
-  if ($("lottoAdminDlg").open) {
+  if (ui.page === "lotto") {
     const seen = lsGet("ukjin-creq-seen");
     $("laReqs").innerHTML = rs.length ? rs.map((r) => `<div class="item${(r.status || "new") === "new" && r.at > seen ? " req-new" : ""}"><span class="cp-tier">💌</span><div class="body"><div class="title">${esc(r.text)}</div><div class="meta"><span class="small muted">${esc(fmtTime(r.at))} · ${REQ_ST[r.status || "new"]}</span></div></div>` +
       `<div class="actions" style="display:flex;gap:4px">${(r.status || "new") === "new" ? `<button class="btn small" type="button" data-act="crAdd" data-id="${esc(r.id)}">목록에 넣기</button><button class="btn ghost small" type="button" data-act="crNo" data-id="${esc(r.id)}">거절</button>` : ""}<button class="icon-btn" type="button" data-act="crDel" data-id="${esc(r.id)}">지우기</button></div></div>`).join("") : '<p class="small muted" style="margin:0">아직 요청이 없어요.</p>';
@@ -1183,6 +1186,7 @@ function renderCouponReqs() {
 // 관리자 기기: 새 기능 요청·쿠폰 요청이 있으면 N (그 기기에서 본 뒤로 새로 온 것만)
 function renderAdminN() {
   const me = isAdminDevice();
+  $("navLotto").hidden = !me;
   const reqNew = me && rows(S.requests).some((r) => (r.createdAt || 0) > lsGet("ukjin-req-seen"));
   const crNew = me && couponReqs().some((r) => (r.status || "new") === "new" && r.at > lsGet("ukjin-creq-seen"));
   const rb = $("reqBadge");
@@ -2008,11 +2012,13 @@ function render() {
 }
 
 // ---------- 동작 ----------
-const PAGES = ["calendar", "goals", "money", "certs", "requests", "help", "coupons"];
+const PAGES = ["calendar", "goals", "money", "certs", "requests", "help", "coupons", "lotto"];
 function route() {
   const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; if (ui.page === "coupons" && S.loaded && !lottoVisible()) ui.page = "calendar";
+  if (ui.page === "lotto" && !isAdminDevice()) ui.page = "calendar";   // 복권 관리는 관리자 기기만
   if (ui.page === "requests" && isAdminDevice()) lsSet("ukjin-req-seen", Date.now());
-  renderHeader(); renderCoupons(); renderCouponReqs(); renderRequests(); renderAdminN(); window.scrollTo(0, 0);
+  if (ui.page === "lotto") lsSet("ukjin-creq-seen", Date.now());   // 열면 새 쿠폰 요청은 본 걸로 (빨간 줄은 이번엔 그대로)
+  renderHeader(); renderLottoAdmin(); renderCoupons(); renderCouponReqs(); renderRequests(); renderAdminN(); window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
@@ -2114,7 +2120,7 @@ document.addEventListener("click", (ev) => {
   if (a === "cpUse") { const w = S.wins.get(id); if (!w || !ready()) return; act(backend.update("wins", id, { usedAt: t }), `🎉 '${w.title}' 쿠폰을 썼어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return; }
   if (a === "penDone") { penDone(id); return; }
   if (a === "laEff") { const v = (lotto().coupons || {})[id]; if (!v) return; saveLotto({ coupons: { [id]: { effect: v.effect === "streak" ? null : "streak" } } }, v.effect === "streak" ? "🛡️ 효과를 껐어요." : "🛡️ 연속일 채우기 쿠폰으로 바꿨어요."); return; }
-  if (a === "laClose") { closeDlg($("lottoAdminDlg")); return; }
+  if (a === "laFilter") { ui.laTier = el.dataset.k; renderLottoAdmin(); return; }
   if (a === "laDel") {
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말?"; setTimeout(() => { if (el.isConnected) { el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "삭제"; } }, 3000); return; }
     saveLotto({ [el.dataset.k]: { [id]: null } }, "지웠어요."); return;

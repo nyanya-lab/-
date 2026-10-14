@@ -42,14 +42,14 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
   `penId` = 😈 벌칙 할 일 (wins id, 기한 마감일에 자동 생성·장 수/기한 따라감, 체크 = 벌칙 한 장 `penDone`).
   `minutes` = 할 시간(선택). 있으면 체크할 때 묻지 않고 그 시간으로 `logs`에 기록.
 - 실천 기록 `logs`: 할 일 체크 때 기록한 시간은 `taskId`로 연결 (달력·구글에서 할 일 옆에 시간으로 표시).
-- 포인트(⭐): 저장 안 하고 기록에서 계산 (`pointsLedger`). 실천 1분 1 · 세부목표 50 · 목표 300 · 연속 7/15/30/90일 30/100/250/1000, 그 뒤 30일마다 300 · 돈 기록 1(월급 30). 1000점 = 복권 1장. `settings.lotto` = {on(욱진이에게 공개), used(긁은 장 수), odds{big,mid,small,miss,pen}(기본 3/25/47/20/5), coupons{id:{tier big|mid|small, title, days}}, pens{id:{title, days}}} — 목록은 관리자 '🎟️ 복권 관리' 창에서만. 쿠폰 요청 `lotto.reqs{id:{text, at, status new|added|no}}` (욱진이가 쿠폰함에서 보냄). 관리자 기기에만 새 기능 요청·쿠폰 요청 N (localStorage `ukjin-req-seen`, `ukjin-creq-seen`). 공개 전에는 관리자 기기(`localStorage ukjin-admin`)에서만 보임.
+- 포인트(⭐): 저장 안 하고 기록에서 계산 (`pointsLedger`). 실천 1분 1 · 세부목표 50 · 목표 300 · 연속 7/15/30/90일 30/100/250/1000, 그 뒤 30일마다 300 · 돈 기록 1(월급 30). 1000점 = 복권 1장. `settings.lotto` = {on(욱진이에게 공개), used(긁은 장 수), odds{big,mid,small,miss,pen}(기본 3/25/47/20/5), coupons{id:{tier big|mid|small, title, days}}, pens{id:{title, days}}} — 목록은 관리자 '🎟️ 복권 관리' 탭(#lotto)에서만. 쿠폰 요청 `lotto.reqs{id:{text, at, status new|added|no}}` (욱진이가 쿠폰함에서 보냄). 관리자 기기에만 새 기능 요청·쿠폰 요청 N (localStorage `ukjin-req-seen`, `ukjin-creq-seen`). 공개 전에는 관리자 기기(`localStorage ukjin-admin`)에서만 보임.
 - 관리자: `settings.adminHash` = SHA-256("ukjin-admin:"+비번). 맞게 넣은 기기는 `localStorage ukjin-admin=1` → 🧪 테스트 모드(지금 데이터를 복사한 메모리 보드, 저장 안 됨, 끝내면 새로고침) 버튼이 제목 옆에. 관리자 기기는 **열면 자동으로 테스트 모드** ([진짜 보드 보기] = 그 탭 세션 동안만 진짜, sessionStorage `ukjin-real`). 테스트 중에도 `saveLotto`(복권 관리·쿠폰 요청)와 관리자 비번은 `realBackend`에도 저장.
 - 한 달 예산: `settings.budgets[YYYY-MM]` = {income, items{id:{cat, amount}}}. 예상 수입 − 예산 합계 = 여자친구에게 줄 돈(예상). `saveSettingsDeep`로 칸 하나씩 저장. 예산이 없는 달은 그 전 가장 가까운 달 예산을 이어 쓰고, 고치는 순간 그 달 것으로 옮겨 저장.
 - 돈 `money.kind`: `income` / `expense` / `transfer`(여자친구에게 보낸 돈) / `move`(내 자산끼리 이체, 수입·지출 아님). `account`, `toAccount`.
 
 ## 화면
 
-메뉴: 달력(첫 화면) · 목표 · 돈 관리 · 자격증 찾기 · 기능 요청 · ⚙ 설정(작은 창: 저장 상태, 백업 되돌리기, 구글 캘린더, 잠그기)
+메뉴: 달력(첫 화면) · 목표 · 돈 관리 · 자격증 찾기 · 기능 요청 · 쿠폰함(탭: 쓸 쿠폰·벌칙·지난 것·요청) · 복권 관리(`#lotto`, 관리자 기기만) · ⚙ 설정(작은 창: 저장 상태, 백업 되돌리기, 구글 캘린더, 잠그기)
 - 폰(≤720px) 달력: 칸엔 숫자+아이콘 2개까지(`cell-ic`), 날짜 누르면 창 대신 달력 아래 `#dayPanel`에 그 날 자세히 (기본 오늘). PC는 칸에 글자 + 날짜 창.
 - 달력: 위 요약 4칸(폰은 한 줄), 아래는 목표 → 세부목표 → 할 일 (＋ 목표, ＋ 세부목표). 로고 = 강력 새로고침. 시간은 화면에 `1h 30m`, 입력은 [시간][분].
   칸 안 할 일 체크박스, 글자 누르면 편집 창, 빈 곳 누르면 그날 창([할 일]/[실천한 일]), 실천한 날 초록·안 한 지난 날 연한 빨강, 🔥 실천 목록, 구글 일정.
