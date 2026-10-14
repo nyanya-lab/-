@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015m";
-import { CHANGES } from "./changes.js?v=20261015m";
-import { firebaseConfig } from "./firebase-config.js?v=20261015m";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015n";
+import { CHANGES } from "./changes.js?v=20261015n";
+import { firebaseConfig } from "./firebase-config.js?v=20261015n";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -406,6 +406,7 @@ function practiceMinutes() {
   const timed = new Set();   // 시간을 같이 기록한 할 일 (그 시간이 이미 기록으로 들어감)
   S.logs.forEach((l) => { if (l.date) add(l.date, Math.max(Number(l.minutes) || 0, 1)); if (l.taskId) timed.add(l.taskId + "|" + l.date); });
   S.tasks.forEach((t, id) => {
+    if (t.noPractice) return;   // 돈 할 일(예산·수입 입력)은 실천으로 안 침
     if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v && !timed.has(id + "|" + d)) add(d, 15); });
     else if (t.done && t.doneDate && !timed.has(id + "|" + t.doneDate)) add(t.doneDate, 15);
   });
@@ -560,7 +561,7 @@ function renderCalendar() {
 // ---------- 체크하면 "얼마나 했어요?" ----------
 let doneFor = null, doneTimer = null;
 function showDoneSheet(taskId, day) {
-  const x = S.tasks.get(taskId); if (!x) return;
+  const x = S.tasks.get(taskId); if (!x || x.noPractice) return;   // 돈 할 일 같은 건 시간 안 물어봄
   doneFor = { taskId, day };
   $("dsTitle").textContent = `✅ '${x.title}' 끝! 얼마나 했어요?`;
   setMinInput("dsMin", 0);
@@ -1180,6 +1181,23 @@ function penDone(id) {
 }
 // 😈 벌칙 = 기한 마감일의 할 일 (tasks.penId). 장 수·기한이 바뀌면 따라 바뀌고, 다 하면 끝낸 일로
 let penTaskSyncing = false;
+// 🗓️ 매달 1일 '예산 입력하기' · 15일 '수입 입력하기' 할 일 (이번 달·다음 달, 지난 날짜는 안 만듦, 한 번 만든 건 지워도 다시 안 만듦)
+// 예산·수입이 들어오면 저절로 체크. 실천 시간으로는 안 침 (noPractice). 구글 캘린더에도 할 일로 가서 폰 알림
+let moneyTaskSyncing = false;
+function syncMoneyTasks() {
+  if (moneyTaskSyncing || !backend || !S.loaded || testMode) return;
+  const t = today(), made = S.settings.autoTasks || {}, jobs = [], flags = {};
+  [t.slice(0, 7), shiftMonth(t.slice(0, 7), 1)].forEach((m) => {
+    [["budget", "01", "🗓️ 이번 달 예산 입력하기", () => !!(S.settings.budgets || {})[m]], ["income", "15", "💰 이번 달 수입 입력하기", () => monthTotals(m).inc > 0]].forEach(([k, dd, title, ok]) => {
+      const id = `mt-${k}-${m}`, date = `${m}-${dd}`, x = S.tasks.get(id);
+      if (!x && !made[id] && date >= t) { jobs.push(() => backend.set("tasks", id, { title, repeat: "none", date, done: ok(), doneDate: ok() ? t : null, noPractice: true, createdAt: Date.now() })); flags[id] = true; }
+      else if (x && !x.done && ok()) jobs.push(() => backend.update("tasks", id, { done: true, doneDate: t }));
+    });
+  });
+  if (!jobs.length) return;
+  moneyTaskSyncing = true;
+  quietly(async () => { for (const j of jobs) await j(); if (Object.keys(flags).length) await backend.saveSettingsDeep({ autoTasks: flags }); }).catch(() => {}).finally(() => { moneyTaskSyncing = false; });
+}
 function syncPenTasks() {
   if (penTaskSyncing || !backend || !S.loaded) return;
   const jobs = [], byPen = new Map(rows(S.tasks).filter((x) => x.penId).map((x) => [x.penId, x]));
@@ -2166,7 +2184,7 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); renderCouponReqs(); renderAdminN();
+  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   if (S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
