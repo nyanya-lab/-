@@ -16,6 +16,9 @@
   --mint: #0FA67A;   --mint-soft: #DDF6EE;
   --sun: #E89A00;    --sun-soft: #FFF2D6;
   --grape: #7C5CE0;  --grape-soft: #EEE9FF;
+  /* 분류 색 (돈 관리): 타일 다섯 색 + 분홍·청록·갈색, c8 = 기타(회색) */
+  --c0: var(--blue); --c1: var(--coral); --c2: var(--mint); --c3: var(--sun); --c4: var(--grape);
+  --c5: #D9488F; --c6: #0B93A8; --c7: #A0672E; --c8: #8A94A6;
   --me: var(--blue);
   --me-soft: var(--blue-soft);
   --ink: var(--blue);
@@ -37,6 +40,7 @@
     --blue: #6E9BFF; --blue-soft: #1E2C4A; --coral: #FF8A6E; --coral-soft: #3A2420;
     --mint: #3DD6A5; --mint-soft: #16332A; --sun: #FFC14D; --sun-soft: #3A2E14;
     --grape: #A68CFF; --grape-soft: #2A2442;
+    --c5: #FF7FBF; --c6: #4CCFE3; --c7: #D9A066; --c8: #7D889B;
     --ink-fg: #0E1420; --danger: #FF7A63; --ok: #3DD6A5;
     --tk-paper: #2B2A22; --tk-line: #4A4330; --tk-band: #4F86F0; --tk-foil: #8D95A3; --tk-foil-hi: #B7BEC9; --tk-foil-lo: #6B7380; --tk-gold: #F6C343; --tk-gold-d: #B7791F; --tk-denim: #5D7BA3; --tk-denim-d: #3F5C82;
     color-scheme: dark;
@@ -49,6 +53,7 @@
   --blue: #6E9BFF; --blue-soft: #1E2C4A; --coral: #FF8A6E; --coral-soft: #3A2420;
   --mint: #3DD6A5; --mint-soft: #16332A; --sun: #FFC14D; --sun-soft: #3A2E14;
   --grape: #A68CFF; --grape-soft: #2A2442;
+  --c5: #FF7FBF; --c6: #4CCFE3; --c7: #D9A066; --c8: #7D889B;
   --ink-fg: #0E1420; --danger: #FF7A63; --ok: #3DD6A5;
   --tk-paper: #2B2A22; --tk-line: #4A4330; --tk-band: #4F86F0; --tk-foil: #8D95A3; --tk-foil-hi: #B7BEC9; --tk-foil-lo: #6B7380; --tk-gold: #F6C343; --tk-gold-d: #B7791F; --tk-denim: #5D7BA3; --tk-denim-d: #3F5C82;
   color-scheme: dark;
@@ -361,6 +366,24 @@ a.chip:hover { border-color: var(--ink); color: var(--ink); }
 .month-nav { display: flex; align-items: center; gap: 6px; }
 .month-nav b { font-family: var(--f-mono); font-size: 16px; min-width: 80px; text-align: center; }
 .catbars { display: grid; gap: 8px; }
+/* 🎨 분류 색 점 · 🥧 원형 */
+.cdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-right: 6px; vertical-align: 0; flex: none; }
+.cdot-btn { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); background: var(--c); padding: 0; margin-right: 6px; cursor: pointer; vertical-align: -2px; }
+.plan-pie:empty { display: none; }
+.plan-pie { margin: 4px 0 14px; }
+.pie { display: flex; gap: 12px 20px; align-items: center; flex-wrap: wrap; }
+.pie-svg { width: 150px; height: 150px; flex: none; }
+.pie-svg circle { transition: opacity .15s; }
+.pie-svg circle:hover { opacity: .75; }
+.pie-svg text { text-anchor: middle; fill: var(--fg); font-family: var(--f-body); }
+.pie-svg .pie-l { font-size: 3.6px; fill: var(--muted); }
+.pie-svg .pie-v { font-size: 5.6px; font-weight: 700; font-family: var(--f-mono); }
+.pie-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; flex: 1 1 200px; min-width: 0; max-width: 380px; font-size: 13px; }
+.pie-legend li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 36px; gap: 8px; align-items: center; }
+.pie-legend i { width: 10px; height: 10px; border-radius: 50%; }
+.pie-legend span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pie-legend b { font-family: var(--f-mono); font-weight: 600; }
+.pie-legend small { color: var(--muted); text-align: right; }
 .catbar { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
 .catbar .bar { height: 10px; }
 .table-scroll { overflow-x: auto; }
