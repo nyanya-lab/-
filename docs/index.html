@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015f">
+<link rel="stylesheet" href="style.css?v=20261015g">
 </head>
 <body>
 
@@ -155,7 +155,7 @@
           <div><h3>한 달 예산</h3><span class="muted small" id="planSub"></span></div>
         </div>
         <div class="plan-tiles" id="planTiles"></div>
-        <label class="f plan-income no-admin">예상 수입 (월급 등, 원)<input type="number" id="planIncome" min="0" step="1" inputmode="numeric" placeholder="예: 2500000"></label>
+        <label class="f plan-income no-admin">예상 수입 (비워 두면 지난달 실제 수입, 원)<input type="number" id="planIncome" min="0" step="1" inputmode="numeric" placeholder="예: 2500000"></label>
         <div class="plan-rows" id="planRows"></div>
         <form class="plan-add no-admin" id="planAddForm" autocomplete="off">
           <input type="text" id="planCat" list="planCatList" maxlength="20" placeholder="분류 (예: 식비)" aria-label="예산 분류">
@@ -636,6 +636,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015f"></script>
+<script type="module" src="app.js?v=20261015g"></script>
 </body>
 </html>

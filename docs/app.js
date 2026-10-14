@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015f";
-import { CHANGES } from "./changes.js?v=20261015f";
-import { firebaseConfig } from "./firebase-config.js?v=20261015f";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015g";
+import { CHANGES } from "./changes.js?v=20261015g";
+import { firebaseConfig } from "./firebase-config.js?v=20261015g";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1801,13 +1801,16 @@ function planOf(m) {
   const src = planSource(m), b = (src && S.settings.budgets[src]) || {};
   const items = Object.entries(b.items || {}).filter(([, v]) => v && v.cat).map(([id, v]) => ({ id, ...v }))
     .sort((a, b2) => (a.createdAt || 0) - (b2.createdAt || 0));
-  return { income: Number(b.income) || 0, items, total: items.reduce((t, v) => t + (Number(v.amount) || 0), 0), from: src && src !== m ? src : null };
+  // 예상 수입: 이 달에 직접 넣은 게 없으면 지난달 실제 수입 (없으면 이어 쓰는 예산의 예상 수입)
+  const own = (S.settings.budgets || {})[m], prevM = shiftMonth(m, -1), prevInc = monthTotals(prevM).inc;
+  const incAuto = !(own && Number(own.income) > 0) && prevInc > 0;
+  return { income: incAuto ? prevInc : Number(b.income) || 0, incAuto, incFrom: incAuto ? prevM : null, items, total: items.reduce((t, v) => t + (Number(v.amount) || 0), 0), from: src && src !== m ? src : null };
 }
 function savePlan(m, patch, msg) {
   if (!ready()) return Promise.resolve();
   const pl = planOf(m);
   if (pl.from) {   // 이어서 쓰던 예산을 이 달 것으로 옮겨 적고 바꿀 칸만 덮어씀
-    const base = { income: pl.income, items: {} };
+    const base = { income: pl.incAuto ? 0 : pl.income, items: {} };   // 자동 예상 수입은 고정해 두지 않음
     pl.items.forEach((v) => { base.items[v.id] = { cat: v.cat, amount: Number(v.amount) || 0, createdAt: v.createdAt || Date.now() }; });
     patch = deepMerge(base, patch);
   }
@@ -1819,10 +1822,11 @@ function renderPlan(m, r) {
     ? `${monthLabel(m)} · ${monthLabel(pl.from)} 예산을 이어서 쓰는 중 (고치면 이 달 것만 바뀌어요)`
     : `${monthLabel(m)} · 쓸 돈을 분류별로 정해 두는 곳 (다음 달로 그대로 이어져요)`;
   $("planTiles").innerHTML =
-    `<div class="plan-tile"><span>예상 수입</span><b>${won(pl.income)}</b><small>${r.inc ? `실제 ${won(r.inc)}` : "아래에 넣어요"}</small></div>` +
+    `<div class="plan-tile"><span>예상 수입</span><b>${won(pl.income)}</b><small>${pl.incAuto ? `${monthLabel(pl.incFrom)} 실제 수입` : ""}${r.inc ? `${pl.incAuto ? " · " : ""}이번 달 실제 ${won(r.inc)}` : pl.incAuto ? "" : "아래에 넣어요"}</small></div>` +
     `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${adm ? `${pl.items.length}개 분류` : pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
     `<div class="plan-tile give${give < 0 ? " minus" : ""}"><span>${esc(partner())}에게 줄 돈 (예상)</span><b>${pl.income ? won(give) : "-"}</b><small>${r.out ? `실제 ${won(r.out)} 보냄` : "예상 수입 − 쓸 돈"}</small></div>`;
-  if (document.activeElement !== $("planIncome")) $("planIncome").value = pl.income || "";
+  if (document.activeElement !== $("planIncome")) $("planIncome").value = pl.incAuto ? "" : pl.income || "";
+  $("planIncome").placeholder = pl.incAuto ? `${won(pl.income)} (${monthLabel(pl.incFrom)} 실제 수입, 비우면 이걸로)` : "예: 2500000";
   const planned = new Set(pl.items.map((v) => v.cat));
   const extra = Object.entries(r.byCat).filter(([c]) => !planned.has(c)).reduce((t, [, v]) => t + v, 0);
   if (adm) {
