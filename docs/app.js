@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015u";
-import { CHANGES } from "./changes.js?v=20261015u";
-import { firebaseConfig } from "./firebase-config.js?v=20261015u";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015v";
+import { CHANGES } from "./changes.js?v=20261015v";
+import { firebaseConfig } from "./firebase-config.js?v=20261015v";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -21,6 +21,52 @@ const ACCT_TYPES = { bank: "통장", card: "카드", cash: "현금", save: "저�
 const KIND_LABEL = { income: "수입", expense: "지출", transfer: "보낸 돈", move: "이체" };
 // 분류는 설정에서 바꿀 수 있음 (없으면 기본)
 const moneyCats = (kind) => ((S.settings.moneyCats && S.settings.moneyCats[kind]) || MONEY_CATS[kind] || []).slice();
+// 🎨 분류 색: --c0~--c7 (파랑·코랄·민트·노랑·보라·분홍·청록·갈색), --c8 회색. 기본은 분류 목록 순서대로, '기타…'는 회색
+// 분류 설정에서 바꾼 색은 settings.catColors[kind][키] = 0~8 (키 = 분류 이름을 Firebase 키로 쓸 수 있게 바꾼 것)
+const CAT_N = 8;
+const catKey = (c) => encodeURIComponent(c).replace(/\./g, "%2E");
+function catIdx(kind, cat) {
+  const k = kind === "move" ? "expense" : kind || "expense", set = ((S.settings.catColors || {})[k] || {})[catKey(cat || "")];
+  if (Number.isInteger(set) && set >= 0 && set <= CAT_N) return set;
+  if (!cat || /^기타/.test(cat)) return CAT_N;
+  if (k === "expense" && catMap && cat in catMap) return catMap[cat];
+  const i = moneyCats(k).indexOf(cat);
+  return i < 0 ? CAT_N : i % CAT_N;
+}
+// 보고 있는 달에 쓰는 지출 분류끼리는 색이 안 겹치게 (분류는 14개, 색은 8개). 직접 고른 색은 그대로, 나머지는 기본 색이 이미 쓰였으면 다음 빈 색
+let catMap = null;
+function setCatMap(cats) {
+  catMap = null;
+  const set = (S.settings.catColors || {}).expense || {}, list = moneyCats("expense"), used = new Set(), map = {};
+  const mine = (c) => Number.isInteger(set[catKey(c)]) ? set[catKey(c)] : null;
+  const todo = [...new Set(cats)].filter((c) => c && !/^기타/.test(c));
+  todo.forEach((c) => { if (mine(c) != null) used.add(mine(c)); });
+  todo.filter((c) => mine(c) == null).sort((a, b) => (list.indexOf(a) + 1 || 999) - (list.indexOf(b) + 1 || 999)).forEach((c) => {
+    let i = catIdx("expense", c);
+    if (i < CAT_N && used.has(i)) { for (let j = 1; j < CAT_N; j++) { const n = (i + j) % CAT_N; if (!used.has(n)) { i = n; break; } } }
+    map[c] = i; if (i < CAT_N) used.add(i);
+  });
+  catMap = map;
+}
+const catVar = (kind, cat) => `var(--c${catIdx(kind, cat)})`;
+const catDot = (kind, cat) => `<span class="cdot" style="--c:${catVar(kind, cat)}" aria-hidden="true"></span>`;
+// 🥧 분류별 원형(도넛) + 범례: [{cat, amt}]. 9개 넘으면 작은 것들은 '그 밖'(회색)으로
+function pieHtml(kind, list, label) {
+  let xs = list.filter((x) => x.amt > 0).sort((a, b) => b.amt - a.amt);
+  const total = xs.reduce((t, x) => t + x.amt, 0);
+  if (!total) return "";
+  if (xs.length > 8) xs = xs.slice(0, 7).concat([{ cat: "그 밖", amt: xs.slice(7).reduce((t, x) => t + x.amt, 0), other: true }]);
+  const gap = xs.length > 1 ? 0.6 : 0, col = (x) => x.other ? `var(--c${CAT_N})` : catVar(kind, x.cat), pct = (x) => Math.round(x.amt / total * 100);
+  let acc = 0;
+  const segs = xs.map((x) => {
+    const p = x.amt / total * 100, d = Math.max(0.2, p - gap);
+    const s = `<circle cx="21" cy="21" r="15.9155" pathLength="100" stroke="${col(x)}" stroke-dasharray="${d.toFixed(2)} ${(100 - d).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"><title>${esc(x.cat)} ${won(x.amt)} (${pct(x)}%)</title></circle>`;
+    acc += p; return s;
+  }).join("");
+  return `<div class="pie"><svg class="pie-svg" viewBox="0 0 42 42" role="img" aria-label="${esc(label)} ${won(total)} 분류별 원형"><g transform="rotate(-90 21 21)" fill="none" stroke-width="6.5">${segs}</g>` +
+    `<text x="21" y="19.6" class="pie-l">${esc(label)}</text><text x="21" y="25.4" class="pie-v">${moneyShort(total)}</text></svg>` +
+    `<ul class="pie-legend">${xs.map((x) => `<li><i style="background:${col(x)}"></i><span>${esc(x.cat)}</span><b>${won(x.amt)}</b><small>${pct(x)}%</small></li>`).join("")}</ul></div>`;
+}
 const DEFAULTS = { name: "욱진", partner: "여자친구", budget: 0 };
 
 // 자격증 목록 (국가기술자격 · Q-Net 기준). 할 일 꾸러미는 '목표로 추가'할 때 같이 들어가요.
@@ -1478,7 +1524,7 @@ function renderDayPanel() {
   if (ls.length) h += `<div class="dp-sec"><h4>🔥 실천한 일</h4><div class="list">${ls.map((l) => `<div class="item"><button type="button" class="log-fire" data-act="logFire" data-id="${esc(l.id)}" aria-label="실천한 일 편집·삭제">🔥</button>` +
     `<div class="body" data-act="editLog" data-id="${esc(l.id)}" style="cursor:pointer"><div class="title">${esc(l.text || "기록")}</div><div class="meta"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "-"}</span></div></div><div class="actions"></div></div>`).join("")}</div></div>`;
   if (gs.length) h += `<div class="dp-sec"><h4>📅 구글 일정</h4><div class="list">${gs.map((g) => `<div class="item"><span class="tag mono">${esc(g.time || "종일")}</span><div class="body"><div class="title">${esc(g.title)}</div></div>${g.link ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("")}</div></div>`;
-  if (ms.length) h += `<div class="dp-sec"><h4>💰 돈</h4><div class="list">${ms.map((x) => `<div class="item" data-act="searchMoney" data-id="${esc(x.id)}" style="cursor:pointer"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : x.kind === "move" ? "" : "minus"}">${x.kind === "income" ? "+" : x.kind === "move" ? "" : "-"}${won(x.amount)}</span></div>`).join("")}</div></div>`;
+  if (ms.length) h += `<div class="dp-sec"><h4>💰 돈</h4><div class="list">${ms.map((x) => `<div class="item" data-act="searchMoney" data-id="${esc(x.id)}" style="cursor:pointer"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${x.cat && x.kind !== "move" ? catDot(x.kind, x.cat) : ""}${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : x.kind === "move" ? "" : "minus"}">${x.kind === "income" ? "+" : x.kind === "move" ? "" : "-"}${won(x.amount)}</span></div>`).join("")}</div></div>`;
   h += `<div class="dp-btns"><button class="btn ghost small" type="button" data-act="dpAddTask" data-day="${d}">＋ 할 일</button><button class="btn ghost small" type="button" data-act="openDayLogs" data-day="${d}">＋ 실천한 일</button></div>`;
   box.innerHTML = h;
 }
@@ -1811,7 +1857,7 @@ function renderDaySide() {
   const ms = rows(S.money).filter((x) => x.date === d && moneyShown(x));
   $("dayMoneySec").hidden = !ms.length;
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출" };
-  $("dayMoney").innerHTML = ms.map((x) => `<div class="item"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : "minus"}">${x.kind === "income" ? "+" : "-"}${won(x.amount)}</span></div>`).join("");
+  $("dayMoney").innerHTML = ms.map((x) => `<div class="item"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${x.cat && x.kind !== "move" ? catDot(x.kind, x.cat) : ""}${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : "minus"}">${x.kind === "income" ? "+" : "-"}${won(x.amount)}</span></div>`).join("");
 }
 
 const STAT_ICON = {
@@ -2044,21 +2090,22 @@ function renderPlan(m, r) {
     `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${adm ? `${pl.items.length}개 분류` : pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
     `<div class="plan-tile give${give < 0 ? " minus" : ""}"><span>${esc(partner())}에게 줄 돈 ${g.state === "ok" ? "✅ 확인함" : g.state === "real" ? "(실제 수입 기준)" : "(예상)"}</span><b>${pl.income || r.inc ? won(give) : "-"}</b>` +
     `<small>${r.out ? `${won(r.out)} 보냄 · 남은 ${won(give - r.out)}` : g.state === "plan" ? "예상 수입 − 쓸 돈" : "실제 수입 − 쓸 돈"}</small></div>`;
+  $("planPie").innerHTML = pieHtml("expense", pl.items.map((v) => ({ cat: v.cat, amt: Number(v.amount) || 0 })), "예산");
   if (document.activeElement !== $("planIncome")) $("planIncome").value = pl.incAuto ? "" : commaNum(pl.income || "");
   $("planIncome").placeholder = pl.incAuto ? `${won(pl.income)} (${monthLabel(pl.incFrom)} 실제 수입, 비우면 이걸로)` : "예: 2,500,000";
   const planned = new Set(pl.items.map((v) => v.cat));
   const extra = Object.entries(r.byCat).filter(([c]) => !planned.has(c)).reduce((t, [, v]) => t + v, 0);
   if (adm) {
-    $("planRows").innerHTML = pl.items.map((v) => `<div class="plan-row plan-ro"><span class="plan-cat">${esc(v.cat)}${v.memo ? ` <span class="muted small" style="font-weight:400">· ${esc(v.memo)}</span>` : ""}</span><span class="won">${won(v.amount)}</span></div>`).join("") ||
+    $("planRows").innerHTML = pl.items.map((v) => `<div class="plan-row plan-ro"><span class="plan-cat">${catDot("expense", v.cat)}${esc(v.cat)}${v.memo ? ` <span class="muted small" style="font-weight:400">· ${esc(v.memo)}</span>` : ""}</span><span class="won">${won(v.amount)}</span></div>`).join("") ||
       '<p class="small muted" style="margin:0">아직 예산이 없어요.</p>';
     return;
   }
   $("planRows").innerHTML = pl.items.map((v) => {
     const used = r.byCat[v.cat] || 0, amt = Number(v.amount) || 0, over = used > amt;
-    return `<div class="plan-row"><span class="plan-cat">${esc(v.cat)}</span>` +
+    return `<div class="plan-row"><span class="plan-cat">${catDot("expense", v.cat)}${esc(v.cat)}</span>` +
       `<input type="text" class="plan-memo" maxlength="40" value="${esc(v.memo || "")}" placeholder="메모" data-plan-memo="${esc(v.id)}" aria-label="${esc(v.cat)} 메모">` +
       `<input type="text" class="plan-amt amt-in" inputmode="numeric" autocomplete="off" value="${amt ? commaNum(amt) : ""}" data-plan-amt="${esc(v.id)}" aria-label="${esc(v.cat)} 예산">` +
-      `<div class="plan-use"><div class="bar${over ? " over" : ""}"><i style="width:${amt ? Math.min(100, Math.round(used / amt * 100)) : used ? 100 : 0}%"></i></div>` +
+      `<div class="plan-use"><div class="bar${over ? " over" : ""}"><i style="width:${amt ? Math.min(100, Math.round(used / amt * 100)) : used ? 100 : 0}%;--cat:${catVar("expense", v.cat)}"></i></div>` +
       `<span class="small muted">${won(used)} 씀 · ${over ? `<span class="won minus">${won(used - amt)} 초과</span>` : `<span class="won plus">${won(amt - used)} 남음</span>`}</span></div>` +
       `<button class="icon-btn" type="button" data-act="planDel" data-id="${esc(v.id)}" aria-label="${esc(v.cat)} 예산 빼기">빼기</button></div>`;
   }).join("") + (pl.items.length && extra ? `<div class="plan-row extra"><span class="plan-cat">예산 밖</span><span class="won">${won(extra)}</span><span class="small">예산에 없는 분류로 쓴 돈</span><span></span></div>` : "") +
@@ -2101,6 +2148,7 @@ function moneyAdminView() { return isAdminDevice(); }
 function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 function renderMoney() {
   const m = ui.month, r = monthTotals(m), bal = balances(), adm = moneyAdminView();
+  setCatMap(planOf(m).items.map((v) => v.cat).concat(Object.keys(r.byCat)));
   $("monthLabel").textContent = monthLabel(m);
   $("moneyPage").classList.toggle("admin-view", adm);
   $("moneyIntro").textContent = adm ? "💡 지출은 욱진이만 보여요. 기능 오류나 추가 기능이 있으면 욱진이에게 자세히 설명해 달라고 하자!" : "통장·카드별로 기록하면 자산마다 잔액이 계산돼요.";
@@ -2137,11 +2185,7 @@ function renderMoney() {
     ? `예산 ${won(budget)} 중 <span class="won">${won(r.exp)}</span> 씀 · ` + (r.exp > budget ? `<span class="won minus">${won(r.exp - budget)} 초과</span>` : `<span class="won plus">${won(budget - r.exp)} 남음</span>`)
     : "예산을 넣으면 남은 금액이 보여요";
   if (document.activeElement !== $("budgetIn")) $("budgetIn").value = commaNum(budget || "");
-  const cats = Object.keys(r.byCat).sort((a, b) => r.byCat[b] - r.byCat[a]);
-  const max = cats.length ? r.byCat[cats[0]] : 0;
-  $("catBars").innerHTML = cats.length ? cats.map((c) =>
-    `<div class="catbar"><span>${esc(c)}</span><div class="bar"><i style="width:${Math.max(2, Math.round(r.byCat[c] / max * 100))}%"></i></div><span class="won">${won(r.byCat[c])}</span></div>`
-  ).join("") : '<div class="muted small">이번 달 지출 기록이 아직 없어요.</div>';
+  $("catBars").innerHTML = pieHtml("expense", Object.entries(r.byCat).map(([cat, amt]) => ({ cat, amt })), "지출") || '<div class="muted small">이번 달 지출 기록이 아직 없어요.</div>';
 
   // 최근 내역 조회: 6개월 · 1년 · 기간 (오늘 기준, 새 달이 위). 줄을 누르면 그 달로 (위 예산·내역이 그 달 것으로)
   const tm = today().slice(0, 7), hr = ui.histRange || "6";
@@ -2179,7 +2223,7 @@ function renderMoney() {
         const kind = x.kind || "expense", sign = kind === "income" ? "+" : kind === "move" ? "" : "-";
         const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
         return `<tr${adm ? "" : ` class="clickable${ui.mEdit === x.id ? " cur" : ""}" data-act="editMoney" data-id="${esc(x.id)}"`}><td class="mono">${shortDate(x.date)}</td>` +
-          `<td>${esc(kind === "transfer" ? partner() + "에게" : KIND_LABEL[kind])}</td><td>${esc(kind === "move" ? "-" : x.cat || "")}</td><td>${where}</td><td>${esc(x.memo || "")}</td>` +
+          `<td>${esc(kind === "transfer" ? partner() + "에게" : KIND_LABEL[kind])}</td><td>${kind === "move" ? "-" : x.cat ? catDot(kind, x.cat) + esc(x.cat) : ""}</td><td>${where}</td><td>${esc(x.memo || "")}</td>` +
           `<td class="num won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${sign}${won(x.amount)}</td></tr>`;
       }).join("") + "</tbody>";
 }
@@ -2252,7 +2296,7 @@ function renderCatEditor() {
   const groups = [["expense", "지출 분류"], ["income", "수입 분류"], ["transfer", "보낸 돈 분류"]];
   $("catEditor").innerHTML = groups.map(([k, label]) =>
     `<div class="dlg-sec"><h4>${label}</h4><div class="chips">` +
-    moneyCats(k).map((c, i) => `<span class="chip">${esc(c)} <button class="link-btn" type="button" data-act="catDel" data-k="${k}" data-i="${i}" aria-label="${esc(c)} 지우기">×</button></span>`).join("") +
+    moneyCats(k).map((c, i) => `<span class="chip"><button type="button" class="cdot-btn" data-act="catColor" data-k="${k}" data-i="${i}" style="--c:${catVar(k, c)}" aria-label="${esc(c)} 색 바꾸기" title="눌러서 색 바꾸기"></button>${esc(c)} <button class="link-btn" type="button" data-act="catDel" data-k="${k}" data-i="${i}" aria-label="${esc(c)} 지우기">×</button></span>`).join("") +
     `</div><form class="mini-row" data-cat-form="${k}" autocomplete="off"><input type="text" maxlength="12" placeholder="새 분류 이름" aria-label="${label} 추가"><button class="btn small" type="submit">추가</button></form></div>`
   ).join("") + '<div class="dlg-foot"><button class="btn ghost small" type="button" data-act="catReset">기본 분류로 되돌리기</button><span class="small muted">이미 적은 기록의 분류는 바뀌지 않아요.</span></div>';
 }
@@ -2576,6 +2620,12 @@ document.addEventListener("click", (ev) => {
   }
   if (a === "editCats") { renderCatEditor(); openDlg($("catDlg")); return; }
   if (a === "closeCats") { closeDlg($("catDlg")); return; }
+  if (a === "catColor") {
+    if (!ready()) return;
+    const k = el.dataset.k, c = moneyCats(k)[+el.dataset.i]; if (c == null) return;
+    act(backend.saveSettingsDeep({ catColors: { [k]: { [catKey(c)]: (catIdx(k, c) + 1) % (CAT_N + 1) } } })).then(() => { renderCatEditor(); render(); }).catch(() => {});
+    return;
+  }
   if (a === "catDel") { const list = moneyCats(el.dataset.k); list.splice(+el.dataset.i, 1); if (!list.length) { toast("분류는 하나 이상 있어야 해요."); return; } saveCats(el.dataset.k, list); return; }
   if (a === "catReset") { saveCats(null); return; }
   if (a === "openToday") { openDay(today()); return; }
