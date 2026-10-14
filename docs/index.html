@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015h">
+<link rel="stylesheet" href="style.css?v=20261015i">
 </head>
 <body>
 
@@ -161,6 +161,7 @@
         <form class="plan-add no-admin" id="planAddForm" autocomplete="off">
           <input type="text" id="planCat" list="planCatList" maxlength="20" placeholder="분류 (예: 식비)" aria-label="예산 분류">
           <datalist id="planCatList"></datalist>
+          <input type="text" id="planMemo" maxlength="40" placeholder="메모 (예: 점심·장보기)" aria-label="예산 메모">
           <input type="number" id="planAmt" min="0" step="1" inputmode="numeric" placeholder="금액 (원)" aria-label="예산 금액">
           <button class="btn small" type="submit">＋ 추가</button>
         </form>
@@ -639,6 +640,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015h"></script>
+<script type="module" src="app.js?v=20261015i"></script>
 </body>
 </html>
