@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014u";
-import { CHANGES } from "./changes.js?v=20261014u";
-import { firebaseConfig } from "./firebase-config.js?v=20261014u";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261014v";
+import { CHANGES } from "./changes.js?v=20261014v";
+import { firebaseConfig } from "./firebase-config.js?v=20261014v";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -950,7 +950,7 @@ function renderLottoAdmin() {
   $("laCpN").textContent = `모두 ${cs.length}개`;
   $("laFilter").innerHTML = Object.keys(LF).map((k) => `<button type="button" data-act="laFilter" data-k="${k}" aria-pressed="${k === lf}">${LF[k][0]} <b>${cs.filter(LF[k][1]).length}</b></button>`).join("");
   if (!keepFocus($("laCoupons"))) $("laCoupons").innerHTML = shown.length ? shown.map((v) => `<div class="la-row la-cp"><select data-la="coupons" data-id="${esc(v.id)}" data-f="tier" aria-label="등급">${Object.keys(TIERS).map((k) => `<option value="${k}"${v.tier === k ? " selected" : ""}>${TIERS[k]}</option>`).join("")}</select>` +
-    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="coupons" data-id="${esc(v.id)}" data-f="title" aria-label="쿠폰 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 30}" data-la="coupons" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
+    `<input type="text" value="${esc(v.title)}" maxlength="60" data-la="coupons" data-id="${esc(v.id)}" data-f="title" aria-label="쿠폰 내용"><label class="la-days"><input type="number" min="1" value="${Number(v.days) || 30}" data-steps data-la="coupons" data-id="${esc(v.id)}" data-f="days" aria-label="기한(일)">일</label>` +
     `<button class="la-eff${v.effect === "streak" ? " on" : ""}" type="button" data-act="laEff" data-id="${esc(v.id)}" aria-pressed="${v.effect === "streak"}" title="🛡️ 연속일 채우기 효과 ${v.effect === "streak" ? "켜짐" : "꺼짐"}">🛡️</button>` +
     `<button class="icon-btn" type="button" data-act="laDel" data-k="coupons" data-id="${esc(v.id)}">삭제</button></div>`).join("") : '<p class="small muted" style="margin:0">아직 없어요.</p>';
   if (!keepFocus($("laPens"))) $("laPens").innerHTML = ps.length ? ps.map((v) => `<div class="la-row"><span class="la-tier">😈</span>` +
@@ -970,6 +970,15 @@ function openLottoAdmin() {
   if (kind === "coupons") { doc.tier = f.elements.tier.value; if (f.elements.streak.checked) doc.effect = "streak"; }
   saveLotto({ [kind]: { [id]: doc } }, kind === "pens" ? "벌칙을 넣었어요." : "쿠폰을 넣었어요.").then(() => { f.elements.title.value = ""; if (f.elements.streak) f.elements.streak.checked = false; f.elements.title.focus(); });
 }));
+// 쿠폰 기한 칸 화살표(▲▼·키보드)는 하루씩 말고 7 → 15 → 30 → 60 → 90일로 (직접 치는 건 그대로)
+const DAY_STEPS = [7, 15, 30, 60, 90];
+["pointerdown", "keydown"].forEach((t) => $("lottoPage").addEventListener(t, (ev) => { const el = ev.target; if (el.matches && el.matches("input[data-steps]")) el.dataset.prev = el.value; }, true));
+$("lottoPage").addEventListener("input", (ev) => {
+  const el = ev.target; if (!el.matches("input[data-steps]") || ev.inputType) return;   // 글자 입력은 inputType이 있음
+  const prev = Number(el.dataset.prev), v = Number(el.value); if (!prev || Math.abs(v - prev) !== 1) return;
+  const next = v > prev ? DAY_STEPS.find((d) => d > prev) || DAY_STEPS[DAY_STEPS.length - 1] : [...DAY_STEPS].reverse().find((d) => d < prev) || DAY_STEPS[0];
+  el.value = next; el.dataset.prev = next;
+}, true);
 // 등급을 고르면 기한 기본값: 🥇 60일 · 🥈 30일 · 🥉 7일
 const TIER_DAYS = { big: 60, mid: 30, small: 7 };
 $("laCouponForm").elements.tier.addEventListener("change", (ev) => { const f = $("laCouponForm"); f.elements.days.value = f.elements.streak.checked ? 30 : TIER_DAYS[ev.target.value] || 30; });
