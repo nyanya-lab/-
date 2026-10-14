@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015t";
-import { CHANGES } from "./changes.js?v=20261015t";
-import { firebaseConfig } from "./firebase-config.js?v=20261015t";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015u";
+import { CHANGES } from "./changes.js?v=20261015u";
+import { firebaseConfig } from "./firebase-config.js?v=20261015u";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -983,8 +983,10 @@ function renderNags() {
     if (!(conf && conf.inc === r.inc) && !skip("give")) list.push(["give", `💰 ${esc(me())}이가 ${mon} 수입 <b>${won(r.inc)}</b>을 입력했어요 → 줄 돈 <b>${won(g)}</b> <span class="muted">(수입 − 예산 ${won(pl.total)})</span>`,
       `<button class="btn small" type="button" data-act="nagGive" data-v="${g}" data-inc="${r.inc}">확인했어요</button>`]);
   }
+  // 🔄 새 버전이 올라왔으면 (checkNewVersion) 맨 위에. [나중에]는 그 버전만 숨김
+  if (ui.newVer && !skip("upd" + ui.newVer)) list.unshift(["upd" + ui.newVer, "🔄 <b>새 버전이 나왔어요.</b> 새로고침하면 바뀐 걸 쓸 수 있어요.", `<button class="btn small" type="button" data-act="updReload">새로고침</button>`]);
   box.hidden = !list.length;
-  box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
+  box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag${k.startsWith("upd") ? " upd" : ""}"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
 }
 function saveLotto(patch, msg) {
   if (!ready()) return Promise.resolve();
@@ -2436,6 +2438,7 @@ document.addEventListener("click", (ev) => {
   if (a === "nagGo") { ui.month = today().slice(0, 7); if (el.dataset.k === "income") ui.kind = "income"; location.hash = "#money"; setTimeout(() => { const p = $(el.dataset.k === "income" ? "moneyPanel" : "planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.dataset.k === "income") renderMoneyForm(); }, 80); return; }
   if (a === "nagKeep") { const m = today().slice(0, 7); savePlan(m, {}, `🗓️ ${+m.slice(5)}월 예산은 지난달 그대로 써요.`); return; }
   if (a === "nagGive") { const m = today().slice(0, 7); saveSettingsReal({ giveConfirm: { [m]: { inc: Number(el.dataset.inc), give: Number(el.dataset.v), at: Date.now() } } }, `✅ ${+m.slice(5)}월 줄 돈 ${won(Number(el.dataset.v))} 확인했어요.`); return; }
+  if (a === "updReload") { hardReload(true); return; }
   if (a === "nagLater") { try { const v = sessionStorage.getItem("ukjin-nag-later") || ""; sessionStorage.setItem("ukjin-nag-later", v + "," + el.dataset.k + "@" + today().slice(0, 7)); } catch (e) { /* 무시 */ } renderNags(); return; }
   if (a === "histRange") { ui.histRange = el.dataset.k; renderMoney(); return; }
   if (a === "histMonth") { ui.month = el.dataset.m; renderMoney(); const p = $("planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); toast(`${monthLabel(el.dataset.m)} 예산·내역을 보여요.`); return; }
@@ -2951,14 +2954,31 @@ $("certQ").addEventListener("input", () => { ui.certQ = $("certQ").value; render
 
 // 로고 = 강력 새로고침 (폰에는 Ctrl+Shift+R이 없고, 홈 화면 앱엔 주소창도 없음)
 // location.reload(true)는 무시되므로: index.html을 HTTP 캐시 건너뛰고 다시 받은 뒤 평범하게 reload → 바뀐 ?v= 따라 js·css도 새로 받음
-async function hardReload() {
+async function hardReload(keepPage) {
   if (sync.pending > 0) { toast("저장 중이에요. 잠깐 뒤에 다시 눌러 주세요."); return; }
   toast("새로 받아오는 중…");
   try { if (window.caches) await Promise.all((await caches.keys()).map((k) => caches.delete(k))); } catch (e) { /* 무시 */ }
   try { await fetch(location.pathname, { cache: "reload" }); } catch (e) { /* 오프라인이면 그냥 reload */ }
-  history.replaceState(null, "", location.pathname + "#calendar");
+  if (!keepPage) history.replaceState(null, "", location.pathname + "#calendar");
   location.reload();
 }
+// 🔄 새 버전 알림: 첫 페이지(index.html)를 캐시 없이 받아 app.js?v= 값이 지금 돌고 있는 것과 다르면 맨 위 띠
+// 화면으로 돌아올 때마다 + 켜 둔 동안 10분마다 (GitHub Pages는 올린 뒤 몇 분~10분쯤 늦게 바뀜)
+const RUN_VER = new URL(import.meta.url).searchParams.get("v") || "";
+let verChecking = false, verLast = 0;
+async function checkNewVersion() {
+  if (!RUN_VER || verChecking || location.protocol === "file:" || Date.now() - verLast < 60000) return;
+  verChecking = true; verLast = Date.now();
+  try {
+    const html = await (await fetch(location.pathname, { cache: "no-store" })).text();
+    const m = html.match(/app\.js\?v=([\w.-]+)/);
+    if (m && m[1] !== RUN_VER && m[1] !== ui.newVer) { ui.newVer = m[1]; renderNags(); }
+  } catch (e) { /* 오프라인이면 다음에 */ }
+  verChecking = false;
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkNewVersion(); });
+setInterval(checkNewVersion, 10 * 60 * 1000);
+setTimeout(checkNewVersion, 5000);
 document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (ev) => { ev.preventDefault(); hardReload(); }));
 
 // ---------- 시작 ----------

@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015t">
+<link rel="stylesheet" href="style.css?v=20261015u">
 </head>
 <body>
 
@@ -147,6 +147,7 @@
           <button class="chip" type="button" data-act="month" data-d="-1">이전 달</button>
           <b id="monthLabel"></b>
           <button class="chip" type="button" data-act="month" data-d="1">다음 달</button>
+          <button class="chip" type="button" data-act="editCats" title="지출·수입·보낸 돈 분류 고치기">⚙ 분류 설정</button>
         </div>
       </div>
       <div class="stats" id="moneyStats"></div>
@@ -373,6 +374,7 @@
           <li><b>돈 기록하기</b>: 수입 · 지출 · 보낸 돈(여자친구에게) · 이체(내 통장끼리). 어느 통장·카드인지 고르면 자산마다 잔액이 계산돼요.</li>
           <li><b>한 달 예산</b>: 예상 수입과 분류별로 쓸 돈(예: 식비 300,000)을 넣으면 <b>여자친구에게 줄 돈(예상)</b>이 보여요. 분류 이름을 지출 기록과 같게 쓰면 실제로 쓴 돈도 같이 보여요. 다음 달로 자동으로 이어지고, 고치면 그 달만 바뀌어요.</li>
           <li>이번 달 내역 줄을 누르면 고칠 수 있어요.</li>
+          <li>돈 관리 위 <b>⚙ 분류 설정</b>에서 지출·수입·보낸 돈 분류를 더하거나 지울 수 있어요. 이미 적은 기록의 분류는 그대로예요.</li>
           <li>예상 수입을 비워 두면 <b>지난달 실제 수입</b>으로 계산해요.</li>
           <li>1일부터 이번 달 예산이 아직 입력 안 됐으면 맨 위에 <b>🗓️ 알림</b>이 떠요. [지난달 그대로 쓸게요]를 누르거나 예산을 고치면 사라져요. 15일부터 이번 달 수입이 아직 입력 안 됐으면 <b>💰 알림</b>이 떠요.</li>
         </ul>
@@ -661,11 +663,11 @@
 </dialog>
 
 <dialog class="dlg" id="catDlg" aria-labelledby="ctTitle">
-  <div class="dlg-head"><h3 id="ctTitle">분류 편집</h3><button class="icon-round" type="button" data-act="closeCats" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-head"><h3 id="ctTitle">⚙ 분류 설정</h3><button class="icon-round" type="button" data-act="closeCats" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div id="catEditor"></div>
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015t"></script>
+<script type="module" src="app.js?v=20261015u"></script>
 </body>
 </html>
