@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015j">
+<link rel="stylesheet" href="style.css?v=20261015k">
 </head>
 <body>
 
@@ -258,8 +258,8 @@
         <div><h2>🎟️ 복권 관리</h2><p>관리자 기기에만 보여요. 욱진이 화면엔 긁어서 나온 것만 보여요. 여기서 바꾼 건 테스트 모드여도 진짜로 저장돼요.</p></div>
       </div>
       <div class="la-page">
-        <div class="panel"><div class="panel-head"><h3>👏 칭찬하기</h3><span class="muted small">누를 때마다 욱진이에게 ⭐ 30점</span></div>
-          <form class="mini-row" id="praiseForm" autocomplete="off"><input type="text" id="praiseText" maxlength="60" placeholder="무엇을 칭찬할까요? (안 적어도 돼요)" aria-label="칭찬 내용"><button class="btn small" type="submit">👏 칭찬 +30</button></form>
+        <div class="panel"><div class="panel-head"><h3>👏 칭찬하기</h3><span class="muted small">누를 때마다 욱진이에게 ⭐ 점수 (기본 30, ▲▼ 10점씩)</span></div>
+          <form class="mini-row" id="praiseForm" autocomplete="off"><input type="text" id="praiseText" maxlength="60" placeholder="무엇을 칭찬할까요? (안 적어도 돼요)" aria-label="칭찬 내용"><label class="la-days"><input type="number" id="praisePts" min="10" max="1000" step="10" value="30" aria-label="칭찬 점수">점</label><button class="btn small" type="submit" id="praiseBtn">👏 칭찬 +30</button></form>
           <div class="list" id="praiseList" style="margin-top:8px"></div></div>
         <div class="seg seg4 la-tabs" id="laTabs" role="tablist" aria-label="복권 관리 보기">
           <button type="button" data-act="laTab" data-k="reqs">💌 요청</button><button type="button" data-act="laTab" data-k="odds">🎲 확률</button><button type="button" data-act="laTab" data-k="cp">🎟️ 쿠폰</button><button type="button" data-act="laTab" data-k="pen">😈 벌칙</button>
@@ -642,6 +642,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015j"></script>
+<script type="module" src="app.js?v=20261015k"></script>
 </body>
 </html>
