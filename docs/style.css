@@ -556,6 +556,10 @@ tr.clickable:hover td { background: var(--sunk); }
 @media (max-width: 720px) { .cp-tabs button { font-size: 12.5px; padding: 8px 2px; letter-spacing: -.3px; } }
 .cp-tabs b { font-family: var(--f-mono); color: var(--accent, var(--blue)); }
 #cpSort { width: auto; padding: 6px 8px; font-size: 13px; }
+.help-topics { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.help-topics button { border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 6px 12px; font-size: 14px; white-space: nowrap; cursor: pointer; }
+.help-topics button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #FFFFFF; font-weight: 600; }
+@media (max-width: 720px) { .help-topics button { font-size: 13px; padding: 6px 10px; } }
 .help-seg { max-width: 360px; grid-template-columns: repeat(2, 1fr); margin-bottom: 12px; }
 .help h3 { margin: 18px 0 6px; font-size: 16px; }
 .help h3:first-child { margin-top: 0; }
