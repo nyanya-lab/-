@@ -39,6 +39,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 - 할 일: `repeat` = `none`(date, done, doneDate) / `daily` / `weekly`(days 0=일…6=토, start, end, doneDates{날짜:true}).
   `subId` = 세부목표(선택). 목표 `goals/{id}/subs/{subId}` = {title, due, createdAt, doneAt}. 목표 달성은 `goals/{id}/achievedAt`(날짜). 진행률은 큰 목표만.
   `lateFrom`/`earlyFrom` = 다른 날 할 일을 오늘 체크해서 옮긴 원래 날짜 (확인 창에서 고름. 지난 일은 원래 날짜에 ❌ 흔적, 체크 풀면 원래 날짜로 돌아감).
+  `penId` = 😈 벌칙 할 일 (wins id, 기한 마감일에 자동 생성·장 수/기한 따라감, 체크 = 벌칙 한 장 `penDone`).
   `minutes` = 할 시간(선택). 있으면 체크할 때 묻지 않고 그 시간으로 `logs`에 기록.
 - 실천 기록 `logs`: 할 일 체크 때 기록한 시간은 `taskId`로 연결 (달력·구글에서 할 일 옆에 시간으로 표시).
 - 포인트(⭐): 저장 안 하고 기록에서 계산 (`pointsLedger`). 실천 1분 1 · 세부목표 50 · 목표 300 · 연속 7/15/30/90일 30/100/250/1000, 그 뒤 30일마다 300 · 돈 기록 1(월급 30). 1000점 = 복권 1장. `settings.lotto` = {on(욱진이에게 공개), used(긁은 장 수), odds{big,mid,small,miss,pen}(기본 3/25/47/20/5), coupons{id:{tier big|mid|small, title, days}}, pens{id:{title, days}}} — 목록은 관리자 '🎟️ 복권 관리' 창에서만. 쿠폰 요청 `lotto.reqs{id:{text, at, status new|added|no}}` (욱진이가 쿠폰함에서 보냄). 관리자 기기에만 새 기능 요청·쿠폰 요청 N (localStorage `ukjin-req-seen`, `ukjin-creq-seen`). 공개 전에는 관리자 기기(`localStorage ukjin-admin`)에서만 보임.

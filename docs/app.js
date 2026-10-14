@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014l";
-import { CHANGES } from "./changes.js?v=20261014l";
-import { firebaseConfig } from "./firebase-config.js?v=20261014l";
+import { PRESET_COUPONS, PRESET_PENS } from "./lotto-presets.js?v=20261014m";
+import { CHANGES } from "./changes.js?v=20261014m";
+import { firebaseConfig } from "./firebase-config.js?v=20261014m";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1039,6 +1039,26 @@ function scratchReveal() {
   cv.addEventListener("pointermove", rub);
   ["pointerup", "pointercancel", "pointerleave"].forEach((e) => cv.addEventListener(e, () => { down = false; }));
 })();
+function penDone(id) {
+  const w = S.wins.get(id); if (!w || !ready()) return; const left = Math.max(0, (w.left || 1) - 1);
+  act(backend.update("wins", id, left ? { left } : { left: 0, doneAt: today() }), left ? `💪 한 장 했어요! ${left}장 남았어요. 기한 안에 다 해요.` : "✅ 벌칙 끝!").catch(() => {});
+}
+// 😈 벌칙 = 기한 마감일의 할 일 (tasks.penId). 장 수·기한이 바뀌면 따라 바뀌고, 다 하면 끝낸 일로
+let penTaskSyncing = false;
+function syncPenTasks() {
+  if (penTaskSyncing || !backend || !S.loaded) return;
+  const jobs = [], byPen = new Map(rows(S.tasks).filter((x) => x.penId).map((x) => [x.penId, x]));
+  S.wins.forEach((w, id) => {
+    if (!w || w.kind !== "pen") return;
+    const x = byPen.get(id), open = w.left > 0, title = `😈 벌칙: ${w.title}${open && w.left > 1 ? ` ×${w.left}` : ""}`;
+    if (open && !x) jobs.push(() => backend.add("tasks", { title, repeat: "none", date: w.deadline, done: false, doneDate: null, penId: id, createdAt: Date.now() }));
+    else if (open && (x.title !== title || x.date !== w.deadline || x.done)) jobs.push(() => backend.update("tasks", x.id, { title, date: w.deadline, done: false, doneDate: null }));
+    else if (!open && x && (!x.done || x.title !== title)) jobs.push(() => backend.update("tasks", x.id, { title, done: true, doneDate: w.doneAt || today() }));
+  });
+  if (!jobs.length) return;
+  penTaskSyncing = true;
+  quietly(async () => { for (const j of jobs) await j(); }).catch(() => {}).finally(() => { penTaskSyncing = false; });
+}
 // 벌칙 기한: 지났으면 남은 장 ×2, 기한 다시 (어느 기기든 열면 맞춰 둠)
 let penSweeping = false;
 function sweepPens() {
@@ -1905,7 +1925,7 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); renderCouponReqs(); renderAdminN();
+  renderHelp(); renderHist(); renderPoints(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   if (S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
@@ -2010,10 +2030,7 @@ document.addEventListener("click", (ev) => {
   if (a === "scClose") { if (scratch && scratch.committed && !scratch.revealed) scratchReveal(); else { closeDlg($("scratchDlg")); scratch = null; } return; }
   if (a === "liClose") { closeDlg($("lottoIntroDlg")); return; }
   if (a === "cpUse") { const w = S.wins.get(id); if (!w || !ready()) return; act(backend.update("wins", id, { usedAt: t }), `🎉 '${w.title}' 쿠폰을 썼어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return; }
-  if (a === "penDone") {
-    const w = S.wins.get(id); if (!w || !ready()) return; const left = Math.max(0, (w.left || 1) - 1);
-    act(backend.update("wins", id, left ? { left } : { left: 0, doneAt: t }), left ? `💪 한 장 했어요! ${left}장 남았어요. 기한 안에 다 해요.` : "✅ 벌칙 끝!").catch(() => {}); return;
-  }
+  if (a === "penDone") { penDone(id); return; }
   if (a === "laClose") { closeDlg($("lottoAdminDlg")); return; }
   if (a === "laDel") {
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말?"; setTimeout(() => { if (el.isConnected) { el.dataset.armed = ""; el.classList.remove("armed"); el.textContent = "삭제"; } }, 3000); return; }
@@ -2109,6 +2126,11 @@ document.addEventListener("click", (ev) => {
   if (a === "toggle") {
     if (!ready()) return;
     const x = S.tasks.get(id); if (!x) return;
+    if (x.penId) {   // 😈 벌칙 할 일: 체크 = 벌칙 한 장 하기 (풀기는 쿠폰함·↶에서)
+      if (x.done) { toast("끝낸 벌칙이에요. 잘못 눌렀으면 ↶ 되돌리기를 써요."); return; }
+      if (!S.wins.get(x.penId)) { toast("이 벌칙은 쿠폰함에 없어요."); return; }
+      penDone(x.penId); return;
+    }
     if (!isRep(x) && !x.done && x.date && x.date !== t) { openMove(id); return; }   // 지난 일·앞으로 할 일을 오늘 체크 → 어떻게 할지 묻기
     if (isRep(x) && el.dataset.day && el.dataset.day < t && !isDone(x, el.dataset.day)) { openMove(id, el.dataset.day); return; }   // 반복하는 일의 지난 날
     if (!isRep(x) && x.done && (x.lateFrom || x.earlyFrom)) {   // 옮겨서 체크했던 걸 풀면 원래 날짜로 돌려놓기
