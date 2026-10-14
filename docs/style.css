@@ -446,6 +446,15 @@ tr.clickable:hover td { background: var(--sunk); }
 /* ---------- 기능 요청 ---------- */
 .nav-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--coral); color: #FFFFFF; font-size: 12px; display: grid; place-items: center; font-family: var(--f-mono); }
 .reqs { display: grid; gap: 12px; }
+.req-pics { display: flex; flex-wrap: wrap; gap: 8px; }
+.req-pics:empty { display: none; }
+.req-pic { position: relative; display: block; width: 96px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--sunk); padding: 0; cursor: pointer; }
+.req-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.req-pic button { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #FFFFFF; font-size: 12px; line-height: 22px; padding: 0; cursor: pointer; }
+.req-pick { justify-self: start; width: max-content; cursor: pointer; }
+.pic-dlg { max-width: min(96vw, 1000px); padding: 10px; }
+.pic-dlg[open] { display: grid; gap: 8px; justify-items: center; }
+.pic-dlg img { max-width: 100%; max-height: 80vh; border-radius: 8px; }
 .req { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--coral); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px; display: grid; gap: 8px; }
 .req.st-doing { border-left-color: var(--sun); }
 .req.st-done { border-left-color: var(--mint); opacity: 0.8; }
