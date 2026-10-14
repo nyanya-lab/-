@@ -153,8 +153,12 @@ button { cursor: pointer; }
 .la-on { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .admin-row input { max-width: 200px; }
-.side-lotto { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--sun-soft); color: var(--fg); position: relative; }
-.side-lotto:hover { border-color: var(--sun); }
+/* 메뉴 아래 복권: 상자 없이 그림을 메뉴 폭만큼 크게, 아래에 점수·이야기 */
+.side-lotto { margin-top: auto; display: grid; justify-items: center; gap: 2px; padding: 6px 0 2px; border: 0; background: none; color: var(--fg); position: relative; cursor: pointer; }
+.side-lotto .ticket { width: 100%; height: auto; max-width: 196px; }
+.side-lotto .lotto-txt { justify-items: center; text-align: center; margin-top: -22px; position: relative; }   /* 그림 아래 동전 자리 여백만큼 당김 */
+.side-lotto:hover .ticket { transform: scale(1.03); }
+.side-lotto .lotto-badge { top: 8px; right: 4px; min-width: 24px; height: 24px; font-size: 13px; border-radius: 12px; }
 .side-lotto:not([hidden]) + .side-settings { margin-top: 8px; }
 .ticket { width: 54px; height: 40px; flex-shrink: 0; overflow: visible; }
 .ticket.tk-w1 { animation: tkWob 1.6s ease-in-out infinite; transform-origin: 50% 85%; }
