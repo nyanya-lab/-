@@ -430,13 +430,14 @@ table.t tr.cur td { background: var(--sunk); }
 #moneyPage.admin-view .no-admin { display: none !important; }
 #moneyPage.admin-view .grid { display: block; }
 .plan-row.plan-ro { grid-template-columns: minmax(0, 1fr) auto; padding: 4px 0; border-bottom: 1px dashed var(--line); }
-.plan-row { display: grid; grid-template-columns: 96px 130px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
+.plan-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 120px minmax(0, 1.2fr) auto; gap: 10px; align-items: center; font-size: 13px; }
 .plan-row input { padding: 6px 8px; text-align: right; }
+.plan-row input.plan-memo { text-align: left; }
 .plan-row .plan-cat { font-weight: 600; overflow-wrap: anywhere; }
 .plan-row .plan-use { display: grid; gap: 3px; min-width: 0; }
 .plan-row .bar { height: 8px; }
-.plan-row.extra { color: var(--muted); }
-.plan-add { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; gap: 8px; align-items: center; }
+.plan-row.extra { color: var(--muted); grid-template-columns: 96px 120px minmax(0, 1fr) auto; }
+.plan-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 150px auto; gap: 8px; align-items: center; }
 .ev-short { display: none; font-family: var(--f-mono); font-weight: 600; margin-right: 2px; }
 .link-btn { border: 0; background: none; padding: 0 2px; color: var(--ink); font-size: 12px; cursor: pointer; text-decoration: underline; }
 tr.clickable { cursor: pointer; }
@@ -676,10 +677,12 @@ tr.clickable:hover td { background: var(--sunk); }
   .plan-tile small { display: none; }
   .plan-income { max-width: none; }
   .plan-row { grid-template-columns: minmax(0, 1fr) 110px auto; }
-  .plan-row .plan-use { grid-column: 1 / -1; grid-row: 2; }
+  .plan-row .plan-memo { grid-column: 1 / -1; grid-row: 2; }
+  .plan-row .plan-use { grid-column: 1 / -1; grid-row: 3; }
   .plan-row .icon-btn { grid-column: 3; grid-row: 1; }
   .plan-row.extra { grid-template-columns: auto auto minmax(0, 1fr); }
   .plan-add { grid-template-columns: minmax(0, 1fr) 110px auto; }
+  .plan-add #planMemo { grid-column: 1 / -1; grid-row: 2; }
   .home-goal-form { grid-template-columns: 1fr 1fr; }
   .sub-form { grid-template-columns: minmax(0, 1fr) auto auto; }
   .home-goal-form > input[type="text"], .sub-form > input[type="text"] { grid-column: 1 / -1; }

@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015h";
-import { CHANGES } from "./changes.js?v=20261015h";
-import { firebaseConfig } from "./firebase-config.js?v=20261015h";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015i";
+import { CHANGES } from "./changes.js?v=20261015i";
+import { firebaseConfig } from "./firebase-config.js?v=20261015i";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1814,7 +1814,7 @@ function renderGoalDlg() {
   if (c && c.tasks) $("gTemplate").innerHTML = `<button class="btn ghost small" type="button" data-act="addTemplate">추천 할 일 ${c.tasks.length}개 넣기</button><span class="small muted">${esc(c.tasks.map((z) => z.t).slice(0, 3).join(", "))} 등</span>`;
 }
 
-// ---------- 한 달 예산: settings.budgets[월] = { income, items: {id: {cat, amount, createdAt}} } ----------
+// ---------- 한 달 예산: settings.budgets[월] = { income, items: {id: {cat, memo, amount, createdAt}} } ----------
 // 쓸 돈을 분류별로 미리 정해 두면, 예상 수입에서 빼서 여자친구에게 줄 수 있는 돈이 얼마쯤인지 보임
 // 예산이 없는 달은 그 전 가장 가까운 달 예산을 그대로 이어서 씀 (고치는 순간 그 달 것으로 저장)
 function planSource(m) {
@@ -1837,7 +1837,7 @@ function savePlan(m, patch, msg) {
   const pl = planOf(m);
   if (pl.from) {   // 이어서 쓰던 예산을 이 달 것으로 옮겨 적고 바꿀 칸만 덮어씀
     const base = { income: pl.incAuto ? 0 : pl.income, items: {} };   // 자동 예상 수입은 고정해 두지 않음
-    pl.items.forEach((v) => { base.items[v.id] = { cat: v.cat, amount: Number(v.amount) || 0, createdAt: v.createdAt || Date.now() }; });
+    pl.items.forEach((v) => { base.items[v.id] = { cat: v.cat, memo: v.memo || "", amount: Number(v.amount) || 0, createdAt: v.createdAt || Date.now() }; });
     patch = deepMerge(base, patch);
   }
   return act(backend.saveSettingsDeep({ budgets: { [m]: patch } }), msg).catch(() => {});
@@ -1864,14 +1864,15 @@ function renderPlan(m, r) {
   const planned = new Set(pl.items.map((v) => v.cat));
   const extra = Object.entries(r.byCat).filter(([c]) => !planned.has(c)).reduce((t, [, v]) => t + v, 0);
   if (adm) {
-    $("planRows").innerHTML = pl.items.map((v) => `<div class="plan-row plan-ro"><span class="plan-cat">${esc(v.cat)}</span><span class="won">${won(v.amount)}</span></div>`).join("") ||
+    $("planRows").innerHTML = pl.items.map((v) => `<div class="plan-row plan-ro"><span class="plan-cat">${esc(v.cat)}${v.memo ? ` <span class="muted small" style="font-weight:400">· ${esc(v.memo)}</span>` : ""}</span><span class="won">${won(v.amount)}</span></div>`).join("") ||
       '<p class="small muted" style="margin:0">아직 예산이 없어요.</p>';
     return;
   }
   $("planRows").innerHTML = pl.items.map((v) => {
     const used = r.byCat[v.cat] || 0, amt = Number(v.amount) || 0, over = used > amt;
     return `<div class="plan-row"><span class="plan-cat">${esc(v.cat)}</span>` +
-      `<input type="number" min="0" step="1" inputmode="numeric" value="${amt || ""}" data-plan-amt="${esc(v.id)}" aria-label="${esc(v.cat)} 예산">` +
+      `<input type="text" class="plan-memo" maxlength="40" value="${esc(v.memo || "")}" placeholder="메모" data-plan-memo="${esc(v.id)}" aria-label="${esc(v.cat)} 메모">` +
+      `<input type="number" class="plan-amt" min="0" step="1" inputmode="numeric" value="${amt || ""}" data-plan-amt="${esc(v.id)}" aria-label="${esc(v.cat)} 예산">` +
       `<div class="plan-use"><div class="bar${over ? " over" : ""}"><i style="width:${amt ? Math.min(100, Math.round(used / amt * 100)) : used ? 100 : 0}%"></i></div>` +
       `<span class="small muted">${won(used)} 씀 · ${over ? `<span class="won minus">${won(used - amt)} 초과</span>` : `<span class="won plus">${won(amt - used)} 남음</span>`}</span></div>` +
       `<button class="icon-btn" type="button" data-act="planDel" data-id="${esc(v.id)}" aria-label="${esc(v.cat)} 예산 빼기">빼기</button></div>`;
@@ -2565,15 +2566,17 @@ $("catEditor").addEventListener("submit", (ev) => {
 
 $("planAddForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
-  const m = ui.month, cat = $("planCat").value.trim(), amount = parseInt($("planAmt").value, 10) || 0;
+  const m = ui.month, cat = $("planCat").value.trim(), memo = $("planMemo").value.trim(), amount = parseInt($("planAmt").value, 10) || 0;
   if (!cat) { toast("분류를 적어 주세요. 예: 식비"); return; }
   if (planOf(m).items.some((v) => v.cat === cat)) { toast("이미 있는 분류예요. 금액 칸을 고쳐 주세요."); return; }
   const id = "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  savePlan(m, { items: { [id]: { cat, amount, createdAt: Date.now() } } }, `${cat} 예산을 넣었어요.`).then(() => { $("planCat").value = ""; $("planAmt").value = ""; $("planCat").focus(); });
+  savePlan(m, { items: { [id]: { cat, memo, amount, createdAt: Date.now() } } }, `${cat} 예산을 넣었어요.`).then(() => { $("planCat").value = ""; $("planMemo").value = ""; $("planAmt").value = ""; $("planCat").focus(); });
 });
 $("planIncome").addEventListener("change", () => savePlan(ui.month, { income: parseInt($("planIncome").value, 10) || 0 }, "예상 수입을 저장했어요."));
 $("planRows").addEventListener("change", (ev) => {
-  const id = ev.target.dataset && ev.target.dataset.planAmt; if (!id) return;
+  const d = ev.target.dataset || {};
+  if (d.planMemo) { savePlan(ui.month, { items: { [d.planMemo]: { memo: ev.target.value.trim() } } }, "메모를 고쳤어요."); return; }
+  const id = d.planAmt; if (!id) return;
   savePlan(ui.month, { items: { [id]: { amount: parseInt(ev.target.value, 10) || 0 } } }, "예산을 고쳤어요.");
 });
 $("budgetForm").addEventListener("submit", (ev) => {
