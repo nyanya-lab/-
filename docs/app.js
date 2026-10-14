@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015r";
-import { CHANGES } from "./changes.js?v=20261015r";
-import { firebaseConfig } from "./firebase-config.js?v=20261015r";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015s";
+import { CHANGES } from "./changes.js?v=20261015s";
+import { firebaseConfig } from "./firebase-config.js?v=20261015s";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -104,6 +104,8 @@ function today() { return ymd(new Date()); }
 function mondayOf(s) { const d = parseYmd(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); }
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 function prettyDate(s) { const d = parseYmd(s); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일`; }
+// 연도까지: 26/10/14 (쿠폰함 지난 것·복권 팝업)
+function yDate(s) { return s ? String(s).slice(2).replace(/-/g, "/") : ""; }
 function shortDate(s) { const d = parseYmd(s); return `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`; }
 function rows(map) { return [...map].map(([id, v]) => ({ id, ...v })); }
 function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -1254,12 +1256,15 @@ function picList() {
 }
 const okPic = (v) => typeof v === "string" && v.startsWith("data:image/");
 function picCardImg(pid) { const v = picThumbs.get(pid); return okPic(v) ? `<img src="${v}" alt="">` : `<span class="ph">${picThumbs.has(pid) ? "사진 없음" : "📸"}</span>`; }
+function picCard(pid, w, date) {
+  return `<button type="button" class="pic-card" data-act="pfView" data-id="${esc(pid)}" data-pic="${esc(pid)}" aria-label="${esc(w.title || "")} 사진 크게 보기">${picCardImg(pid)}` +
+    `<span class="cap">${w.kind === "pen" ? "😈" : "🎟️"} ${esc(w.title || "")}<br><span class="muted">${typeof date === "string" && date ? esc(yDate(date)) : ""}</span></span></button>`;
+}
 function renderPics() {
   const box = $("cpPics"), all = picList(), n = Math.min(all.length, ui.picShown || 9);
   if (picIO) { picIO.disconnect(); picIO = null; }
   if (!all.length) { box.innerHTML = '<div class="empty">아직 사진이 없어요. 벌칙 [했어요]·쿠폰 [쓰기] 때 올린 인증샷이 여기 모여요.</div>'; return; }
-  box.innerHTML = all.slice(0, n).map((x) => `<button type="button" class="pic-card" data-act="pfView" data-id="${esc(x.pid)}" data-pic="${esc(x.pid)}" aria-label="${esc(x.w.title || "")} 사진 크게 보기">${picCardImg(x.pid)}` +
-    `<span class="cap">${x.w.kind === "pen" ? "😈" : "🎟️"} ${esc(x.w.title || "")}<br><span class="muted">${x.date ? esc(shortDate(x.date)) : ""}</span></span></button>`).join("") +
+  box.innerHTML = all.slice(0, n).map((x) => picCard(x.pid, x.w, x.date)).join("") +
     (n < all.length ? `<div class="pic-more" id="cpPicsMore"><button class="btn ghost small" type="button" data-act="pfMore">더 보기 (${all.length - n}장)</button></div>` : "");
   all.slice(0, n).forEach((x) => loadThumb(x.pid));
   const more = $("cpPicsMore");
@@ -1273,8 +1278,7 @@ function loadThumb(pid) {
   picLoading.add(pid);
   backend.getPic(pid, "thumb").then((v) => { picThumbs.set(pid, okPic(v) ? v : ""); }, () => {}).finally(() => {
     picLoading.delete(pid);
-    const card = document.querySelector(`[data-pic="${pid}"]`), ph = card && card.querySelector(".ph");
-    if (ph && picThumbs.has(pid)) ph.outerHTML = picCardImg(pid);
+    document.querySelectorAll(`[data-pic="${pid}"] .ph`).forEach((ph) => { if (picThumbs.has(pid)) ph.outerHTML = picCardImg(pid); });
   });
 }
 async function viewPic(pid) {
@@ -1367,9 +1371,10 @@ function renderCoupons() {
     `<div class="meta"><span class="tag late">${untilText(w.deadline)}</span><span class="small muted">못 하면 ×${w.left * 2}</span></div></div>` +
     `<div class="actions" style="display:grid;gap:4px"><button class="btn small" type="button" data-act="penDone" data-id="${esc(w.id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>${w.game ? "" : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`}</div></div>`).join("") : '<div class="empty">지금 할 벌칙이 없어요. 👍 끝낸 벌칙은 📜 지난 것에 있어요.</div>';
   $("cpPast").innerHTML = past.length ? past.map((w) => {
-    const st = w.kind === "pen" ? `✅ ${shortDate(w.doneAt || w.wonAt)} 벌칙 끝` : w.kind === "miss" ? "😐 꽝" : w.usedAt ? `${shortDate(w.usedAt)} 사용함${w.fillDate ? ` · 🛡️ ${shortDate(w.fillDate)} 채움` : ""}` : `${shortDate(w.expires)} 기한 만료`;
+    const st = w.kind === "pen" ? `✅ 끝: ${yDate(w.doneAt || w.wonAt)} · ` : w.kind === "miss" ? "" : w.usedAt ? `사용: ${yDate(w.usedAt)}${w.fillDate ? ` · 🛡️ 채운 날: ${yDate(w.fillDate)}` : ""} · ` : `만료: ${yDate(w.expires)} · `;
+    const np = w.pics && typeof w.pics === "object" ? Object.keys(w.pics).length : 0;
     const gm = w.kind === "miss" || w.kind === "pen" ? (w.game ? `<span class="small muted">🎯 +${w.game.pts}</span>` : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`) : "";
-    return `<div class="item${w.kind !== "coupon" && !w.game ? "" : " done"}"><span class="cp-tier">${w.kind === "miss" ? "😐" : w.kind === "pen" ? "😈" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}</div><div class="meta"><span class="small muted">${esc(st)} · ${esc(shortDate(w.wonAt))} 긁음</span></div></div><div class="actions">${gm}</div></div>`;
+    return `<div class="item${w.kind !== "coupon" && !w.game ? "" : " done"}" data-act="winOpen" data-id="${esc(w.id)}" style="cursor:pointer" title="눌러서 보기"><span class="cp-tier">${w.kind === "miss" ? "😐" : w.kind === "pen" ? "😈" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}${np ? ` <span class="small muted">📸${np > 1 ? np : ""}</span>` : ""}</div><div class="meta"><span class="small muted">${esc(st)}긁음: ${esc(yDate(w.wonAt))}</span></div></div><div class="actions">${gm}</div></div>`;
   }).join("") : `<div class="empty">${pastAll.length ? "여기에 해당하는 게 없어요." : "아직 없어요."}</div>`;
   if (tab === "pics") renderPics();
 }
@@ -1472,27 +1477,35 @@ function dayExtraItems(d) {
 function openWin(id) {
   const w = S.wins.get(id); if (!w) { toast("쿠폰함에 없어요."); return; }
   const t = today(), tierIc = w.tier === "big" ? "🥇" : w.tier === "mid" ? "🥈" : "🥉", body = [], btns = [];
+  $("wnSub").textContent = `긁음: ${yDate(w.wonAt)}`;
   if (w.kind === "pen") {
     const open = w.left > 0;
     $("wnTitle").textContent = `😈 ${w.title}${open && w.left > 1 ? ` ×${w.left}` : ""}`;
-    $("wnSub").textContent = `${shortDate(w.wonAt)} 긁음`;
     if (open) {
       body.push(`<p><b>${untilText(w.deadline)}</b> · 못 하면 ×${w.left * 2}</p>`, `<p><b>📸 [했어요]를 누르고 인증샷을 올려요</b></p>`);
       btns.push(`<button class="btn" type="button" data-act="penDone" data-id="${esc(id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>`);
-    } else body.push(`<p>✅ ${shortDate(w.doneAt || w.wonAt)} 벌칙 끝!</p>`);
-    if (!w.game) btns.push(`<button class="btn ghost" type="button" data-act="gmOpen" data-id="${esc(id)}">🎯 포인트 돌려받기 한 판</button>`);
+    } else body.push(`<p>✅ 끝: ${yDate(w.doneAt || w.wonAt)}</p>`);
+    if (w.game) body.push(`<p>🎯 게임으로 +${w.game.pts} 돌려받음</p>`);
+    else btns.push(`<button class="btn ghost" type="button" data-act="gmOpen" data-id="${esc(id)}">🎯 포인트 돌려받기 한 판</button>`);
   } else if (w.kind === "coupon") {
     const usable = !w.usedAt && (w.expires || "9999") >= t;
     $("wnTitle").textContent = `${tierIc} ${w.title}`;
-    $("wnSub").textContent = `${shortDate(w.wonAt)} 받음`;
     if (w.effect === "streak") body.push(`<p>🛡️ 쓰면 실천 못 한 날 하루를 채워요</p>`);
-    else if (payText(w)) body.push(`<p class="muted">${payText(w)}</p>`);
-    if (w.usedAt) body.push(`<p>✅ ${shortDate(w.usedAt)} 사용함${w.fillDate ? ` · 🛡️ ${shortDate(w.fillDate)} 채움` : ""}</p>`);
-    else body.push(`<p><b>${untilText(w.expires)}</b></p>`);
+    else if (usable && payText(w)) body.push(`<p class="muted">${payText(w)}</p>`);
+    if (w.usedAt) body.push(`<p>✅ 사용: ${yDate(w.usedAt)}${w.fillDate ? ` · 🛡️ 채운 날: ${yDate(w.fillDate)}` : ""}</p>`);
+    else if (usable) body.push(`<p><b>${untilText(w.expires)}</b></p>`);
+    else body.push(`<p>⌛ 만료: ${yDate(w.expires)} (안 쓰고 기한이 지났어요)</p>`);
     if (usable) btns.push(`<button class="btn" type="button" data-act="cpUse" data-id="${esc(id)}">쓰기</button>`);
+  } else if (w.kind === "miss") {
+    $("wnTitle").textContent = "😐 꽝";
+    body.push(w.game ? `<p>🎯 게임으로 +${w.game.pts} 돌려받음</p>` : "<p>아쉽다! 🎯 게임 한 판으로 포인트를 돌려받을 수 있어요.</p>");
+    if (!w.game) btns.push(`<button class="btn" type="button" data-act="gmOpen" data-id="${esc(id)}">🎯 포인트 돌려받기 한 판</button>`);
   } else return;
+  const ps = w.pics && typeof w.pics === "object" ? Object.entries(w.pics).sort((a, b) => String(a[1]).localeCompare(String(b[1]))) : [];
+  if (ps.length) body.push(`<p class="small muted" style="margin-bottom:6px">📸 인증샷 ${ps.length}장 · 누르면 크게</p><div class="pic-grid">${ps.map(([pid, d]) => picCard(pid, w, d)).join("")}</div>`);
   btns.push('<button class="btn ghost" type="button" data-act="winClose">닫기</button>');
   $("wnBody").innerHTML = body.join(""); $("wnBtns").innerHTML = btns.join("");
+  ps.forEach(([pid]) => loadThumb(pid));
   openDlg($("winDlg"));
 }
 window.matchMedia("(max-width: 720px)").addEventListener("change", () => renderCalendar());
