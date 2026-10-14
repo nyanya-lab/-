@@ -548,6 +548,10 @@ tr.clickable:hover td { background: var(--sunk); }
 .btn.danger-txt { color: var(--danger); }
 /* 설명서 */
 .cp-tabs { margin-bottom: 12px; }
+.seg.cp-pf { grid-template-columns: repeat(5, 1fr); margin-bottom: 10px; }
+.cp-pf button { white-space: nowrap; font-size: 13px; padding: 7px 2px; }
+.cp-pf b { font-family: var(--f-mono); font-weight: 500; color: var(--muted); font-size: 11px; }
+@media (max-width: 720px) { .cp-pf button { font-size: 11.5px; letter-spacing: -.4px; } }
 .cp-tabs button { white-space: nowrap; }
 @media (max-width: 720px) { .cp-tabs button { font-size: 12.5px; padding: 8px 2px; letter-spacing: -.3px; } }
 .cp-tabs b { font-family: var(--f-mono); color: var(--accent, var(--blue)); }
