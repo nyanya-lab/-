@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zf";
-import { CHANGES } from "./changes.js?v=20261015zf";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zf";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zg";
+import { CHANGES } from "./changes.js?v=20261015zg";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zg";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -452,7 +452,7 @@ function renderGcalBox() {
   box.innerHTML = `<p class="sync-line"><span class="sync-dot" data-state="${st === "ok" ? "ok" : "off"}"></span><span>${esc(g.email || "구글 계정")} 캘린더와 자동 동기화${st === "ok" ? " 중" : ""}</span></p>` +
     `<p class="small muted">마지막으로 맞춘 때: ${fmtTime(g.at)} · 추가 ${g.added || 0} · 수정 ${g.updated || 0} · 삭제 ${g.deleted || 0}${g.cleaned ? ` · 예전 일정 정리 ${g.cleaned}` : ""}</p>` +
     (st === "stale" ? '<p class="small" style="color:var(--danger)">20분 넘게 소식이 없어요. 스크립트가 멈췄을 수 있어요. 설정 방법 페이지의 \'문제 해결\'을 봐 주세요.</p>' : "") +
-    '<p class="small muted">보드에서 바꾸면 5분 안에 구글 캘린더에 반영돼요. 구글에서는 📌 할 일 · 🔥 끝낸 일·실천 · 🎯 D-DAY로 보여요.</p>' +
+    '<p class="small muted">보드에서 바꾸면 5분 안에 구글 캘린더에 반영돼요. 구글에서는 📌 할 일 · 🔥 실천(시간 있음) · ✅ 체크만 · 🎯 D-DAY로 보여요.</p>' +
     '<div><a class="btn ghost small" href="google-sync.html" target="_blank" rel="noopener">설정 방법 다시 보기</a></div>';
 }
 
@@ -475,15 +475,16 @@ function closeMenu() { $("side").classList.remove("open"); document.querySelecto
 
 // ---------- 계산 ----------
 function practiceMinutes() {
-  // 날짜별 실천량. 기록 시간 + 완료한 할 일 1개당 15분으로 쳐서 타일 진하기에 씀
+  // 날짜별 실천량 = 기록한 시간. 시간 없이 체크한 할 일은 10/11 전에만 15분으로 침 (그 뒤로는 ✅ 체크만, 실천 아님)
   const m = {};
   const add = (d, v) => { m[d] = (m[d] || 0) + v; };
+  const add15 = (d) => { if (d < WEEK_RULE_FROM) add(d, 15); };
   const timed = new Set();   // 시간을 같이 기록한 할 일 (그 시간이 이미 기록으로 들어감)
   S.logs.forEach((l) => { if (l.date) add(l.date, Math.max(Number(l.minutes) || 0, 1)); if (l.taskId) timed.add(l.taskId + "|" + l.date); });
   S.tasks.forEach((t, id) => {
     if (t.noPractice) return;   // 돈 할 일(예산·수입 입력)은 실천으로 안 침
-    if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v && !timed.has(id + "|" + d)) add(d, 15); });
-    else if (t.done && t.doneDate && !timed.has(id + "|" + t.doneDate)) add(t.doneDate, 15);
+    if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v && !timed.has(id + "|" + d)) add15(d); });
+    else if (t.done && t.doneDate && !timed.has(id + "|" + t.doneDate)) add15(t.doneDate);
   });
   Object.keys(fillDays()).forEach((d) => { if ((m[d] || 0) < pracMin(d)) m[d] = pracMin(d); });   // 🛡️ 연속일 채우기 쿠폰으로 채운 날 = 실천한 날 (실천 시간 점수는 없음)
   return m;
@@ -585,14 +586,15 @@ function boardStart() {
 function calTask(x, d, repeat) {
   const done = isDone(x, d), color = x.goalId && S.goals.has(x.goalId) ? catCls(x.goalId) : "c-blue";
   // 시간: 끝냈으면 기록한 시간, 아니면 정해 둔 '할 시간'
-  const min = (done && taskMinutes(x.id, repeat ? d : x.doneDate)) || (Number(x.minutes) || 0);
+  const tm = done ? taskMinutes(x.id, repeat ? d : x.doneDate) : 0, min = tm || (Number(x.minutes) || 0);
+  const prac = done && tm > 0;   // 시간과 같이 체크 = 🔥 실천 (노랑), 시간 없이 체크 = ✅ 체크만 (민트)
   const later = repeat && d > today();   // 반복하는 일의 앞으로의 날은 그 날이 되면 체크
   const missed = !done && d < today();     // 지난 날 못 한 일 ❌
-  return `<div class="ev task ${color}${done ? " done" : missed ? " miss" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
+  return `<div class="ev task ${color}${done ? " done" + (prac ? " prac" : "") : missed ? " miss" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
-      : done   // 끝낸 할 일은 ✅ (따로 기록한 실천은 🔥), 누르면 체크가 풀려서 다시 네모로
-      ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">✅</button>`
+      : done   // 시간과 같이 끝낸 일은 🔥, 시간 없이 체크한 일은 ✅. 누르면 체크가 풀려서 다시 네모로
+      ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">${prac ? "🔥" : "✅"}</button>`
       : `<button type="button" class="mini-check" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="false" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
     `<span>${missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
 }
@@ -645,8 +647,10 @@ function renderCalendar() {
     const ics = [];
     if ((exams[d] || []).length) ics.push("🎯");
     if (cpDue.length) ics.push("🎟️");
-    if (doneN) ics.push("✅");
-    if ((logsByDay[d] || []).length) ics.push("🔥"); else if (!doneN && fills[d]) ics.push("🛡️");
+    const doneTimed = dayTs.some((x) => isDone(x, d) && taskMinutes(x.id, isRep(x) ? d : x.doneDate) > 0);
+    if (doneTimed || (logsByDay[d] || []).length) ics.push("🔥");   // 실천 (시간 있는 끝낸 할 일 · 실천 기록)
+    if (dayTs.some((x) => isDone(x, d) && !(taskMinutes(x.id, isRep(x) ? d : x.doneDate) > 0))) ics.push("✅");   // 시간 없이 체크만 한 할 일
+    if (!doneN && !(logsByDay[d] || []).length && fills[d]) ics.push("🛡️");
     if (openN) ics.push(d < t ? "❌" : "📌");
     if (gcalEventsOn(d).length) ics.push("📅");
     if (income[d]) ics.push("💰");

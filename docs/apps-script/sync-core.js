@@ -2,19 +2,19 @@
  * 욱진 실천 보드 ↔ 구글 캘린더 동기화 본체
  * 욱진이 Apps Script의 짧은 코드(Code.gs)가 5분마다 이 파일을 받아서 실행해요.
  * 여기를 고쳐서 main에 합치면, 다시 붙여넣지 않아도 늦어도 15분 안에 적용돼요.
- *   · 보드 할 일·반복하는 일·시험일 → 구글 캘린더 (📌 파랑 / 끝내면 🔥 노랑 / 🎯 D-DAY 빨강)
+ *   · 보드 할 일·반복하는 일·시험일 → 구글 캘린더 (📌 파랑 / 시간과 같이 끝내면 🔥 노랑 · 시간 없이 체크만 하면 ✅ 초록 / 🎯 D-DAY 빨강)
  *   · 실천한 일(최근 1년) → 🔥 노랑
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  */
-const CORE_VERSION = "2026-10-13e";
+const CORE_VERSION = "2026-10-15a";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
 const CAL = "primary";       // 욱진이 기본 캘린더
-const COLOR = { plan: "9", done: "5", dday: "11", log: "5", miss: "8" };   // 구글 일정 색: 파랑, 노랑(끝낸 일도 실천), 빨강, 노랑, 회색(못 한 일)
+const COLOR = { plan: "9", done: "5", check: "2", dday: "11", log: "5", miss: "8" };   // 구글 일정 색: 파랑, 노랑(시간과 같이 끝낸 일 = 실천), 초록(시간 없이 체크만), 빨강, 노랑, 회색(못 한 일)
 const DOW = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-const MARK = { plan: "📌 ", done: "🔥 ", dday: "🎯 D-DAY ", log: "🔥 ", miss: "❌ " };   // 제목 앞 이모지. 끝낸 할 일은 실천 🔥, 지난 날 못 한 일은 ❌
+const MARK = { plan: "📌 ", done: "🔥 ", check: "✅ ", dday: "🎯 D-DAY ", log: "🔥 ", miss: "❌ " };   // 제목 앞 이모지. 시간과 같이 끝낸 할 일은 실천 🔥, 시간 없이 체크만 한 일은 ✅, 지난 날 못 한 일은 ❌
 
 function ukjinSync(BOARD_PASSWORD) {
   const base = DB_URL + "/ukjin/" + roomOf_(BOARD_PASSWORD);
@@ -44,6 +44,9 @@ function pushToGoogle_(tasks, goals, logs) {
     if (l && l.taskId && l.date) timed[l.taskId + "|" + l.date] = (timed[l.taskId + "|" + l.date] || 0) + (Number(l.minutes) || 0);
   });
   const withTime = function (taskId, day, title) { const m = timed[taskId + "|" + day]; return m ? title + " · " + fmtMin_(m) : title; };
+  // 끝낸 할 일: 시간이 기록돼 있으면 🔥 노랑(실천), 없으면 ✅ 초록(체크만) — 보드 달력과 같게
+  const doneMark = function (taskId, day) { return timed[taskId + "|" + day] > 0 ? MARK.done : MARK.check; };
+  const doneColor = function (taskId, day) { return timed[taskId + "|" + day] > 0 ? COLOR.done : COLOR.check; };
   // 아직 안 한 일: 정해 둔 '할 시간'이 있으면 "📌 제목 · 1시간"
   const withPlan = function (t) { return Number(t.minutes) > 0 ? t.title + " · " + fmtMin_(Number(t.minutes)) : t.title; };
   Object.keys(tasks).forEach(function (id) {
@@ -62,8 +65,8 @@ function pushToGoogle_(tasks, goals, logs) {
     // 늦게 한 일: 원래 날짜에는 ❌ 흔적, 한 날에는 🔥
     if (t.done && t.lateFrom) items["late:" + id] = { summary: MARK.miss + withPlan(t), colorId: COLOR.miss, date: t.lateFrom };
     items["task:" + id] = {
-      summary: t.done ? MARK.done + withTime(id, t.doneDate, t.title) : (missed ? MARK.miss : MARK.plan) + withPlan(t),
-      colorId: t.done ? COLOR.done : missed ? COLOR.miss : COLOR.plan, date: t.date
+      summary: t.done ? doneMark(id, t.doneDate) + withTime(id, t.doneDate, t.title) : (missed ? MARK.miss : MARK.plan) + withPlan(t),
+      colorId: t.done ? doneColor(id, t.doneDate) : missed ? COLOR.miss : COLOR.plan, date: t.date
     };
   });
   Object.keys(goals).forEach(function (id) {
@@ -111,7 +114,7 @@ function pushToGoogle_(tasks, goals, logs) {
     res.added++;
   });
 
-  // 반복하는 일: 한 날은 🔥, 지난 날 못 한 날은 ❌ (최근 45일~오늘, 오늘은 아직 📌)
+  // 반복하는 일: 한 날은 🔥(시간 있음)·✅(체크만), 지난 날 못 한 날은 ❌ (최근 45일~오늘, 오늘은 아직 📌)
   const since = Utilities.formatDate(new Date(Date.now() - 45 * 864e5), TZ, "yyyy-MM-dd");
   Object.keys(items).forEach(function (ref) {
     const it = items[ref];
@@ -126,8 +129,8 @@ function pushToGoogle_(tasks, goals, logs) {
       if (!d) return;
       const done = !!it.doneDates[d];
       const missed = !done && d < today;
-      const summary = done ? MARK.done + withTime(it.taskId, d, it.title) : (missed ? MARK.miss : MARK.plan) + it.plan;
-      const colorId = done ? COLOR.done : missed ? COLOR.miss : COLOR.plan;
+      const summary = done ? doneMark(it.taskId, d) + withTime(it.taskId, d, it.title) : (missed ? MARK.miss : MARK.plan) + it.plan;
+      const colorId = done ? doneColor(it.taskId, d) : missed ? COLOR.miss : COLOR.plan;
       const gone = inst.status === "cancelled";   // 예전 코드가 잘못 지운 날은 되살림
       if (gone || inst.summary !== summary || (inst.colorId || "") !== colorId) {
         const body = { summary: summary, colorId: colorId };
