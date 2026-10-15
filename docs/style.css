@@ -571,7 +571,6 @@ tr.clickable:hover td { background: var(--sunk); }
 .stamps .sq.on { background: var(--mint); border-color: var(--mint); }
 .wk-bar.fail .stamps .sq { border-color: color-mix(in srgb, var(--coral) 45%, var(--line)); }
 .wk-bar.fail .stamps .sq.on { background: color-mix(in srgb, var(--coral) 55%, var(--surface)); border-color: transparent; }
-.stamps .sep { width: 3px; }   /* 목표 칸과 보너스 칸 사이만 살짝 더 띄움 */
 .stamps .sq.bonus { border-color: color-mix(in srgb, var(--sun) 60%, var(--line)); color: color-mix(in srgb, var(--sun) 70%, var(--line)); }
 .stamps .sq.bonus.on { background: var(--sun); border-color: var(--sun); color: #FFFFFF; }
 .wk-bar .wk-run { margin-left: auto; }
@@ -718,7 +717,6 @@ tr.clickable:hover td { background: var(--sunk); }
   .stat b .fire-v { display: inline; font-size: .8em; margin-right: 2px; }   /* 폰은 요약 칸 아이콘이 없어서 0주일 때 흐린 🔥를 숫자 앞에 */
   .stamps { gap: 2px; }
   .stamps .sq { width: 9px; height: 9px; border-radius: 2px; border-width: 1px; font-size: 6px; }
-  .stamps .sep { width: 2px; }
   .part-m { position: static; font-size: 9px; line-height: 1; }
   .part-m .pm-l { display: none; }
   .part-m .pm-s { display: inline; }
