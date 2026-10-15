@@ -48,6 +48,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 - 한 달 예산: `settings.budgets[YYYY-MM]` = {income, items{id:{cat, memo, amount}}}. 예상 수입은 이 달에 직접 안 넣었으면 지난달 실제 수입. 줄 돈 확인 `settings.giveConfirm[월]={inc,give,at}` (관리자 [확인했어요], 진짜 보드에 저장). 맨 위 알림 띠 `renderNags`. 예상 수입 − 예산 합계 = 여자친구에게 줄 돈(예상). `saveSettingsDeep`로 칸 하나씩 저장. 예산이 없는 달은 그 전 가장 가까운 달 예산을 이어 쓰고, 고치는 순간 그 달 것으로 옮겨 저장.
 - 관리자 기기에선 돈 관리에서 지출·자산을 숨김 (`moneyAdminView`/`moneyShown`: 예산 금액 · 수입 · 보낸 돈만, 달력 날짜·검색도 같게).
 - 돈 `money.kind`: `income` / `expense` / `transfer`(여자친구에게 보낸 돈) / `move`(내 자산끼리 이체, 수입·지출 아님). `account`, `toAccount`.
+- 카드 `accounts/{id}.pay` = {day 결제일(31=말일), from 빠지는 통장, fm/fd ~ tm/td 이용기간(달 -2/-1/0 · 날), since 정한 날}. 결제일에 `syncCardPays`가 할 일 `tasks/cp-{카드}-{YYYY-MM}` '💳 카드값 이체하기 (예상 …원)'(noPractice, `cardPay{card,from,start,end}`) 생성. 체크 → 금액 확인 창(`openCardPay`, 이용기간 지출 합계, 고칠 수 있음) → [이체 기록하기]로 같은 id `money` move 기록. 체크 풀면 그 이체도 지움. 결제일 안 정한 카드는 욱진이 기기 맨 위 띠.
 
 ## 화면
 
