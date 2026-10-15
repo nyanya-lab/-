@@ -572,7 +572,6 @@ tr.clickable:hover td { background: var(--sunk); }
 .wk-bar.fail .stamps .sq { border-color: color-mix(in srgb, var(--coral) 45%, var(--line)); }
 .wk-bar.fail .stamps .sq.on { background: color-mix(in srgb, var(--coral) 55%, var(--surface)); border-color: transparent; }
 .stamps .sq.bonus { border-color: color-mix(in srgb, var(--sun) 60%, var(--line)); color: color-mix(in srgb, var(--sun) 70%, var(--line)); }
-.wk-bar.fail .stamps .sq.bonus { border-color: color-mix(in srgb, var(--coral) 30%, var(--line)); }   /* 못 채운 주도 7칸 (줄 길이 맞춤) */
 .stamps .sq.bonus.on { background: var(--sun); border-color: var(--sun); color: #FFFFFF; }
 .wk-bar .wk-run { margin-left: auto; }
 .day:hover { background: var(--sunk); }
