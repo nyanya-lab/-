@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zd";
-import { CHANGES } from "./changes.js?v=20261015zd";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zd";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015ze";
+import { CHANGES } from "./changes.js?v=20261015ze";
+import { firebaseConfig } from "./firebase-config.js?v=20261015ze";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -629,7 +629,7 @@ function renderCalendar() {
     hs.forEach((h) => evs.push(calTask(h, d, true)));
     (logsByDay[d] || []).forEach((l) => evs.push(`<div class="ev log" data-act="editLog" data-id="${esc(l.id)}" title="실천한 일 · 글자를 누르면 편집">` +
       `<button type="button" class="log-fire" data-act="logFire" data-id="${esc(l.id)}" aria-label="실천한 일 편집·삭제">🔥</button>` +
-      `<span>${esc([l.minutes ? fmtHM(l.minutes) : "", l.text || ""].filter(Boolean).join(" · ") || "기록")}</span></div>`));
+      `<span>${esc([l.text || "", l.minutes ? fmtHM(l.minutes) : ""].filter(Boolean).join(" · ") || "기록")}</span></div>`));
     gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
@@ -1843,7 +1843,7 @@ function maybeShowNews() {
 
 // ---------- 실천한 일: 🔥 누르면 편집/삭제 묻기, 글자 누르면 편집 창 ----------
 let logFor = null;
-function logLabel(l) { return [l.minutes ? fmtHM(l.minutes) : "", l.text || ""].filter(Boolean).join(" · ") || "기록"; }
+function logLabel(l) { return [l.text || "", l.minutes ? fmtHM(l.minutes) : ""].filter(Boolean).join(" · ") || "기록"; }
 function askLog(id) {
   const l = S.logs.get(id); if (!l) return;
   moveFor = null; logFor = id;
