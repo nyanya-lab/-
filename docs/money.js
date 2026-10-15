@@ -260,7 +260,11 @@ export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" 
 export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "assets", "stats"].includes(v) || (v === "assets" && moneyAdminView())) v = "budget"; return v; }
 export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } renderMoney(); }
 export function renderMTabs() {
-  const tab = mTab(), adm = moneyAdminView();
+  const adm = moneyAdminView(), tab = adm ? "stats" : mTab();   // 관리자 보드 '예산'은 통계만 (실제 수입 · 보낸 돈 · 나머지)
+  $("mTabs").hidden = adm;
+  // 가계부 모드: 옆 메뉴(PC)·아래 메뉴(폰)의 예산·지출·자산·통계 / 제목: 관리자 보드는 '예산', 그 외 '가계부'
+  document.querySelectorAll('.m-nav, #mBottom button').forEach((b) => { const on = b.dataset.k === tab; b.setAttribute(b.tagName === "A" ? "aria-current" : "aria-pressed", on ? (b.tagName === "A" ? "page" : "true") : (b.tagName === "A" ? "" : "false")); if (b.tagName === "A" && !on) b.removeAttribute("aria-current"); });
+  $("moneyTitle").textContent = adm ? "예산" : "가계부";
   document.querySelectorAll("#mTabs button").forEach((b) => {
     b.setAttribute("aria-pressed", String(b.dataset.k === tab));
     b.hidden = adm && b.dataset.k === "assets";
@@ -276,8 +280,10 @@ export function renderMoney() {
   $("monthLabel").textContent = monthLabel(m);
   $("moneyPage").classList.toggle("admin-view", adm);
   $("moneyIntro").textContent = adm ? "💡 지출은 욱진이만 보여요. 기능 오류나 추가 기능이 있으면 욱진이에게 자세히 설명해 달라고 하자!" : "통장·카드별로 기록하면 자산마다 잔액이 계산돼요.";
+  $("moneyStats").classList.toggle("three", adm);
   $("moneyStats").innerHTML = adm
-    ? statTile("수입", won(r.inc)) + statTile(partner() + "에게 보낸 돈", won(r.out), r.inc ? `수입의 ${Math.round(r.out / r.inc * 100)}%` : "")
+    ? statTile("실제 수입", won(r.inc)) + statTile(partner() + "에게 보낸 돈", won(r.out), r.inc ? `수입의 ${Math.round(r.out / r.inc * 100)}%` : "") +
+      statTile("나머지", won(r.inc - r.out), "실제 수입 − 보낸 돈", "left" + (r.inc - r.out < 0 ? " minus" : ""))
     : statTile("수입", won(r.inc)) +
     statTile(partner() + "에게 보낸 돈", won(r.out), r.inc ? `수입의 ${Math.round(r.out / r.inc * 100)}%` : "") +
     statTile("지출", won(r.exp), r.inc ? `수입의 ${Math.round(r.exp / r.inc * 100)}%` : "") +
@@ -325,12 +331,14 @@ export function renderMoney() {
   months.forEach((mm) => {
     const x = monthTotals(mm), p = planOf(mm).total;
     sum.inc += x.inc; sum.plan += p; sum.out += x.out; sum.exp += x.exp; sum.left += x.left;
-    trs += `<tr class="clickable${mm === m ? " cur" : ""}" data-act="histMonth" data-m="${mm}" title="눌러서 ${monthLabel(mm)} 보기"><td class="mono">${monthLabel(mm)}</td><td class="num won">${won(x.inc)}</td><td class="num won">${p ? won(p) : "-"}</td><td class="num won">${won(x.out)}</td>` +
-      (adm ? "" : `<td class="num won">${won(x.exp)}</td><td class="num won ${x.left < 0 ? "minus" : "plus"}">${won(x.left)}</td>`) + "</tr>";
+    trs += `<tr class="clickable${mm === m ? " cur" : ""}" data-act="histMonth" data-m="${mm}" title="눌러서 ${monthLabel(mm)} 보기"><td class="mono">${monthLabel(mm)}</td><td class="num won">${won(x.inc)}</td>` +
+      (adm ? `<td class="num won">${won(x.out)}</td><td class="num won ${x.inc - x.out < 0 ? "minus" : "plus"}">${won(x.inc - x.out)}</td>`
+        : `<td class="num won">${p ? won(p) : "-"}</td><td class="num won">${won(x.out)}</td><td class="num won">${won(x.exp)}</td><td class="num won ${x.left < 0 ? "minus" : "plus"}">${won(x.left)}</td>`) + "</tr>";
   });
-  const tot = months.length > 1 ? `<tr class="sum"><td>합계 (${months.length}달)</td><td class="num won">${won(sum.inc)}</td><td class="num won">${won(sum.plan)}</td><td class="num won">${won(sum.out)}</td>` +
-    (adm ? "" : `<td class="num won">${won(sum.exp)}</td><td class="num won ${sum.left < 0 ? "minus" : "plus"}">${won(sum.left)}</td>`) + "</tr>" : "";
-  $("monthTable").innerHTML = `<thead><tr><th>월</th><th class="num">수입</th><th class="num">예산 (쓸 돈)</th><th class="num">보낸 돈</th>${adm ? "" : '<th class="num">지출</th><th class="num">남은 돈</th>'}</tr></thead><tbody>${trs}${tot}</tbody>`;
+  const tot = months.length > 1 ? `<tr class="sum"><td>합계 (${months.length}달)</td><td class="num won">${won(sum.inc)}</td>` +
+    (adm ? `<td class="num won">${won(sum.out)}</td><td class="num won ${sum.inc - sum.out < 0 ? "minus" : "plus"}">${won(sum.inc - sum.out)}</td>`
+      : `<td class="num won">${won(sum.plan)}</td><td class="num won">${won(sum.out)}</td><td class="num won">${won(sum.exp)}</td><td class="num won ${sum.left < 0 ? "minus" : "plus"}">${won(sum.left)}</td>`) + "</tr>" : "";
+  $("monthTable").innerHTML = `<thead><tr><th>월</th><th class="num">${adm ? "실제 수입" : "수입"}</th>${adm ? '<th class="num">보낸 돈</th><th class="num">나머지</th>' : '<th class="num">예산 (쓸 돈)</th><th class="num">보낸 돈</th><th class="num">지출</th><th class="num">남은 돈</th>'}</tr></thead><tbody>${trs}${tot}</tbody>`;
 
   renderMoneyForm();
 

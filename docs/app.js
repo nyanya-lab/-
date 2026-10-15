@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016c";
-import { CHANGES } from "./changes.js?v=20261016c";
-import { bindMoney, initMoney, moneyAction, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016c";
-import { firebaseConfig } from "./firebase-config.js?v=20261016c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016f";
+import { CHANGES } from "./changes.js?v=20261016f";
+import { bindMoney, initMoney, moneyAction, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016f";
+import { firebaseConfig } from "./firebase-config.js?v=20261016f";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -523,7 +523,7 @@ function renderHeader() {
   const appName = me() + (APP === "money" ? " 가계부" : " 실천 보드");
   $("brandName").textContent = appName; document.querySelectorAll(".topbar .brand b").forEach((b) => { b.textContent = appName; });
   document.title = appName;
-  document.querySelectorAll(".nav a").forEach((a) => {
+  document.querySelectorAll(".nav a:not(.m-nav)").forEach((a) => {   // 가계부 메뉴(.m-nav)는 renderMTabs가 표시
     if (a.getAttribute("href") === "#" + ui.page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
   document.querySelectorAll(".page").forEach((p) => { p.hidden = p.dataset.page !== ui.page; });
@@ -986,7 +986,7 @@ function toggleTestMode() {
 function renderAdminUi() {
   const me = isAdminDevice();
   if (APP === "board") {   // 💰 욱진이 보드의 '돈 관리'는 가계부 화면 링크로, 관리자 보드는 보드 안 돈 관리(예산·내역·통계) + '가계부 (연습)'
-    const nm = $("navMoney"); nm.setAttribute("href", me ? "#money" : "money.html"); nm.querySelector("span").textContent = me ? "돈 관리" : "가계부";
+    const nm = $("navMoney"); nm.setAttribute("href", me ? "#money" : "money.html"); nm.querySelector("span").textContent = me ? "예산" : "가계부";
     $("navMoneyApp").hidden = !me;
   }
   document.querySelectorAll(".real-chk").forEach((e) => { e.hidden = !me; });
@@ -2101,7 +2101,7 @@ function renderGoalDlg() {
 
 // ---------- 기능 요청 ----------
 const REQ_STATUS = { todo: "요청", doing: "진행 중", done: "완료" };
-const REQ_AREAS = ["달력", "목표", "돈 관리", "자격증 찾기", "구글 캘린더", "기타"];
+const REQ_AREAS = ["달력", "목표", "가계부", "자격증 찾기", "구글 캘린더", "기타"];
 const REQ_NEXT = { todo: "doing", doing: "done", done: "todo" };
 function renderRequests() {
   $("reqArea").innerHTML = REQ_AREAS.map((a2) => `<button class="chip" type="button" data-act="reqArea" data-k="${a2}" aria-pressed="${ui.reqArea === a2}">${a2}</button>`).join("");
@@ -2215,6 +2215,7 @@ document.addEventListener("click", (ev) => {
   if (!el) return;
   const a = el.dataset.act, id = el.dataset.id, t = today();
   if ((a === "cpUse" || a === "penDone" || a === "gmOpen") && $("winDlg").open) closeDlg($("winDlg"));
+  if (a === "mTab") closeMenu();   // 폰에서 옆 메뉴로 고르면 메뉴 닫기
   if (moneyAction(a, el, id, t)) return;   // 💰 돈 관리 버튼 (money.js)
 
   if (a === "menu") { openMenu(); return; }
