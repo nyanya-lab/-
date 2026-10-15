@@ -98,6 +98,7 @@ button { cursor: pointer; }
 .nag { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; background: var(--coral-soft, var(--sunk)); border: 2px solid var(--coral); border-radius: 12px; padding: 8px 12px; font-size: 14px; }
 /* 💰 가계부 모드: 돈 관리만 (메뉴·복권·테스트 버튼 숨김), '실천 보드로' 링크만 보임 */
 .only-money { display: none !important; }
+.app-money #navMoneyApp { display: none !important; }
 .app-money .only-money { display: flex !important; }
 .app-money .nav a:not([href="#money"]):not(.only-money), .app-money #sideReqs, .app-money .side-lotto, .app-money #topLotto, .app-money .test-btn, .app-money #testBar { display: none !important; }
 .app-money #moneyPage .page-head h2::before { content: "💰 "; }

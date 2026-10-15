@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016b";
-import { CHANGES } from "./changes.js?v=20261016b";
-import { bindMoney, initMoney, moneyAction, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016b";
-import { firebaseConfig } from "./firebase-config.js?v=20261016b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016c";
+import { CHANGES } from "./changes.js?v=20261016c";
+import { bindMoney, initMoney, moneyAction, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016c";
+import { firebaseConfig } from "./firebase-config.js?v=20261016c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -985,6 +985,10 @@ function toggleTestMode() {
 }
 function renderAdminUi() {
   const me = isAdminDevice();
+  if (APP === "board") {   // 💰 욱진이 보드의 '돈 관리'는 가계부 화면 링크로, 관리자 보드는 보드 안 돈 관리(예산·내역·통계) + '가계부 (연습)'
+    const nm = $("navMoney"); nm.setAttribute("href", me ? "#money" : "money.html"); nm.querySelector("span").textContent = me ? "돈 관리" : "가계부";
+    $("navMoneyApp").hidden = !me;
+  }
   document.querySelectorAll(".real-chk").forEach((e) => { e.hidden = !me; });
   ["testBtnSide", "testBtnTop"].forEach((id) => { $(id).hidden = !me && !testMode; $(id).classList.toggle("on", testMode); $(id).title = testMode ? "테스트 끝내기" : "테스트 모드 (저장 안 됨)"; });
   $("testBar").hidden = !testMode;
@@ -2182,6 +2186,10 @@ function render() {
   renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   maybePraise();
+  if (APP === "money" && S.loaded) {   // 보드 검색에서 누른 돈 기록 열기
+    let pe = null; try { pe = localStorage.getItem("ukjin-money-edit"); if (pe) localStorage.removeItem("ukjin-money-edit"); } catch (e) { /* 무시 */ }
+    const pm = pe && S.money.get(pe); if (pm) { ui.month = pm.date.slice(0, 7); setTimeout(() => editMoney(pe), 0); }
+  }
   if (APP === "board" && S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
@@ -2272,6 +2280,7 @@ document.addEventListener("click", (ev) => {
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
   if (a === "helpTopic") { try { localStorage.setItem("ukjin-help-topic", el.dataset.k); } catch (e) { /* 무시 */ } renderHelp(); return; }
+  if (a === "nagGo" && APP === "board" && !isAdminDevice()) { try { localStorage.setItem("ukjin-mtab", el.dataset.k === "income" ? "spend" : "budget"); } catch (e) { /* 무시 */ } location.href = "money.html"; return; }
   if (a === "nagGo") { ui.month = today().slice(0, 7); if (el.dataset.k === "income") ui.kind = "income"; try { localStorage.setItem("ukjin-mtab", el.dataset.k === "income" ? "spend" : "budget"); } catch (e) { /* 무시 */ } location.hash = "#money"; setTimeout(() => { const p = $(el.dataset.k === "income" ? "moneyPanel" : "planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.dataset.k === "income") renderMoneyForm(); if (el.dataset.k === "give") $("planGive").focus(); }, 80); return; }
   if (a === "nagKeep") { const m = today().slice(0, 7); savePlan(m, {}, `🗓️ ${+m.slice(5)}월 예산은 지난달 그대로 써요.`); return; }
   if (a === "giveAck") { const m = today().slice(0, 7); act(backend.saveSettingsDeep({ giveAck: { [m]: Number(el.dataset.inc) } }), "💝 이번 달 줄 돈은 그대로예요.").catch(() => {}); return; }
@@ -2361,6 +2370,7 @@ document.addEventListener("click", (ev) => {
   if (a === "histRedo") { askHist("redo"); return; }
   if (a === "histDo") { histApply(); return; }
   if (a === "searchClear") { $("calSearch").value = ""; renderSearch(); $("calSearch").focus(); return; }
+  if (a === "searchMoney" && APP === "board" && !isAdminDevice()) { try { localStorage.setItem("ukjin-money-edit", id); } catch (e) { /* 무시 */ } location.href = "money.html"; return; }
   if (a === "searchMoney") { const m = S.money.get(id); if (!m) return; ui.month = m.date.slice(0, 7); location.hash = "#money"; if (!moneyAdminView()) setTimeout(() => editMoney(id), 60); return; }
   if (a === "logFire") { askLog(id); return; }
   if (a === "editLog") { openLog(id); return; }
