@@ -96,6 +96,11 @@ button { cursor: pointer; }
 .side-test { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); right: 10px; width: 34px; height: 34px; }
 .nags { display: grid; gap: 8px; margin-bottom: 12px; }
 .nag { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; background: var(--coral-soft, var(--sunk)); border: 2px solid var(--coral); border-radius: 12px; padding: 8px 12px; font-size: 14px; }
+.card-pay { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--sunk); }
+.card-pay[hidden] { display: none; }
+.card-pay h4 { margin: 0; font-size: 14px; }
+.pay-range { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+.pay-range select { width: auto; flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 4px; }
 .nag.praise { background: var(--grape-soft, var(--sunk)); border-color: var(--grape); }
 .praise-big { font-size: 48px; text-align: center; line-height: 1.1; margin-bottom: 8px; }
 .praise-list { display: grid; gap: 8px; }

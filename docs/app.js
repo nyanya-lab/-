@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zj";
-import { CHANGES } from "./changes.js?v=20261015zj";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zj";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zk";
+import { CHANGES } from "./changes.js?v=20261015zk";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zk";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1082,6 +1082,8 @@ function renderNags() {
     if (!(conf && conf.inc === r.inc) && !skip("give")) list.push(["give", `💰 ${esc(me())}이가 ${mon} 수입 <b>${won(r.inc)}</b>을 입력했어요 → 줄 돈 <b>${won(g)}</b> <span class="muted">(수입 − 예산 ${won(pl.total)})</span>`,
       `<button class="btn small" type="button" data-act="nagGive" data-v="${g}" data-inc="${r.inc}">확인했어요</button>`]);
   }
+  // 💳 결제일을 안 정한 카드 (욱진이 기기만) → [설정하기]
+  if (!adm) S.accounts.forEach((a, id) => { if (a && a.type === "card" && !(a.pay && a.pay.day) && !skip("card" + id)) list.push(["card" + id, `💳 <b>${esc(a.name)}</b> 결제일(카드값 빠지는 날)을 아직 안 정했어요. 정해 두면 결제일에 '카드값 이체하기' 할 일이 생겨요.`, `<button class="btn small" type="button" data-act="editAcct" data-id="${esc(id)}">설정하기</button>`]); });
   // 👏 받을 칭찬 (욱진이 기기만)
   const pp = adm || !lottoOn() ? [] : pendingPraises();
   if (pp.length && !skip("pr" + pp[pp.length - 1].id)) list.unshift(["pr" + pp[pp.length - 1].id, `👏 <b>${esc(partner())}가 칭찬했어요!</b> ⭐ +${pp.reduce((n, p) => n + p.pts, 0)}점 <span class="muted">· ${esc(untilText(praiseState(pp[0]).end))} 받기</span>`,
@@ -1454,6 +1456,52 @@ function syncMoneyTasks() {
   if (!jobs.length) return;
   moneyTaskSyncing = true;
   quietly(async () => { for (const j of jobs) await j(); if (Object.keys(flags).length) await backend.saveSettingsDeep({ autoTasks: flags }); }).catch(() => {}).finally(() => { moneyTaskSyncing = false; });
+}
+// 💳 카드값: 결제일이 되면 '💳 ○○카드 값 이체하기 (예상 …원)' 할 일 (tasks.cardPay). 체크하면 금액 확인 창 → [이체 기록하기]로
+// '빠지는 통장 → 카드' 이체 기록 (자동으로 넣지 않음). id = cp-{카드}-{YYYY-MM} (할 일·이체 같은 id), 지우면 다시 안 만듦 (settings.autoTasks)
+let cardPaySyncing = false;
+const cardValue = (n) => /카드$/.test(n || "") ? n + "값" : (n || "카드") + " 카드값";   // 현대카드 → 현대카드값, 신한 → 신한 카드값
+function dayInMonth(m, d) { const last = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate(); return `${m}-${pad(Math.min(d, last))}`; }
+function cardPayPlan(p, m) { return { date: dayInMonth(m, p.day), from: dayInMonth(shiftMonth(m, p.fm ?? -1), p.fd || 1), to: dayInMonth(shiftMonth(m, p.tm ?? -1), p.td || 31) }; }
+function cardSpent(id, from, to) { let s = 0; S.money.forEach((x) => { if ((x.kind === "expense" || !x.kind) && x.account === id && x.date >= from && x.date <= to) s += Number(x.amount) || 0; }); return s; }
+function syncCardPays() {
+  if (cardPaySyncing || !backend || !S.loaded || testMode) return;
+  const t = today(), m = t.slice(0, 7), made = S.settings.autoTasks || {}, jobs = [], flags = {};
+  S.accounts.forEach((a, id) => {
+    const p = a && a.type === "card" && a.pay; if (!p || !p.day || !p.from || !S.accounts.has(p.from)) return;
+    const pl = cardPayPlan(p, m), key = `cp-${id}-${m}`;
+    if (pl.date > t || pl.date < (p.since || t) || made[key] || S.money.has(key) || S.tasks.has(key)) return;
+    const amt = cardSpent(id, pl.from, pl.to);
+    flags[key] = true;
+    jobs.push(() => backend.set("tasks", key, { title: `💳 ${cardValue(a.name)} 이체하기 (${amt > 0 ? "예상 " + won(amt) : "이 기간 사용 없음"})`, repeat: "none", date: pl.date, done: false, doneDate: null, noPractice: true,
+      cardPay: { card: id, from: p.from, start: pl.from, end: pl.to }, createdAt: Date.now() }));
+  });
+  if (!jobs.length) return;
+  cardPaySyncing = true;
+  quietly(async () => { for (const j of jobs) await j(); await backend.saveSettingsDeep({ autoTasks: flags }); }).catch(() => {}).finally(() => { cardPaySyncing = false; });
+}
+// 카드값 이체하기 체크 → 금액 확인 창 (이용기간 사용액이 미리 들어가 있고 고칠 수 있음)
+let cardPayFor = null;
+function openCardPay(taskId) {
+  const x = S.tasks.get(taskId), c = x && x.cardPay; if (!c) return;
+  const card = S.accounts.get(c.card), from = S.accounts.get(c.from), amt = cardSpent(c.card, c.start, c.end);
+  cardPayFor = taskId;
+  $("mvTitle").textContent = `💳 ${cardValue(card && card.name)} 이체`;
+  $("mvText").innerHTML = `<p>${esc(from ? from.name : "통장")} → ${esc(card ? card.name : "카드")}</p>` +
+    `<p class="small muted">이용기간 ${shortDate(c.start)} ~ ${shortDate(c.end)}에 이 카드로 쓴 돈 <b>${won(amt)}</b>. 실제로 빠져나간 금액이 다르면 고쳐 주세요 (할부·연회비 등).</p>` +
+    `<label class="f">빠져나간 금액 (원)<input type="text" class="amt-in" id="cpAmt" inputmode="numeric" autocomplete="off" value="${amt ? commaNum(amt) : ""}"></label>`;
+  $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="cardPayDo">이체 기록하기</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>';
+  openDlg($("moveDlg"));
+}
+function doCardPay() {
+  const id = cardPayFor, x = id && S.tasks.get(id), c = x && x.cardPay, amt = amtVal($("cpAmt")); if (!c || !ready()) return;
+  if (!(amt > 0)) { toast("금액을 적어 주세요."); return; }
+  cardPayFor = null; closeDlg($("moveDlg"));
+  const card = S.accounts.get(c.card), t = today();
+  act((async () => {
+    await backend.set("money", id, { kind: "move", account: c.from, toAccount: c.card, amount: amt, date: x.date || t, memo: `💳 ${cardValue(card && card.name)} (${shortDate(c.start)}~${shortDate(c.end)} 사용분)`, createdAt: Date.now() });
+    await backend.update("tasks", id, { done: true, doneDate: t });
+  })(), `💳 카드값 ${won(amt)} 이체를 기록했어요.`).catch(() => {});
 }
 function syncPenTasks() {
   if (penTaskSyncing || !backend || !S.loaded) return;
@@ -2384,6 +2432,13 @@ function openAcct(id) {
   $("acName").value = a ? a.name : "";
   $("acInit").value = a ? commaNum((ac.type === "card" ? -(Number(a.initial) || 0) : Number(a.initial) || 0) || "", true) : "";
   const del = $("acDel"); del.hidden = !a; del.classList.remove("armed"); del.textContent = "이 자산 삭제"; delete del.dataset.armed;
+  // 💳 카드 결제일·빠지는 통장·이용기간 (기본 전월 1일 ~ 전월 말일, 31 = 말일)
+  const p = (a && a.pay) || {}, days = (max, last) => Array.from({ length: max }, (_, i) => i + 1).map((n) => `<option value="${n}">${n === 31 && last ? "말일" : n + "일"}</option>`).join("");
+  $("acPayDay").innerHTML = '<option value="">아직 안 정함</option>' + days(31, true);
+  $("acFromD").innerHTML = days(31, true); $("acToD").innerHTML = days(31, true);
+  $("acPayFrom").innerHTML = sortedAccts().filter((x) => x.type !== "card").map((x) => `<option value="${esc(x.id)}">${ACCT_ICON[x.type] || ""} ${esc(x.name)}</option>`).join("") || '<option value="">통장을 먼저 추가해 주세요</option>';
+  $("acPayDay").value = p.day || ""; if (p.from) $("acPayFrom").value = p.from;
+  $("acFromM").value = String(p.fm ?? -1); $("acFromD").value = String(p.fd || 1); $("acToM").value = String(p.tm ?? -1); $("acToD").value = String(p.td || 31);
   renderAcctForm(); openDlg($("acctDlg"));
 }
 function renderAcctForm() {
@@ -2391,6 +2446,7 @@ function renderAcctForm() {
   const card = ac.type === "card";
   $("acInitLabel").textContent = card ? "지금 남아 있는 카드값 (원)" : "지금 잔액 (원)";
   $("acHint").textContent = card ? "카드로 쓴 지출만큼 카드값이 늘고, 통장 → 카드 '이체'로 갚으면 줄어요." : "앞으로 이 자산으로 들어오고 나간 기록이 잔액에 반영돼요.";
+  $("acPay").hidden = !card;
 }
 
 // ---------- 분류 편집 ----------
@@ -2493,7 +2549,7 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); renderCouponReqs(); renderAdminN();
+  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   maybePraise();
   if (S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
@@ -2537,6 +2593,7 @@ document.addEventListener("click", (ev) => {
   if (a === "editTask") { const x = S.tasks.get(id); if (x && x.penId && S.wins.get(x.penId)) { openWin(x.penId); return; } openTask(id); return; }
   if (a === "closeTask") { closeDlg($("taskDlg")); return; }
   if (a === "tkRep") { tk.rep = el.dataset.k; renderTaskForm(); return; }
+  if (a === "cardPayDo") { doCardPay(); return; }
   if (a === "repSplit") { doRepSplit(); return; }
   if (a === "tkTimes") { tk.times = +el.dataset.n; renderTaskForm(); return; }
   if (a === "dtTimes") { dt.times = +el.dataset.n; renderDayForm(); return; }
@@ -2744,6 +2801,11 @@ document.addEventListener("click", (ev) => {
   if (a === "toggle") {
     if (!ready()) return;
     const x = S.tasks.get(id); if (!x) return;
+    if (x.cardPay) {   // 💳 카드값 이체하기: 체크 = 금액 확인 후 이체 기록, 풀기 = 그 이체도 지움
+      if (!x.done) { openCardPay(id); return; }
+      act((async () => { if (S.money.has(id)) await backend.remove("money", id); await backend.update("tasks", id, { done: false, doneDate: null }); })(), "카드값 체크를 풀고 그 이체 기록도 지웠어요.").catch(() => {});
+      return;
+    }
     if (x.penId) {   // 😈 벌칙 할 일: 체크 = 벌칙 한 장 하기 (풀기는 쿠폰함·↶에서)
       if (x.done) { toast("끝낸 벌칙이에요. 잘못 눌렀으면 ↶ 되돌리기를 써요."); return; }
       if (!S.wins.get(x.penId)) { toast("이 벌칙은 쿠폰함에 없어요."); return; }
@@ -2923,6 +2985,11 @@ $("acctForm").addEventListener("submit", (ev) => {
   const name = $("acName").value.trim(); if (!name) { toast("이름을 적어 주세요."); return; }
   const v = amtVal($("acInit"));
   const doc = { name, type: ac.type, initial: ac.type === "card" ? -Math.abs(v) : v };
+  if (ac.type === "card") {   // 결제일을 정하면 그날부터 자동 이체 (정한 날 전 결제일은 건드리지 않음 — since)
+    const day = parseInt($("acPayDay").value, 10) || 0, from = $("acPayFrom").value, old = (ac.id && (S.accounts.get(ac.id) || {}).pay) || {};
+    if (day && !from) { toast("카드값이 빠지는 통장을 골라 주세요."); return; }
+    doc.pay = day ? { day, from, fm: +$("acFromM").value, fd: +$("acFromD").value, tm: +$("acToM").value, td: +$("acToD").value, since: old.since || today() } : null;
+  }
   act(ac.id ? backend.update("accounts", ac.id, doc) : backend.add("accounts", { ...doc, createdAt: Date.now() }), ac.id ? "자산을 고쳤어요." : "자산을 추가했어요.")
     .then(() => closeDlg($("acctDlg"))).catch(() => {});
 });
