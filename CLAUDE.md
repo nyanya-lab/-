@@ -20,7 +20,9 @@
 ```
 docs/index.html        화면 마크업 + 작은 창(dialog)들
 docs/style.css         색 토큰(밝은 타일 색: 파랑·코랄·민트·노랑·보라), 다크 모드
-docs/app.js            모든 화면 로직 (상태 S, 저장소 backend, render 함수들)
+docs/app.js            보드 화면 로직 (상태 S, 저장소 backend, render 함수들, 시작할 때 money.js에 bindMoney(env)로 공통 함수 넘김)
+docs/money.js          💰 돈 관리(가계부) 코드: 예산·지출·자산·분류 색·원형·카드값·줄 돈 자동·연습 데이터 (app.js가 import, 바뀌는 값은 E.backend·E.testMode)
+docs/money.html        가계부 짧은 주소 → index.html?app=money (가계부 모드, money.webmanifest)
 docs/firebase-config.js  Firebase 웹 설정 (공개돼도 되는 값)
 docs/changes.js        업데이트 내역 CHANGES (설명서 탭 + 새 버전 알림)
 docs/lotto-presets.js  복권 추천 목록 (쿠폰 200 · 벌칙 50, 관리 창에서 한 번에 넣기)
