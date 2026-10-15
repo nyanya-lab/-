@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zc";
-import { CHANGES } from "./changes.js?v=20261015zc";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zc";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zd";
+import { CHANGES } from "./changes.js?v=20261015zd";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zd";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
