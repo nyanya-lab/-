@@ -69,14 +69,43 @@ export function pieHtml(kind, list, label) {
 // 🗓️ 매달 1일 '예산 입력하기' · 15일 '수입 입력하기' 할 일 (이번 달·다음 달, 지난 날짜는 안 만듦, 한 번 만든 건 지워도 다시 안 만듦)
 // 예산·수입이 들어오면 저절로 체크. 실천 시간으로는 안 침 (noPractice). 구글 캘린더에도 할 일로 가서 폰 알림
 export let moneyTaskSyncing = false;
+// 돈 할 일인지: 자동으로 만든 mt-budget/income-{YYYY-MM}, 또는 직접 넣었다가 바꾼 할 일(mt{k,m})
+export function moneyTaskKind(x, id) {
+  const mm = /^mt-(budget|income)-(\d{4}-\d{2})$/.exec(id || (x && x.id) || "");
+  if (mm) return { k: mm[1], m: mm[2] };
+  return x && x.mt && x.mt.k ? { k: x.mt.k, m: x.mt.m } : null;
+}
+// 이름: 아직이면 '○○ 입력하기', 들어오면 '🗓️ 10월 예산 760,000원' · '💰 10월 월급 2,600,000원' (월급 기록이 없으면 '수입')
+function moneyTaskTitle(k, m, filled) {
+  if (!filled) return k === "budget" ? "🗓️ 이번 달 예산 입력하기" : "💰 이번 달 수입 입력하기";
+  const mon = +m.slice(5);
+  if (k === "budget") return `🗓️ ${mon}월 예산 ${won(planOf(m).total)}`;
+  const r = monthTotals(m), sal = r.items.some((x) => x.kind === "income" && x.cat === "월급");
+  return `💰 ${mon}월 ${sal ? "월급" : "수입"} ${won(r.inc)}`;
+}
 export function syncMoneyTasks() {
   if (moneyTaskSyncing || !E.backend || !S.loaded || E.testMode) return;
-  const t = today(), made = S.settings.autoTasks || {}, jobs = [], flags = {};
+  const t = today(), made = S.settings.autoTasks || {}, jobs = [], flags = {}, budgets = S.settings.budgets || {};
   [t.slice(0, 7), shiftMonth(t.slice(0, 7), 1)].forEach((m) => {
-    [["budget", "01", "🗓️ 이번 달 예산 입력하기", () => !!(S.settings.budgets || {})[m]], ["income", "15", "💰 이번 달 수입 입력하기", () => monthTotals(m).inc > 0]].forEach(([k, dd, title, ok]) => {
-      const id = `mt-${k}-${m}`, date = `${m}-${dd}`, x = S.tasks.get(id);
-      if (!x && !made[id] && date >= t) { jobs.push(() => E.backend.set("tasks", id, { title, repeat: "none", date, done: ok(), doneDate: ok() ? t : null, noPractice: true, createdAt: Date.now() })); flags[id] = true; }
-      else if (x && !x.done && ok()) jobs.push(() => E.backend.update("tasks", id, { done: true, doneDate: t }));
+    [["budget", "01"], ["income", "15"]].forEach(([k, dd]) => {
+      const ok = k === "budget" ? !!budgets[m] : monthTotals(m).inc > 0, key = `mt-${k}-${m}`, date = `${m}-${dd}`, want = moneyTaskTitle(k, m, ok);
+      let id = key, x = S.tasks.get(key);
+      if (!x) { const f = [...S.tasks].find(([, v]) => v && v.mt && v.mt.k === k && v.mt.m === m); if (f) { id = f[0]; x = f[1]; } }
+      if (!x && !made[key]) {   // 직접 넣은 '예산 입력…'·'수입 입력…' 할 일(그 달 하루짜리)은 이 할 일로 바꿈 — 붙은 시간 기록은 지움 (실천 아님, ↶로 되돌릴 수 있음)
+        const re = k === "budget" ? /예산\s*입력/ : /수입\s*입력/;
+        const own = [...S.tasks].find(([tid, v]) => v && (!v.repeat || v.repeat === "none") && v.date && v.date.slice(0, 7) === m && re.test(v.title || "") && !/^(mt|cp)-/.test(tid) && !v.mt);
+        if (own) {
+          const [oid, ov] = own;
+          jobs.push(async () => {
+            await E.backend.update("tasks", oid, { mt: { k, m }, noPractice: true, minutes: null, title: want, done: ok, doneDate: ok ? (ov.doneDate || t) : null });
+            for (const l of rows(S.logs).filter((l) => l.taskId === oid)) await E.backend.remove("logs", l.id);
+          });
+          flags[key] = true; return;
+        }
+      }
+      if (!x && !made[key] && date >= t) { jobs.push(() => E.backend.set("tasks", key, { title: want, repeat: "none", date, done: ok, doneDate: ok ? t : null, noPractice: true, createdAt: Date.now() })); flags[key] = true; }
+      else if (x && ok && (!x.done || x.title !== want)) jobs.push(() => E.backend.update("tasks", id, { done: true, doneDate: x.doneDate || t, title: want }));
+      else if (x && !ok && x.title !== want) jobs.push(() => E.backend.update("tasks", id, { done: false, doneDate: null, title: want }));   // 지우면 원래대로
     });
   });
   if (!jobs.length) return;
