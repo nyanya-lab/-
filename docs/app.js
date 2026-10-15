@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016f";
-import { CHANGES } from "./changes.js?v=20261016f";
-import { bindMoney, initMoney, moneyAction, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016f";
-import { firebaseConfig } from "./firebase-config.js?v=20261016f";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016g";
+import { CHANGES } from "./changes.js?v=20261016g";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016g";
+import { firebaseConfig } from "./firebase-config.js?v=20261016g";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -499,9 +499,9 @@ function taskItem(x, day, upcoming, hideGoal) {
   const done = isDone(x, day), g = x.goalId && !hideGoal ? S.goals.get(x.goalId) : null, meta = [];
   if (isRep(x)) meta.push(`<span class="tag daily">${esc(repeatLabel(x))}${x.repeat === "nweek" ? ` · 이번 주 ${nweekCount(x, day)}/${nweekNeed(x)}` : ""}</span>`);
   if (g) meta.push(`<span class="tag cat ${catCls(x.goalId)}">${esc(g.title)}</span>`);
-  const tm = done ? taskMinutes(x.id, isRep(x) ? day : x.doneDate) : 0;
+  const tm = done && !x.noPractice ? taskMinutes(x.id, isRep(x) ? day : x.doneDate) : 0;   // 예산·수입 같은 실천 아닌 할 일엔 시간 안 보임
   if (tm) meta.push(`<span class="tag mono">⏱ ${fmtHM(tm)}</span>`);
-  else if (!done && x.minutes > 0) meta.push(`<span class="tag mono" title="체크하면 이 시간으로 기록돼요">⏱ ${fmtHM(x.minutes)}</span>`);
+  else if (!done && x.minutes > 0 && !x.noPractice) meta.push(`<span class="tag mono" title="체크하면 이 시간으로 기록돼요">⏱ ${fmtHM(x.minutes)}</span>`);
   if (upcoming) meta.push(`<span class="mono">${shortDate(x.date)}</span>`);
   else if (!isRep(x) && x.date < day && !done) meta.push(`<span class="tag late">${diffDays(day, x.date)}일 밀림</span>`);
   return `<div class="item${done ? " done" : ""}">` +
@@ -548,7 +548,7 @@ function boardStart() {
 function calTask(x, d, repeat) {
   const done = isDone(x, d), color = x.goalId && S.goals.has(x.goalId) ? catCls(x.goalId) : "c-blue";
   // 시간: 끝냈으면 기록한 시간, 아니면 정해 둔 '할 시간'
-  const tm = done ? taskMinutes(x.id, repeat ? d : x.doneDate) : 0, min = tm || (Number(x.minutes) || 0);
+  const tm = done && !x.noPractice ? taskMinutes(x.id, repeat ? d : x.doneDate) : 0, min = tm || (x.noPractice ? 0 : Number(x.minutes) || 0);
   const prac = done && tm > 0;   // 시간과 같이 체크 = 🔥 실천 (노랑), 시간 없이 체크 = ✅ 체크만 (민트)
   const later = repeat && d > today();   // 반복하는 일의 앞으로의 날은 그 날이 되면 체크
   const missed = !done && d < today();     // 지난 날 못 한 일 ❌
@@ -682,6 +682,12 @@ document.querySelectorAll("[data-hm]").forEach((el) => el.addEventListener("inpu
 // 달력 칸 시간: PC는 "· 1시간", 폰은 앞에 짧게 "1h"
 function fmtShort(m) { const h = Math.floor(m / 60), r = m % 60; return !h ? r + "m" : !r ? h + "h" : r === 30 ? h + ".5h" : h + "h" + r; }   // 폰 칸이 좁아서 최대한 짧게
 
+// 🗓️ 예산·💰 수입 할 일 → 가계부의 예산 / 지출(수입 · 월급) 입력 칸 (관리자 기기는 알림만)
+function goMoneyInput(mk) {
+  if (isAdminDevice()) { toast(`욱진이가 가계부에 ${mk.k === "income" ? "수입" : "예산"}을 넣으면 저절로 체크돼요.`); return; }
+  try { localStorage.setItem("ukjin-mtab", mk.k === "income" ? "spend" : "budget"); if (mk.k === "income") localStorage.setItem("ukjin-money-new", "income"); } catch (e) { /* 무시 */ }
+  location.href = "money.html";
+}
 // ---------- 날짜가 다른 할 일을 체크할 때 확인 창 ----------
 // 지난 일: 원래 날짜는 ❌(못 함)로 남기고 오늘 한 걸로 옮기거나, 그 날 한 걸로 체크
 // 앞으로 할 일: 오늘로 당겨서 🔥, 원래 날짜에서는 없어짐
@@ -2189,6 +2195,8 @@ function render() {
   if (APP === "money" && S.loaded) {   // 보드 검색에서 누른 돈 기록 열기
     let pe = null; try { pe = localStorage.getItem("ukjin-money-edit"); if (pe) localStorage.removeItem("ukjin-money-edit"); } catch (e) { /* 무시 */ }
     const pm = pe && S.money.get(pe); if (pm) { ui.month = pm.date.slice(0, 7); setTimeout(() => editMoney(pe), 0); }
+    let pn = null; try { pn = localStorage.getItem("ukjin-money-new"); if (pn) localStorage.removeItem("ukjin-money-new"); } catch (e) { /* 무시 */ }
+    if (pn === "income") { ui.month = today().slice(0, 7); ui.mEdit = null; ui.kind = "income"; setTimeout(() => { renderMoney(); renderMoneyForm({ cat: "월급" }); $("mAmount").focus(); $("moneyPanel").scrollIntoView({ block: "start" }); }, 0); }
   }
   if (APP === "board" && S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
@@ -2409,6 +2417,8 @@ document.addEventListener("click", (ev) => {
   if (a === "toggle") {
     if (!ready()) return;
     const x = S.tasks.get(id); if (!x) return;
+    const mk = moneyTaskKind(x, id);
+    if (mk) { goMoneyInput(mk); return; }   // 🗓️ 예산·💰 수입 할 일: 체크 대신 가계부 입력 칸으로 (입력하면 저절로 체크)
     if (x.cardPay) {   // 💳 카드값 이체하기: 체크 = 금액 확인 후 이체 기록, 풀기 = 그 이체도 지움
       if (!x.done) { openCardPay(id); return; }
       act((async () => { if (S.money.has(id)) await backend.remove("money", id); await backend.update("tasks", id, { done: false, doneDate: null }); })(), "카드값 체크를 풀고 그 이체 기록도 지웠어요.").catch(() => {});
