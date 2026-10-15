@@ -96,6 +96,9 @@ button { cursor: pointer; }
 .side-test { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); right: 10px; width: 34px; height: 34px; }
 .nags { display: grid; gap: 8px; margin-bottom: 12px; }
 .nag { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; background: var(--coral-soft, var(--sunk)); border: 2px solid var(--coral); border-radius: 12px; padding: 8px 12px; font-size: 14px; }
+.plan-give { align-items: end; }
+.plan-give > .f:first-child { flex: 2 1 220px; }
+.plan-give > .f:last-child { flex: 1 1 140px; }
 .card-pay { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--sunk); }
 .card-pay[hidden] { display: none; }
 .card-pay h4 { margin: 0; font-size: 14px; }
@@ -757,6 +760,7 @@ tr.clickable:hover td { background: var(--sunk); }
   .plan-tile b { font-size: 13px; white-space: nowrap; }
   .plan-tile span { font-size: 11px; }
   .plan-tile small { display: none; }
+  .plan-tile.give small { display: block; font-size: 11px; line-height: 1.35; }   /* 폰도 줄 돈 칸은 보냄·[고치기]가 보이게 */
   .plan-income { max-width: none; }
   .plan-row { grid-template-columns: minmax(0, 1fr) 110px auto; }
   .plan-row .plan-memo { grid-column: 1 / -1; grid-row: 2; }
