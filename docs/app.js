@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z8";
-import { CHANGES } from "./changes.js?v=20261015z8";
-import { firebaseConfig } from "./firebase-config.js?v=20261015z8";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z9";
+import { CHANGES } from "./changes.js?v=20261015z9";
+import { firebaseConfig } from "./firebase-config.js?v=20261015z9";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -662,7 +662,8 @@ function weekBar(w) {
   const n = Math.min(7, w.n), st = w.n >= WEEK_GOAL ? "ok" : w.past ? "fail" : "now";
   const extra = weekExtra(n), sb = st === "ok" ? weekStreakBonus(w.run) : 0;
   const goal = Array.from({ length: WEEK_GOAL }, (_, k) => `<i class="sq${k < n ? " on" : ""}"></i>`).join("");
-  const stars = st === "fail" ? "" : `<em class="sep"></em>` + Array.from({ length: 7 - WEEK_GOAL }, (_, k) => `<b class="star${k < n - WEEK_GOAL ? " on" : ""}">${k < n - WEEK_GOAL ? "★" : "☆"}</b>`).join("");
+  // 보너스 칸도 목표 칸과 같은 크기의 네모 (금색 테두리 + 작은 ★, 채우면 금색)
+  const stars = st === "fail" ? "" : `<em class="sep"></em>` + Array.from({ length: 7 - WEEK_GOAL }, (_, k) => `<i class="sq bonus${k < n - WEEK_GOAL ? " on" : ""}">★</i>`).join("");
   const mark = st !== "ok" ? "" : n >= 7 ? `🏆 +${extra}` : extra ? `+${extra}` : "✅";
   const tip = st === "now" ? `이번 주 ${w.n}일 실천 · ${w.n >= WEEK_GOAL ? "클리어!" : `${WEEK_GOAL - w.n}일 남음`}` : st === "fail" ? `${w.n}일 실천 · ${WEEK_GOAL}일을 못 채웠어요` : `${w.n}일 실천 · 클리어${extra ? ` · 보너스 +${extra}` : ""}`;
   // 오른쪽: 성공한 주 🔥 ○주 · 못 채운 주 ❄️ · 이번 주(진행 중) 🔥 ○주 도전 (이어 온 연속이 없으면 흐린 🔥 1주 도전)
