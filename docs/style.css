@@ -598,6 +598,7 @@ tr.clickable:hover td { background: var(--sunk); }
 .ev.task.done > span { color: var(--fg); }
 .ev.task.done .mini-check { border-color: var(--mint); }
 .ev.task.done .mini-check.on { background: var(--mint); }
+.ev .nw { font-family: var(--f-mono); font-size: .85em; color: var(--muted); }   /* 주 ○번: 이번 주 2/3 */
 .ev.task.done.prac { background: var(--sun-soft); border-left-color: var(--sun); }   /* 시간과 같이 끝낸 할 일 = 🔥 실천 (노랑) */
 .mini-fire { flex-shrink: 0; width: 15px; height: 15px; padding: 0; border: 0; background: none; font-size: 12px; line-height: 15px; text-align: center; cursor: pointer; }
 .mini-fire:hover { transform: scale(1.2); }

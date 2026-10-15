@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zg";
-import { CHANGES } from "./changes.js?v=20261015zg";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zg";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zh";
+import { CHANGES } from "./changes.js?v=20261015zh";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zh";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -157,16 +157,28 @@ function shortDate(s) { const d = parseYmd(s); return `${d.getMonth() + 1}/${d.g
 function rows(map) { return [...map].map(([id, v]) => ({ id, ...v })); }
 function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
-// 반복: "daily"(매일) / "weekly"(매주 고른 요일, days = [0(일)..6(토)]), start~end 사이에만
-const isRep = (x) => x.repeat === "daily" || x.repeat === "weekly";
+// 반복: "daily"(매일) / "weekly"(매주 고른 요일, days = [0(일)..6(토)]) / "nweek"(주 times번, 아무 요일), start~end 사이에만
+const isRep = (x) => x.repeat === "daily" || x.repeat === "weekly" || x.repeat === "nweek";
 function activeOn(x, d) {
   if (!isRep(x)) return x.date === d;
   if ((x.start && d < x.start) || (x.end && d > x.end)) return false;
+  if (x.repeat === "nweek") return nweekOn(x, d);
   return x.repeat === "daily" || (x.days || []).includes(parseYmd(d).getDay());
+}
+// 주 N번: 한 주(일~토)에 times번 체크하면 그 주 남은 날엔 안 보임. 오늘부터 남은 날마다 체크박스.
+// 지난 날 안 한 날은 ❌ 안 함 — 주가 끝났는데 못 채웠으면 그 주 마지막 날(토요일·끝나는 날)에만 ❌ 한 번
+const nweekNeed = (x) => Math.max(1, Number(x.times) || 1);
+function nweekCount(x, d) { const ws = sundayOf(d), dd = x.doneDates || {}; let n = 0; for (let i = 0; i < 7; i++) if (dd[addDays(ws, i)]) n++; return n; }
+function nweekOn(x, d) {
+  if ((x.doneDates || {})[d]) return true;
+  if (nweekCount(x, d) >= nweekNeed(x)) return false;
+  const t = today(); if (d >= t) return true;
+  const sat = addDays(sundayOf(d), 6), last = x.end && x.end < sat ? x.end : sat;
+  return last < t && d === last;
 }
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 function repeatLabel(x) {
-  let l = x.repeat === "daily" ? "매일" : "매주 " + [1, 2, 3, 4, 5, 6, 0].filter((n) => (x.days || []).includes(n)).map((n) => DOW[n]).join("·");
+  let l = x.repeat === "daily" ? "매일" : x.repeat === "nweek" ? `주 ${nweekNeed(x)}번` : "매주 " + [1, 2, 3, 4, 5, 6, 0].filter((n) => (x.days || []).includes(n)).map((n) => DOW[n]).join("·");
   if (x.end) l += ` ~${shortDate(x.end).replace(/\(.\)/, "")}`;
   return l;
 }
@@ -536,7 +548,7 @@ function todayTasks() {
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
 function taskItem(x, day, upcoming, hideGoal) {
   const done = isDone(x, day), g = x.goalId && !hideGoal ? S.goals.get(x.goalId) : null, meta = [];
-  if (isRep(x)) meta.push(`<span class="tag daily">${esc(repeatLabel(x))}</span>`);
+  if (isRep(x)) meta.push(`<span class="tag daily">${esc(repeatLabel(x))}${x.repeat === "nweek" ? ` · 이번 주 ${nweekCount(x, day)}/${nweekNeed(x)}` : ""}</span>`);
   if (g) meta.push(`<span class="tag cat ${catCls(x.goalId)}">${esc(g.title)}</span>`);
   const tm = done ? taskMinutes(x.id, isRep(x) ? day : x.doneDate) : 0;
   if (tm) meta.push(`<span class="tag mono">⏱ ${fmtHM(tm)}</span>`);
@@ -596,7 +608,7 @@ function calTask(x, d, repeat) {
       : done   // 시간과 같이 끝낸 일은 🔥, 시간 없이 체크한 일은 ✅. 누르면 체크가 풀려서 다시 네모로
       ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">${prac ? "🔥" : "✅"}</button>`
       : `<button type="button" class="mini-check" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="false" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
-    `<span>${missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
+    `<span>${missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${x.repeat === "nweek" ? ` <small class="nw">${nweekCount(x, d)}/${nweekNeed(x)}</small>` : ""}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
@@ -1870,10 +1882,10 @@ function delLog(id) {
 }
 
 // ---------- 할 일 편집 작은 창 ----------
-const tk = { id: null, rep: "none", days: new Set() };
+const tk = { id: null, rep: "none", days: new Set(), times: 3 };
 function openTask(id) {
   const x = S.tasks.get(id); if (!x) return;
-  tk.id = id; tk.rep = isRep(x) ? x.repeat : "none"; tk.days = new Set(x.days || [parseYmd(x.start || x.date || today()).getDay()]);
+  tk.id = id; tk.rep = isRep(x) ? x.repeat : "none"; tk.days = new Set(x.days || [parseYmd(x.start || x.date || today()).getDay()]); tk.times = nweekNeed({ times: x.times || 3 });
   $("tkTitle").value = x.title || "";
   $("tkDate").value = (isRep(x) ? x.start : x.date) || today();
   $("tkEnd").value = x.end || "";
@@ -1891,6 +1903,7 @@ function renderTaskForm() {
   document.querySelectorAll("#tkRepSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === tk.rep)));
   $("tkDays").hidden = tk.rep !== "weekly";
   $("tkDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="tkDay" data-d="${n}" aria-pressed="${tk.days.has(n)}">${DOW[n]}</button>`).join("");
+  $("tkTimes").hidden = tk.rep !== "nweek"; $("tkTimes").innerHTML = `${[1, 2, 3, 4, 5, 6].map((n) => `<button class="chip" type="button" data-act="tkTimes" data-n="${n}" aria-pressed="${tk.times === n}">${n}번</button>`).join("")}`;
   $("tkDateLabel").firstChild.textContent = tk.rep === "none" ? "날짜" : "시작일";
   $("tkEndLabel").hidden = tk.rep === "none";
   $("tkDoneWrap").hidden = tk.rep !== "none";
@@ -1900,7 +1913,7 @@ function renderTaskForm() {
 }
 
 // 날짜 작은 창: [할 일] [실천한 일] 두 버튼, 할 일 추가는 한 번/매일/매주 요일
-const dt = { tab: "tasks", rep: "none", days: new Set() };
+const dt = { tab: "tasks", rep: "none", days: new Set(), times: 3 };
 function openDay(d) {
   ui.selDay = d; if (d.slice(0, 7) !== ui.calMonth) ui.calMonth = d.slice(0, 7);
   dt.tab = "tasks"; dt.rep = "none"; dt.days = new Set([parseYmd(d).getDay()]);
@@ -1914,7 +1927,8 @@ function renderDayForm() {
   document.querySelectorAll("#dtRepSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === dt.rep)));
   $("dtDays").hidden = dt.rep !== "weekly";
   $("dtDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="dtDay" data-d="${n}" aria-pressed="${dt.days.has(n)}">${DOW[n]}</button>`).join("");
-  $("dtHint").textContent = dt.rep === "none" ? "" : `${shortDate(ui.selDay)}부터 ${dt.rep === "daily" ? "매일" : "고른 요일마다"} 반복해요. 목표에 시험일이 있으면 그날까지만 반복해요.`;
+  $("dtTimes").hidden = dt.rep !== "nweek"; $("dtTimes").innerHTML = `${[1, 2, 3, 4, 5, 6].map((n) => `<button class="chip" type="button" data-act="dtTimes" data-n="${n}" aria-pressed="${dt.times === n}">${n}번</button>`).join("")}`;
+  $("dtHint").textContent = dt.rep === "none" ? "" : dt.rep === "nweek" ? `${shortDate(ui.selDay)}부터 한 주(일~토)에 ${dt.times}번, 아무 요일이나 하면 돼요. ${dt.times}번 체크하면 그 주 남은 날엔 안 보여요.` : `${shortDate(ui.selDay)}부터 ${dt.rep === "daily" ? "매일" : "고른 요일마다"} 반복해요. 목표에 시험일이 있으면 그날까지만 반복해요.`;
   const sel = $("dtGoal"), cur = sel.value;
   sel.innerHTML = '<option value="">없음</option>' + rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
   if (cur && S.goals.has(cur)) sel.value = cur;
@@ -2076,7 +2090,7 @@ function renderOrphanNote() {
 }
 
 // ---------- 목표 작은 창 ----------
-const gt = { open: null, rep: "daily", days: new Set([1, 3, 5]) };   // 할 일 추가 폼 상태 (open: "rep" | "once" | null)
+const gt = { open: null, rep: "daily", days: new Set([1, 3, 5]), times: 3 };   // 할 일 추가 폼 상태 (open: "rep" | "once" | null)
 function openGoal(id) {
   ui.goalId = id;
   const g = S.goals.get(id); if (!g) return;
@@ -2118,6 +2132,7 @@ function renderGoalDlg() {
     document.querySelectorAll("#gtRepSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === gt.rep)));
     $("gtDays").hidden = !rep || gt.rep !== "weekly";
     $("gtDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="gtDay" data-d="${n}" aria-pressed="${gt.days.has(n)}">${DOW[n]}</button>`).join("");
+    $("gtTimes").hidden = !rep || gt.rep !== "nweek"; $("gtTimes").innerHTML = `${[1, 2, 3, 4, 5, 6].map((n) => `<button class="chip" type="button" data-act="gtTimes" data-n="${n}" aria-pressed="${gt.times === n}">${n}번</button>`).join("")}`;
     $("gtDateLabel").firstChild.textContent = rep ? "시작일" : "날짜";
     $("gtEndLabel").hidden = !rep;
     const quick = [[addDays($("gtDate").value || t, 27), "4주"], [addDays($("gtDate").value || t, 55), "8주"]];
@@ -2522,6 +2537,9 @@ document.addEventListener("click", (ev) => {
   if (a === "editTask") { const x = S.tasks.get(id); if (x && x.penId && S.wins.get(x.penId)) { openWin(x.penId); return; } openTask(id); return; }
   if (a === "closeTask") { closeDlg($("taskDlg")); return; }
   if (a === "tkRep") { tk.rep = el.dataset.k; renderTaskForm(); return; }
+  if (a === "tkTimes") { tk.times = +el.dataset.n; renderTaskForm(); return; }
+  if (a === "dtTimes") { dt.times = +el.dataset.n; renderDayForm(); return; }
+  if (a === "gtTimes") { gt.times = +el.dataset.n; renderGoalDlg(); return; }
   if (a === "tkDay") { const n = +el.dataset.d; if (tk.days.has(n)) tk.days.delete(n); else tk.days.add(n); renderTaskForm(); return; }
   if (a === "delTask") {
     if (!ready() || !tk.id) return;
@@ -3015,7 +3033,7 @@ $("taskEditForm").addEventListener("submit", (ev) => {
     if (tk.rep === "weekly" && !tk.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
     const end = $("tkEnd").value || null;
     if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
-    patch = { title, goalId, subId, minutes, repeat: tk.rep, start: date, end, days: tk.rep === "weekly" ? [...tk.days].sort() : null, date: null, done: null, doneDate: null };
+    patch = { title, goalId, subId, minutes, repeat: tk.rep, start: date, end, days: tk.rep === "weekly" ? [...tk.days].sort() : null, times: tk.rep === "nweek" ? tk.times : null, date: null, done: null, doneDate: null };
   }
   act((async () => { await backend.update("tasks", tk.id, patch); if (timeOps) await timeOps(); })(), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
 });
@@ -3041,6 +3059,7 @@ $("goalTaskForm").addEventListener("submit", (ev) => {
     if (gt.rep === "weekly" && !gt.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
     Object.assign(doc, { repeat: gt.rep, start: date, doneDates: {} });
     if (gt.rep === "weekly") doc.days = [...gt.days].sort();
+    if (gt.rep === "nweek") doc.times = gt.times;
     if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
     if (end) doc.end = end;
   }
@@ -3068,6 +3087,7 @@ $("dayTaskForm").addEventListener("submit", (ev) => {
     if (dt.rep === "weekly" && !dt.days.size) { toast("반복할 요일을 하나 이상 골라 주세요."); return; }
     Object.assign(doc, { repeat: dt.rep, start: ui.selDay, doneDates: {} });
     if (dt.rep === "weekly") doc.days = [...dt.days].sort();
+    if (dt.rep === "nweek") doc.times = dt.times;
     if (g && g.due && g.due >= ui.selDay) doc.end = g.due;
   }
   addTask(doc, "dtReal", dt.rep === "none" ? "할 일을 추가했어요." : "반복하는 일을 추가했어요.")

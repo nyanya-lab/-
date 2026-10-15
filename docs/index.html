@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015zg">
+<link rel="stylesheet" href="style.css?v=20261015zh">
 </head>
 <body>
 
@@ -343,7 +343,8 @@
         <div data-help="todo" hidden>
         <h3>할 일 · 반복하는 일</h3>
         <ul>
-          <li>그 날 창이나 목표 창에서 ＋ 추가. <b>한 번</b> / <b>매일</b> / <b>매주 요일</b>을 골라요. 반복은 끝나는 날을 정할 수 있어요 (비우면 계속).</li>
+          <li>그 날 창이나 목표 창에서 ＋ 추가. <b>한 번</b> / <b>매일</b> / <b>매주 요일</b> / <b>주 ○번</b>을 골라요. 반복은 끝나는 날을 정할 수 있어요 (비우면 계속).</li>
+          <li><b>주 ○번</b> (예: 운동 주 3번): 요일 상관없이 한 주(일~토)에 그만큼 하면 돼요. 남은 날마다 체크박스가 보이고, 횟수를 채우면 그 주 남은 날엔 사라져요. 안 한 날은 ❌가 안 붙고, 주가 끝났는데 못 채웠을 때만 토요일에 ❌ 한 번. 옆에 <code>2/3</code>처럼 이번 주 진행이 보여요.</li>
           <li><b>할 시간</b>(예: 1시간)을 넣어 두면 체크만 해도 그 시간이 실천으로 기록돼요. 안 넣으면 체크할 때 "얼마나 했어요?"라고 물어봐요.</li>
           <li>시간은 [시간][분] 두 칸. ＋30분 버튼을 누를 때마다 30분씩 더해져요.</li>
           <li>제목 앞에 <b>💜</b>가 붙은 할 일은 여자친구가 넣어 준 할 일이에요. 체크하는 법은 똑같아요.</li>
@@ -461,12 +462,14 @@
     <form class="dlg-sec" id="dayTaskForm" autocomplete="off">
       <h4>할 일 추가</h4>
       <input type="text" id="dayTaskTitle" maxlength="120" placeholder="예: 필기 기출 20문제, 주방 상판 실측" aria-label="할 일">
-      <div class="seg" id="dtRepSeg">
+      <div class="seg seg4" id="dtRepSeg">
         <button type="button" data-act="dtRep" data-k="none">이 날 한 번</button>
         <button type="button" data-act="dtRep" data-k="daily">매일</button>
         <button type="button" data-act="dtRep" data-k="weekly">매주 요일</button>
+        <button type="button" data-act="dtRep" data-k="nweek">주 ○번</button>
       </div>
       <div class="chips" id="dtDays" hidden></div>
+      <div class="chips" id="dtTimes" hidden></div>
       <p class="small muted" id="dtHint"></p>
       <div class="f">할 시간 (선택)<input type="hidden" id="dtMin"><div class="hm"><input type="number" data-hm="dtMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dtMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
       <div class="chips" data-min-for="dtMin"></div>
@@ -512,11 +515,13 @@
     <h4 id="gtHead">할 일 추가</h4>
     <input type="text" id="gtTitle" maxlength="120" placeholder="예: 필기 기출 20문제, CAD 평면도 연습" aria-label="할 일">
     <label class="f" id="gtSubWrap" hidden>세부목표<select id="gtSubGoal"></select></label>
-    <div class="seg seg2" id="gtRepSeg">
+    <div class="seg" id="gtRepSeg">
       <button type="button" data-act="gtRep" data-k="daily">매일</button>
       <button type="button" data-act="gtRep" data-k="weekly">매주 요일</button>
+      <button type="button" data-act="gtRep" data-k="nweek">주 ○번</button>
     </div>
     <div class="chips" id="gtDays" hidden></div>
+    <div class="chips" id="gtTimes" hidden></div>
     <div class="row" style="align-items:end">
       <label class="f" id="gtDateLabel">날짜<input type="date" id="gtDate"></label>
       <label class="f" id="gtEndLabel" hidden>끝나는 날 (비우면 계속)<input type="date" id="gtEnd"></label>
@@ -535,12 +540,14 @@
   <div class="dlg-head"><div><h3 id="tkTitleH">할 일 편집</h3><span class="muted small" id="tkSub"></span></div><button class="icon-round" type="button" data-act="closeTask" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <form class="dlg-sec" id="taskEditForm" autocomplete="off">
     <label class="f">할 일<input type="text" id="tkTitle" maxlength="120"></label>
-    <div class="seg" id="tkRepSeg">
+    <div class="seg seg4" id="tkRepSeg">
       <button type="button" data-act="tkRep" data-k="none">한 번</button>
       <button type="button" data-act="tkRep" data-k="daily">매일</button>
       <button type="button" data-act="tkRep" data-k="weekly">매주 요일</button>
+      <button type="button" data-act="tkRep" data-k="nweek">주 ○번</button>
     </div>
     <div class="chips" id="tkDays" hidden></div>
+    <div class="chips" id="tkTimes" hidden></div>
     <div class="row">
       <label class="f" id="tkDateLabel">날짜<input type="date" id="tkDate"></label>
       <label class="f" id="tkEndLabel" hidden>끝나는 날 (비우면 계속)<input type="date" id="tkEnd"></label>
@@ -686,6 +693,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015zg"></script>
+<script type="module" src="app.js?v=20261015zh"></script>
 </body>
 </html>
