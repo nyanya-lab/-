@@ -594,10 +594,10 @@ tr.clickable:hover td { background: var(--sunk); }
 .ev.done { text-decoration: line-through; color: var(--muted); }
 .ev.task { display: flex; align-items: center; gap: 5px; padding: 2px 5px; white-space: nowrap; }
 .ev.task > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.ev.task.done { text-decoration: none; background: var(--sun-soft); border-left-color: var(--sun); }   /* 끝낸 할 일 = 실천 (🔥 노랑) */
+.ev.task.done { text-decoration: none; background: var(--mint-soft); border-left-color: var(--mint); }   /* 끝낸 할 일 = ✅ 민트 (따로 기록한 실천 🔥 노랑과 구분) */
 .ev.task.done > span { color: var(--fg); }
-.ev.task.done .mini-check { border-color: var(--sun); }
-.ev.task.done .mini-check.on { background: var(--sun); }
+.ev.task.done .mini-check { border-color: var(--mint); }
+.ev.task.done .mini-check.on { background: var(--mint); }
 .mini-fire { flex-shrink: 0; width: 15px; height: 15px; padding: 0; border: 0; background: none; font-size: 12px; line-height: 15px; text-align: center; cursor: pointer; }
 .mini-fire:hover { transform: scale(1.2); }
 .ev.task.miss { background: var(--sunk); border-left-color: var(--muted); }   /* 지난 날 못 한 할 일 ❌ */

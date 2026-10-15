@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015ze";
-import { CHANGES } from "./changes.js?v=20261015ze";
-import { firebaseConfig } from "./firebase-config.js?v=20261015ze";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zf";
+import { CHANGES } from "./changes.js?v=20261015zf";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zf";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -591,8 +591,8 @@ function calTask(x, d, repeat) {
   return `<div class="ev task ${color}${done ? " done" : missed ? " miss" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
-      : done   // 끝낸 일은 네모 대신 🔥, 누르면 체크가 풀려서 다시 네모로
-      ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">🔥</button>`
+      : done   // 끝낸 할 일은 ✅ (따로 기록한 실천은 🔥), 누르면 체크가 풀려서 다시 네모로
+      ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">✅</button>`
       : `<button type="button" class="mini-check" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="false" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
     `<span>${missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
 }
@@ -640,12 +640,13 @@ function renderCalendar() {
     const cls = ["day", lv ? "p" + lv : part ? "part" : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
     // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
     const pts = ptsDay && ptsDay[d] && ptsDay[d].sum;
-    // 폰 칸: 대표 아이콘 두 개까지 (🎯 > 🔥 > ❌ > 📌 > 📅 > 💰) + 남은 할 일 수
+    // 폰 칸: 대표 아이콘 두 개까지 (🎯 > 🎟️ > ✅ 끝낸 할 일 > 🔥 실천 기록 > ❌ > 📌 > 📅 > 💰) + 남은 할 일 수
     const dayTs = rows(S.tasks).filter((x) => x.title && activeOn(x, d)), doneN = dayTs.filter((x) => isDone(x, d)).length, openN = dayTs.length - doneN;
     const ics = [];
     if ((exams[d] || []).length) ics.push("🎯");
     if (cpDue.length) ics.push("🎟️");
-    if (doneN || (logsByDay[d] || []).length) ics.push("🔥"); else if (fills[d]) ics.push("🛡️");
+    if (doneN) ics.push("✅");
+    if ((logsByDay[d] || []).length) ics.push("🔥"); else if (!doneN && fills[d]) ics.push("🛡️");
     if (openN) ics.push(d < t ? "❌" : "📌");
     if (gcalEventsOn(d).length) ics.push("📅");
     if (income[d]) ics.push("💰");
