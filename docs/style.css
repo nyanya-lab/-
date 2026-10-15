@@ -664,9 +664,14 @@ tr.clickable:hover td { background: var(--sunk); }
 #monthTable tr.sum td { font-weight: 700; border-top: 2px solid var(--line); }
 .real-chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--grape); font-weight: 600; margin-top: 4px; cursor: pointer; }
 .real-chk[hidden] { display: none; }
+.help-q { margin-bottom: 10px; font-size: 16px; padding: 10px 14px; }
+.help .hs-off { display: none; }
+.help-from { font-size: 13px; font-weight: 700; color: var(--blue); margin: 14px 0 0; }
+.help .help-from + h3 { margin-top: 4px; }
+::highlight(help-hit) { background: var(--sun-soft); color: inherit; }
 .help-seg { max-width: 360px; grid-template-columns: repeat(2, 1fr); margin-bottom: 12px; }
 .help h3 { margin: 18px 0 6px; font-size: 16px; }
-.help h3:first-child { margin-top: 0; }
+.help h3:first-child, .help .help-from[hidden] + h3 { margin-top: 0; }
 .help ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.55; }
 .help .chg-date { font-family: var(--f-mono); font-size: 13px; color: var(--muted); margin: 16px 0 6px; }
 .help .chg-date:first-child { margin-top: 0; }

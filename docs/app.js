@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016g";
-import { CHANGES } from "./changes.js?v=20261016g";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016g";
-import { firebaseConfig } from "./firebase-config.js?v=20261016g";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016h";
+import { CHANGES } from "./changes.js?v=20261016h";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016h";
+import { firebaseConfig } from "./firebase-config.js?v=20261016h";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1804,8 +1804,44 @@ function renderHelp() {
   $("helpLottoBtn").hidden = !lv;
   document.querySelectorAll("#helpTopics button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === topic)));
   document.querySelectorAll("[data-help]").forEach((el) => { el.hidden = el.dataset.help !== topic; });
+  helpSearch(lv);
   $("helpChanges").innerHTML = chgHtml(CHANGES);
   $("newsBadge").hidden = !hasNews();
+}
+// 🔍 설명서 검색: 글자가 있으면 주제 탭 대신 모든 주제에서 맞는 줄만 (띄어 쓴 낱말은 다 들어 있어야), 찾은 글자는 노랗게
+function helpSearch(lv) {
+  const words = ($("helpQ").value || "").trim().toLowerCase().split(/\s+/).filter(Boolean), on = words.length > 0;
+  const has = (el) => { const t = el.textContent.toLowerCase(); return words.every((w) => t.includes(w)); };
+  $("helpTopics").hidden = on;
+  let hits = 0;
+  document.querySelectorAll("#helpGuide [data-help]").forEach((sec) => {
+    let from = sec.querySelector(":scope > .help-from");
+    if (!from) { from = document.createElement("div"); from.className = "help-from"; from.textContent = document.querySelector(`#helpTopics [data-k="${sec.dataset.help}"]`).textContent; sec.prepend(from); }
+    from.hidden = !on;
+    sec.querySelectorAll(".hs-off").forEach((el) => el.classList.remove("hs-off"));
+    if (!on) return;
+    let n = 0;
+    if (sec.dataset.help !== "lotto" || lv) sec.querySelectorAll(":scope > h3").forEach((h) => {
+      const ul = h.nextElementSibling, all = has(h);
+      let m = 0;
+      ul.querySelectorAll(":scope > li").forEach((li) => { const ok = all || has(li); li.classList.toggle("hs-off", !ok); if (ok) m++; });
+      h.classList.toggle("hs-off", !m); ul.classList.toggle("hs-off", !m); n += m;
+    });
+    sec.hidden = !n; hits += n;
+  });
+  $("helpNone").hidden = !on || hits > 0;
+  if (on) $("helpNone").textContent = `'${$("helpQ").value.trim()}' 설명을 못 찾았어요. 다른 낱말로 찾아보세요.`;
+  // 찾은 글자 칠하기 (지원하는 브라우저만, 화면 글은 그대로 둠)
+  if (!window.CSS || !CSS.highlights || typeof Highlight === "undefined") return;
+  CSS.highlights.delete("help-hit");
+  if (!on) return;
+  const ranges = [], tw = document.createTreeWalker($("helpGuide"), NodeFilter.SHOW_TEXT);
+  for (let nd = tw.nextNode(); nd; nd = tw.nextNode()) {
+    if (nd.parentElement.closest(".hs-off, [hidden], .help-from, #helpTopics")) continue;
+    const t = nd.textContent.toLowerCase();
+    words.forEach((w) => { for (let i = t.indexOf(w); i >= 0; i = t.indexOf(w, i + w.length)) { const r = new Range(); r.setStart(nd, i); r.setEnd(nd, i + w.length); ranges.push(r); } });
+  }
+  CSS.highlights.set("help-hit", new Highlight(...ranges));
 }
 function markNewsSeen() { try { localStorage.setItem(NEWS_KEY, CHANGES[0].date + "#" + CHANGES[0].items.length); } catch (e) { /* 무시 */ } renderHelp(); }
 function maybeShowNews() {
@@ -2768,6 +2804,7 @@ document.addEventListener("keydown", (ev) => {
 $("goalDlg").addEventListener("close", () => { ui.goalId = null; });
 
 $("certSearch").addEventListener("submit", (ev) => { ev.preventDefault(); ui.certQ = $("certQ").value; ui.certTag = "전체"; renderCerts(); });
+$("helpQ").addEventListener("input", () => renderHelp());
 $("certQ").addEventListener("input", () => { ui.certQ = $("certQ").value; renderCerts(); });
 
 
