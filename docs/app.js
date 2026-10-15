@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zl";
-import { CHANGES } from "./changes.js?v=20261015zl";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zl";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zn";
+import { CHANGES } from "./changes.js?v=20261015zn";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zn";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1490,6 +1490,21 @@ function syncCardPays() {
   cardPaySyncing = true;
   quietly(async () => { for (const j of jobs) await j(); await backend.saveSettingsDeep({ autoTasks: flags }); }).catch(() => {}).finally(() => { cardPaySyncing = false; });
 }
+// 💝 줄 돈: 이번 달 15일이 되면 '보낸 돈'(transfer)을 money/give-{YYYY-MM}로 자동 기록 (그 달에 이미 직접 보낸 만큼은 빼고, 다 보냈으면 안 넣음)
+// 한 번 넣은 달은 다시 안 넣음 (settings.autoTasks) — 지우거나 고쳐도 그대로
+let giveSyncing = false;
+function syncGive() {
+  if (giveSyncing || !backend || !S.loaded || testMode) return;
+  const t = today(), m = t.slice(0, 7), id = `give-${m}`, made = S.settings.autoTasks || {};
+  if (t < `${m}-15` || made[id] || S.money.has(id)) return;
+  const pl = planOf(m); if (!(pl.give > 0)) return;
+  const amt = pl.give - monthTotals(m).out;
+  giveSyncing = true;
+  quietly(async () => {
+    if (amt > 0) await backend.set("money", id, { kind: "transfer", cat: moneyCats("transfer")[0] || "생활비", amount: amt, date: `${m}-15`, account: S.accounts.has(S.settings.giveFrom) ? S.settings.giveFrom : null, memo: `💝 ${+m.slice(5)}월 줄 돈 (자동)`, auto: true, createdAt: Date.now() });
+    await backend.saveSettingsDeep({ autoTasks: { [id]: true } });
+  }).catch(() => {}).finally(() => { giveSyncing = false; });
+}
 // 카드값 이체하기 체크 → 금액 확인 창 (이용기간 사용액이 미리 들어가 있고 고칠 수 있음)
 let cardPayFor = null;
 function openCardPay(taskId) {
@@ -2250,11 +2265,19 @@ function renderPlan(m, r) {
   $("planTiles").innerHTML =
     `<div class="plan-tile"><span>수입</span><b>${pl.income ? won(pl.income) : "-"}</b><small>${r.inc ? "이번 달 실제" : pl.incAuto ? `지난달 기준 (${monthLabel(pl.incFrom)} 실제)` : "수입이 들어오면 계산돼요"}</small></div>` +
     `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${adm ? `${pl.items.length}개 분류` : pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
-    `<div class="plan-tile give"><span>💝 ${esc(partner())}에게 줄 돈${g.state === "ok" ? " ✅" : ""}</span><b>${give == null ? "아직 안 정함" : won(give)}</b>` +
-    `<small>${give == null ? (adm ? "욱진이가 예산에서 정해요" : "아래에서 정해요") : r.out ? `${won(r.out)} 보냄 · 남은 ${won(give - r.out)}` : "15일에 보내요"}</small></div>` +
+    (() => {   // 💝 줄 돈 → 15일에 자동으로 '보낸 돈' 기록되면 '준 돈 ✅' + [고치기] (그 기록 열기)
+      const gid = `give-${m}`, auto = S.money.get(gid), sent = give != null && r.out >= give;
+      const sub = give == null ? (adm ? "욱진이가 예산에서 정해요" : "아래에서 정해요")
+        : auto || sent ? `${auto ? shortDate(auto.date) + " " : ""}${won(r.out)} 보냄${r.out < give ? ` · 남은 ${won(give - r.out)}` : ""}${auto && !adm ? ` · <button class="link-btn" type="button" data-act="editMoney" data-id="${gid}">고치기</button>` : ""}`
+        : r.out ? `${won(r.out)} 보냄 · 남은 ${won(give - r.out)} · 15일 자동 기록` : "15일에 자동으로 '보낸 돈' 기록";
+      return `<div class="plan-tile give"><span>💝 ${esc(partner())}에게 ${auto || sent ? "준 돈 ✅" : "줄 돈"}${g.state === "ok" ? " ✔" : ""}</span><b>${give == null ? "아직 안 정함" : won(give)}</b><small>${sub}</small></div>`;
+    })() +
     `<div class="plan-tile left${left < 0 ? " minus" : ""}"><span>잔액</span><b>${pl.income ? won(left) : "-"}</b><small>수입 − 쓸 돈${give == null ? "" : " − 줄 돈"}</small></div>`;
   $("planPie").innerHTML = pieHtml("expense", pl.items.map((v) => ({ cat: v.cat, amt: Number(v.amount) || 0 })), "예산");
   if (document.activeElement !== $("planGive")) $("planGive").value = give == null ? "" : commaNum(give);
+  const gf = $("planGiveFrom"), gfv = S.settings.giveFrom || "";
+  gf.innerHTML = '<option value="">선택 안 함</option>' + sortedAccts().filter((x) => x.type !== "card").map((x) => `<option value="${esc(x.id)}">${ACCT_ICON[x.type] || ""} ${esc(x.name)}</option>`).join("");
+  gf.value = S.accounts.has(gfv) ? gfv : "";
   const planned = new Set(pl.items.map((v) => v.cat));
   const extra = Object.entries(r.byCat).filter(([c]) => !planned.has(c)).reduce((t, [, v]) => t + v, 0);
   if (adm) {
@@ -2561,7 +2584,7 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); renderCouponReqs(); renderAdminN();
+  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   maybePraise();
   if (S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
@@ -3023,6 +3046,7 @@ $("planAddForm").addEventListener("submit", (ev) => {
   const id = "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   savePlan(m, { items: { [id]: { cat, memo, amount, createdAt: Date.now() } } }, `${cat} 예산을 넣었어요.`).then(() => { $("planCat").value = ""; $("planMemo").value = ""; $("planAmt").value = ""; $("planCat").focus(); });
 });
+$("planGiveFrom").addEventListener("change", () => act(backend.saveSettings({ giveFrom: $("planGiveFrom").value || null }), "💝 보내는 통장을 저장했어요.").catch(() => {}));
 $("planGive").addEventListener("change", () => { const v = $("planGive").value.trim(); savePlan(ui.month, { give: v ? amtVal($("planGive")) : null }, v ? `💝 줄 돈을 ${won(amtVal($("planGive")))}으로 정했어요.` : "💝 줄 돈을 비웠어요. 남는 돈은 다 잔액이에요."); });
 $("planRows").addEventListener("change", (ev) => {
   const d = ev.target.dataset || {};
