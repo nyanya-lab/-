@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zk";
-import { CHANGES } from "./changes.js?v=20261015zk";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zk";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zl";
+import { CHANGES } from "./changes.js?v=20261015zl";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zl";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1077,10 +1077,20 @@ function renderNags() {
     (planSource(m) ? `<button class="btn ghost small" type="button" data-act="nagKeep">지난달 그대로 쓸게요</button>` : "")]);
   if (+t.slice(8) >= 15 && !r.inc && !skip("income")) list.push(["income", `💰 <b>이번 달 수입</b>이 아직 입력 안 됐어요.`, adm ? "" : `<button class="btn small" type="button" data-act="nagGo" data-k="income">수입 입력하기</button>`]);
   // 관리자: 수입이 들어오면 줄 돈 확인
-  if (adm && r.inc > 0) {
-    const conf = (S.settings.giveConfirm || {})[m], g = r.inc - pl.total;
-    if (!(conf && conf.inc === r.inc) && !skip("give")) list.push(["give", `💰 ${esc(me())}이가 ${mon} 수입 <b>${won(r.inc)}</b>을 입력했어요 → 줄 돈 <b>${won(g)}</b> <span class="muted">(수입 − 예산 ${won(pl.total)})</span>`,
-      `<button class="btn small" type="button" data-act="nagGive" data-v="${g}" data-inc="${r.inc}">확인했어요</button>`]);
+  if (adm && r.inc > 0 && !skip("give")) {
+    const gs = giveOf(m, r, pl);
+    if (gs.state === "none") list.push(["give", `💰 ${esc(me())}이가 ${mon} 수입 <b>${won(r.inc)}</b>을 입력했어요. 💝 줄 돈은 아직 안 정했어요.`, ""]);
+    else if (gs.state !== "ok") list.push(["give", `💰 ${esc(me())}이가 ${mon} 수입 <b>${won(r.inc)}</b>을 입력했어요 → 💝 줄 돈 <b>${won(pl.give)}</b>`,
+      `<button class="btn small" type="button" data-act="nagGive" data-v="${pl.give}" data-inc="${r.inc}">확인했어요</button>`]);
+  }
+  // 욱진이: 이번 달 실제 수입이 들어오면 줄 돈·잔액 한 번 확인 (settings.giveAck[월] = 그때 수입, 수입이 바뀌면 다시)
+  if (!adm && r.inc > 0 && Number((S.settings.giveAck || {})[m]) !== r.inc && !skip("gack")) {
+    const left = r.inc - pl.total - (pl.give || 0);
+    list.push(["gack", pl.give == null
+      ? `💝 ${mon} 실제 수입 <b>${won(r.inc)}</b> − 예산 ${won(pl.total)} = <b>${won(r.inc - pl.total)}</b>. ${esc(partner())}에게 줄 돈을 아직 안 정했어요.`
+      : `💝 ${mon} 실제 수입 <b>${won(r.inc)}</b> − 예산 ${won(pl.total)} − 줄 돈 ${won(pl.give)} = 잔액 <b class="${left < 0 ? "won minus" : ""}">${won(left)}</b>${left < 0 ? " · 수입이 모자라요!" : ""}`,
+      (pl.give == null ? "" : `<button class="btn small" type="button" data-act="giveAck" data-inc="${r.inc}">그대로 둘게요</button>`) +
+      `<button class="btn ${pl.give == null ? "" : "ghost "}small" type="button" data-act="nagGo" data-k="give">${pl.give == null ? "줄 돈 정하기" : "줄 돈 바꾸기"}</button>`]);
   }
   // 💳 결제일을 안 정한 카드 (욱진이 기기만) → [설정하기]
   if (!adm) S.accounts.forEach((a, id) => { if (a && a.type === "card" && !(a.pay && a.pay.day) && !skip("card" + id)) list.push(["card" + id, `💳 <b>${esc(a.name)}</b> 결제일(카드값 빠지는 날)을 아직 안 정했어요. 정해 두면 결제일에 '카드값 이체하기' 할 일이 생겨요.`, `<button class="btn small" type="button" data-act="editAcct" data-id="${esc(id)}">설정하기</button>`]); });
@@ -1091,7 +1101,7 @@ function renderNags() {
   // 🔄 새 버전이 올라왔으면 (checkNewVersion) 맨 위에. [나중에]는 그 버전만 숨김
   if (ui.newVer && !skip("upd" + ui.newVer)) list.unshift(["upd" + ui.newVer, "🔄 <b>새 버전이 나왔어요.</b> 새로고침하면 바뀐 걸 쓸 수 있어요.", `<button class="btn small" type="button" data-act="updReload">새로고침</button>`]);
   box.hidden = !list.length;
-  box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag${k.startsWith("upd") ? " upd" : k.startsWith("pr") ? " praise" : ""}"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
+  box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag${k.startsWith("upd") || (k === "gack" && !txt.includes("모자라요")) ? " upd" : k.startsWith("pr") ? " praise" : ""}"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
 }
 function saveLotto(patch, msg) {
   if (!ready()) return Promise.resolve();
@@ -2208,41 +2218,43 @@ function planOf(m) {
   const src = planSource(m), b = (src && S.settings.budgets[src]) || {};
   const items = Object.entries(b.items || {}).filter(([, v]) => v && v.cat).map(([id, v]) => ({ id, ...v }))
     .sort((a, b2) => (a.createdAt || 0) - (b2.createdAt || 0));
-  // 예상 수입: 이 달에 직접 넣은 게 없으면 지난달 실제 수입 (없으면 이어 쓰는 예산의 예상 수입)
-  const own = (S.settings.budgets || {})[m], prevM = shiftMonth(m, -1), prevInc = monthTotals(prevM).inc;
-  const incAuto = !(own && Number(own.income) > 0) && prevInc > 0;
-  return { income: incAuto ? prevInc : Number(b.income) || 0, incAuto, incFrom: incAuto ? prevM : null, items, total: items.reduce((t, v) => t + (Number(v.amount) || 0), 0), from: src && src !== m ? src : null };
+  // 수입: 이번 달 실제 수입 → 아직이면 지난달 실제 수입 (incAuto). 예상 수입을 따로 넣는 칸은 없앰 (예전에 넣은 income은 안 씀)
+  // 💝 줄 돈(give): 욱진이가 예산에서 정한 금액 (안 정하면 null → 남는 돈은 다 잔액)
+  const prevM = shiftMonth(m, -1), cur = monthTotals(m).inc, prevInc = monthTotals(prevM).inc, incAuto = !cur && prevInc > 0;
+  const give = b.give == null || b.give === "" ? null : Number(b.give) || 0;
+  return { income: cur || (incAuto ? prevInc : 0), incAuto, incFrom: incAuto ? prevM : null, give, items, total: items.reduce((t, v) => t + (Number(v.amount) || 0), 0), from: src && src !== m ? src : null };
 }
 function savePlan(m, patch, msg) {
   if (!ready()) return Promise.resolve();
   const pl = planOf(m);
   if (pl.from) {   // 이어서 쓰던 예산을 이 달 것으로 옮겨 적고 바꿀 칸만 덮어씀
-    const base = { income: pl.incAuto ? 0 : pl.income, items: {} };   // 자동 예상 수입은 고정해 두지 않음
+    const base = { items: {} };
+    if (pl.give != null) base.give = pl.give;   // 이어 쓰던 줄 돈도 같이 옮김
     pl.items.forEach((v) => { base.items[v.id] = { cat: v.cat, memo: v.memo || "", amount: Number(v.amount) || 0, createdAt: v.createdAt || Date.now() }; });
     patch = deepMerge(base, patch);
   }
   return act(backend.saveSettingsDeep({ budgets: { [m]: patch } }), msg).catch(() => {});
 }
-// 줄 돈: 네(관리자)가 [확인했어요] 한 금액 → 실제 수입 기준 → 예상 수입 기준. settings.giveConfirm[월] = {inc, give, at}
+// 💝 줄 돈: 욱진이가 정한 금액 그대로 (수입에 따라 안 바뀜). 네(관리자)가 [확인했어요] 하면 settings.giveConfirm[월] = {inc, give, at}
 function giveOf(m, r, pl) {
   const conf = (S.settings.giveConfirm || {})[m];
-  if (conf && r.inc > 0 && conf.inc === r.inc) return { give: Number(conf.give) || 0, state: "ok" };
-  if (r.inc > 0) return { give: r.inc - pl.total, state: "real" };
-  return { give: pl.income - pl.total, state: "plan" };
+  const ok = pl.give != null && conf && r.inc > 0 && conf.inc === r.inc && Number(conf.give) === pl.give;
+  return { give: pl.give, state: pl.give == null ? "none" : ok ? "ok" : "set" };
 }
 function renderPlan(m, r) {
   const pl = planOf(m), g = giveOf(m, r, pl), give = g.give, adm = moneyAdminView();
   $("planSub").textContent = pl.from
     ? `${monthLabel(m)} · ${monthLabel(pl.from)} 예산을 이어서 쓰는 중 (고치면 이 달 것만 바뀌어요)`
     : `${monthLabel(m)} · 쓸 돈을 분류별로 정해 두는 곳 (다음 달로 그대로 이어져요)`;
+  const left = pl.income - pl.total - (give || 0);   // 잔액 = 수입 − 쓸 돈 − 줄 돈
   $("planTiles").innerHTML =
-    `<div class="plan-tile"><span>예상 수입</span><b>${won(pl.income)}</b><small>${pl.incAuto ? `${monthLabel(pl.incFrom)} 실제 수입` : ""}${r.inc ? `${pl.incAuto ? " · " : ""}이번 달 실제 ${won(r.inc)}` : pl.incAuto ? "" : "아래에 넣어요"}</small></div>` +
+    `<div class="plan-tile"><span>수입</span><b>${pl.income ? won(pl.income) : "-"}</b><small>${r.inc ? "이번 달 실제" : pl.incAuto ? `지난달 기준 (${monthLabel(pl.incFrom)} 실제)` : "수입이 들어오면 계산돼요"}</small></div>` +
     `<div class="plan-tile"><span>쓸 돈 (예산)</span><b>${won(pl.total)}</b><small>${adm ? `${pl.items.length}개 분류` : pl.items.length ? `실제 ${won(r.exp)} 씀` : "분류별로 추가해요"}</small></div>` +
-    `<div class="plan-tile give${give < 0 ? " minus" : ""}"><span>${esc(partner())}에게 줄 돈 ${g.state === "ok" ? "✅ 확인함" : g.state === "real" ? "(실제 수입 기준)" : "(예상)"}</span><b>${pl.income || r.inc ? won(give) : "-"}</b>` +
-    `<small>${r.out ? `${won(r.out)} 보냄 · 남은 ${won(give - r.out)}` : g.state === "plan" ? "예상 수입 − 쓸 돈" : "실제 수입 − 쓸 돈"}</small></div>`;
+    `<div class="plan-tile give"><span>💝 ${esc(partner())}에게 줄 돈${g.state === "ok" ? " ✅" : ""}</span><b>${give == null ? "아직 안 정함" : won(give)}</b>` +
+    `<small>${give == null ? (adm ? "욱진이가 예산에서 정해요" : "아래에서 정해요") : r.out ? `${won(r.out)} 보냄 · 남은 ${won(give - r.out)}` : "15일에 보내요"}</small></div>` +
+    `<div class="plan-tile left${left < 0 ? " minus" : ""}"><span>잔액</span><b>${pl.income ? won(left) : "-"}</b><small>수입 − 쓸 돈${give == null ? "" : " − 줄 돈"}</small></div>`;
   $("planPie").innerHTML = pieHtml("expense", pl.items.map((v) => ({ cat: v.cat, amt: Number(v.amount) || 0 })), "예산");
-  if (document.activeElement !== $("planIncome")) $("planIncome").value = pl.incAuto ? "" : commaNum(pl.income || "");
-  $("planIncome").placeholder = pl.incAuto ? `${won(pl.income)} (${monthLabel(pl.incFrom)} 실제 수입, 비우면 이걸로)` : "예: 2,500,000";
+  if (document.activeElement !== $("planGive")) $("planGive").value = give == null ? "" : commaNum(give);
   const planned = new Set(pl.items.map((v) => v.cat));
   const extra = Object.entries(r.byCat).filter(([c]) => !planned.has(c)).reduce((t, [, v]) => t + v, 0);
   if (adm) {
@@ -2643,8 +2655,9 @@ document.addEventListener("click", (ev) => {
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
   if (a === "helpTopic") { try { localStorage.setItem("ukjin-help-topic", el.dataset.k); } catch (e) { /* 무시 */ } renderHelp(); return; }
-  if (a === "nagGo") { ui.month = today().slice(0, 7); if (el.dataset.k === "income") ui.kind = "income"; location.hash = "#money"; setTimeout(() => { const p = $(el.dataset.k === "income" ? "moneyPanel" : "planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.dataset.k === "income") renderMoneyForm(); }, 80); return; }
+  if (a === "nagGo") { ui.month = today().slice(0, 7); if (el.dataset.k === "income") ui.kind = "income"; location.hash = "#money"; setTimeout(() => { const p = $(el.dataset.k === "income" ? "moneyPanel" : "planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.dataset.k === "income") renderMoneyForm(); if (el.dataset.k === "give") $("planGive").focus(); }, 80); return; }
   if (a === "nagKeep") { const m = today().slice(0, 7); savePlan(m, {}, `🗓️ ${+m.slice(5)}월 예산은 지난달 그대로 써요.`); return; }
+  if (a === "giveAck") { const m = today().slice(0, 7); act(backend.saveSettingsDeep({ giveAck: { [m]: Number(el.dataset.inc) } }), "💝 이번 달 줄 돈은 그대로예요.").catch(() => {}); return; }
   if (a === "nagGive") { const m = today().slice(0, 7); saveSettingsReal({ giveConfirm: { [m]: { inc: Number(el.dataset.inc), give: Number(el.dataset.v), at: Date.now() } } }, `✅ ${+m.slice(5)}월 줄 돈 ${won(Number(el.dataset.v))} 확인했어요.`); return; }
   if (a === "updReload") { hardReload(true); return; }
   if (a === "prGet") { praiseGetAll(); return; }
@@ -3010,7 +3023,7 @@ $("planAddForm").addEventListener("submit", (ev) => {
   const id = "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   savePlan(m, { items: { [id]: { cat, memo, amount, createdAt: Date.now() } } }, `${cat} 예산을 넣었어요.`).then(() => { $("planCat").value = ""; $("planMemo").value = ""; $("planAmt").value = ""; $("planCat").focus(); });
 });
-$("planIncome").addEventListener("change", () => savePlan(ui.month, { income: amtVal($("planIncome")) }, "예상 수입을 저장했어요."));
+$("planGive").addEventListener("change", () => { const v = $("planGive").value.trim(); savePlan(ui.month, { give: v ? amtVal($("planGive")) : null }, v ? `💝 줄 돈을 ${won(amtVal($("planGive")))}으로 정했어요.` : "💝 줄 돈을 비웠어요. 남는 돈은 다 잔액이에요."); });
 $("planRows").addEventListener("change", (ev) => {
   const d = ev.target.dataset || {};
   if (d.planMemo) { savePlan(ui.month, { items: { [d.planMemo]: { memo: ev.target.value.trim() } } }, "메모를 고쳤어요."); return; }
