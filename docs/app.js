@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z3";
-import { CHANGES } from "./changes.js?v=20261015z3";
-import { firebaseConfig } from "./firebase-config.js?v=20261015z3";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z4";
+import { CHANGES } from "./changes.js?v=20261015z4";
+import { firebaseConfig } from "./firebase-config.js?v=20261015z4";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -502,11 +502,12 @@ const pracMin = (d) => d < WEEK_RULE_FROM ? OLD_PRACTICE_MIN : PRACTICE_MIN;
 const practiced = (days, d) => (days[d] || 0) >= pracMin(d);
 // 새 규칙의 주마다: { ws(일요일), n(실천한 날 수, 오늘까지), hit(4번째 실천한 날 = 성공한 날), past(지난 주) }
 function weekRuns(days) {
-  const t = today(), cur = sundayOf(t), out = [];
+  const t = today(), cur = sundayOf(t), out = []; let run = 0;
   for (let ws = WEEK_RULE_FROM; ws <= cur; ws = addDays(ws, 7)) {
     let n = 0, hit = null; const pd = [];
     for (let i = 0; i < 7; i++) { const d = addDays(ws, i); if (d > t) break; if (practiced(days, d)) { n++; pd.push(d); if (n === WEEK_GOAL) hit = d; } }
-    out.push({ ws, n, hit, pd, past: ws < cur });
+    run = n >= WEEK_GOAL ? run + 1 : ws < cur ? 0 : run;   // run = 이 주까지 연속 몇 주 (이번 주가 아직이면 지난 연속 그대로)
+    out.push({ ws, n, hit, pd, past: ws < cur, run });
   }
   return out;
 }
@@ -615,7 +616,7 @@ function renderCalendar() {
     if (i % 7 === 0 && wkMap[d]) {
       const w = wkMap[d], st = w.n >= WEEK_GOAL ? "ok" : w.past ? "fail" : "now";
       const label = st === "ok" ? `✅ ${w.n}일 실천 · 성공` : st === "fail" ? `${w.n}/${WEEK_GOAL}일 · 아쉬워요` : `이번 주 ${w.n}/${WEEK_GOAL}일`;
-      html += `<div class="wk-bar ${st}" title="이 주(일~토) ${label}" aria-label="이 주 ${label}"><i style="width:${Math.min(100, Math.round(w.n / WEEK_GOAL * 100))}%"></i><span>${label}</span></div>`;
+      html += `<div class="wk-bar ${st}" title="이 주(일~토) ${label}" aria-label="이 주 ${label}"><i style="width:${Math.min(100, Math.round(w.n / WEEK_GOAL * 100))}%"></i><span>${label}</span>${w.run ? `<b class="wk-run">🔥 ${w.run}주 연속${st === "now" ? " 중" : ""}</b>` : ""}</div>`;
     }
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
     const cpDue = couponsDueOn(d);
@@ -1662,12 +1663,12 @@ function stopGame() {
 }
 
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
-// 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 3주 30 / 5주 100 / 9주 250 / 14주 1000 / 그 뒤 5주마다 300 · 한 주 4일 넘긴 날 +5, 7일 다 하면 +30 더 (10/11 전은 7·15·30·90일) · 돈 기록 1 (월급 30)
+// 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 3주 30 / 6주 100 / 12주 250 / 25주 1000 / 그 뒤 5주마다 300 · 한 주 4일 넘긴 날 +5, 7일 다 하면 +30 더 (10/11 전은 7·15·30·90일) · 돈 기록 1 (월급 30)
 const PT_GOAL = 300, PT_SUB = 50, PT_TICKET = 1000;
 function lottoOn() { return !!(S.settings.lotto && S.settings.lotto.on); }
 function isAdminDevice() { try { return localStorage.getItem("ukjin-admin") === "1"; } catch (e) { return false; } }
 function lottoVisible() { return lottoOn() || isAdminDevice(); }   // 쿠폰 목록 준비 끝나기 전에는 관리자 기기에서만 보임
-function weekStreakBonus(n) { return n === 3 ? 30 : n === 5 ? 100 : n === 9 ? 250 : n === 14 ? 1000 : n > 14 && (n - 14) % 5 === 0 ? 300 : 0; }
+function weekStreakBonus(n) { return n === 3 ? 30 : n === 6 ? 100 : n === 12 ? 250 : n === 25 ? 1000 : n > 25 && (n - 25) % 5 === 0 ? 300 : 0; }
 function streakBonus(n) { return n === 7 ? 30 : n === 15 ? 100 : n === 30 ? 250 : n === 90 ? 1000 : n > 90 && (n - 90) % 30 === 0 ? 300 : 0; }
 function pointsLedger() {
   const day = {}, at = (d) => (day[d] ||= { sum: 0, min: 0, money: 0, salary: 0, lines: [] });
@@ -1690,7 +1691,7 @@ function pointsLedger() {
     run = prev && addDays(prev, 1) === d ? run + 1 : 1; prev = d;
     const b = streakBonus(run); if (b) { const x = at(d); x.sum += b; x.lines.push(["🔥", `연속 실천 ${run}일 보너스`, b]); }
   });
-  // 연속 (10/11 주부터): 성공한 주(4일)가 3·5·9·14주…째가 되는 날(그 주 4번째 실천한 날) 보너스
+  // 연속 (10/11 주부터): 성공한 주(4일)가 3·6·12·25주…째가 되는 날(그 주 4번째 실천한 날) 보너스
   let wrun = 0;
   weekRuns(pm).forEach((w) => {
     if (w.n >= WEEK_GOAL) { wrun++; const b = weekStreakBonus(wrun); if (b) { const x = at(w.hit); x.sum += b; x.lines.push(["🔥", `연속 ${wrun}주 보너스`, b]); } }
