@@ -3,11 +3,12 @@
  * 욱진이 Apps Script의 짧은 코드(Code.gs)가 5분마다 이 파일을 받아서 실행해요.
  * 여기를 고쳐서 main에 합치면, 다시 붙여넣지 않아도 늦어도 15분 안에 적용돼요.
  *   · 보드 할 일·반복하는 일·시험일 → 구글 캘린더 (📌 파랑 / 시간과 같이 끝내면 🔥 노랑 · 시간 없이 체크만 하면 ✅ 초록 / 🎯 D-DAY 빨강)
+ *   · 주 ○번 반복 (최근 1년) → 한 주에 하나: 📌 이번 주 2/3 · 다 채우면 🔥/✅ · 못 채운 주 ❌
  *   · 실천한 일(최근 1년) → 🔥 노랑
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  */
-const CORE_VERSION = "2026-10-15a";
+const CORE_VERSION = "2026-10-15b";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
@@ -49,9 +50,28 @@ function pushToGoogle_(tasks, goals, logs) {
   const doneColor = function (taskId, day) { return timed[taskId + "|" + day] > 0 ? COLOR.done : COLOR.check; };
   // 아직 안 한 일: 정해 둔 '할 시간'이 있으면 "📌 제목 · 1시간"
   const withPlan = function (t) { return Number(t.minutes) > 0 ? t.title + " · " + fmtMin_(Number(t.minutes)) : t.title; };
+  const nwFrom = sundayOf_(Utilities.formatDate(new Date(Date.now() - 365 * 864e5), TZ, "yyyy-MM-dd"));
   Object.keys(tasks).forEach(function (id) {
     const t = tasks[id];
     if (!t || !t.title) return;
+    // 주 ○번 (아무 요일): 요일이 안 정해져 있어서 한 주(일~토)에 종일 일정 하나 — "📌 운동 (주 3번) 2/3"
+    if (t.repeat === "nweek") {
+      const need = Math.max(1, Number(t.times) || 1), dd = t.doneDates || {}, cur = sundayOf_(today);
+      let ws = sundayOf_(t.start || today);
+      if (ws < nwFrom) ws = nwFrom;
+      for (let k = 0; k < 60 && ws <= cur; k++, ws = addDays_(ws, 7)) {
+        if (t.end && ws > t.end) break;
+        let n = 0, timedAny = false;
+        for (let i = 0; i < 7; i++) { const d = addDays_(ws, i); if (dd[d]) { n++; if (timed[id + "|" + d] > 0) timedAny = true; } }
+        const date = t.start && t.start > ws ? t.start : ws, label = t.title + " (주 " + need + "번) " + n + "/" + need;
+        const full = n >= need, past = ws < cur;
+        items["nw:" + id + ":" + ws] = {
+          summary: (full ? (timedAny ? MARK.done : MARK.check) : past ? MARK.miss : MARK.plan) + label,
+          colorId: full ? (timedAny ? COLOR.done : COLOR.check) : past ? COLOR.miss : COLOR.plan, date: date
+        };
+      }
+      return;
+    }
     if (t.repeat === "daily" || t.repeat === "weekly") {
       const start = firstDay_(t);
       if (!start) return;
@@ -210,6 +230,15 @@ function listAll_(opts) {
   return all;
 }
 function remove_(id) { try { Calendar.Events.remove(CAL, id); } catch (e) { /* 이미 없음 */ } }
+function addDays_(ymd, n) {
+  const p = ymd.split("-");
+  return Utilities.formatDate(new Date(+p[0], +p[1] - 1, +p[2] + n, 12), TZ, "yyyy-MM-dd");
+}
+// 그 주 일요일 (보드 달력·주 ○번과 같은 일~토)
+function sundayOf_(ymd) {
+  const p = ymd.split("-"), dow = new Date(+p[0], +p[1] - 1, +p[2], 12).getDay();
+  return addDays_(ymd, -dow);
+}
 function nextDay_(ymd) {
   const p = ymd.split("-");
   return Utilities.formatDate(new Date(+p[0], +p[1] - 1, +p[2] + 1, 12), TZ, "yyyy-MM-dd");
