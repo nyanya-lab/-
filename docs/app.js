@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z2";
-import { CHANGES } from "./changes.js?v=20261015z2";
-import { firebaseConfig } from "./firebase-config.js?v=20261015z2";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z3";
+import { CHANGES } from "./changes.js?v=20261015z3";
+import { firebaseConfig } from "./firebase-config.js?v=20261015z3";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -147,6 +147,7 @@ function parseYmd(s) { const p = s.split("-"); return new Date(+p[0], +p[1] - 1,
 function addDays(s, n) { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); }
 function diffDays(a, b) { return Math.round((parseYmd(a) - parseYmd(b)) / 86400000); }
 function today() { return ymd(new Date()); }
+function sundayOf(s) { const d = parseYmd(s); d.setDate(d.getDate() - d.getDay()); return ymd(d); }   // 달력 줄 = 일~토
 function mondayOf(s) { const d = parseYmd(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); }
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 function prettyDate(s) { const d = parseYmd(s); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일`; }
@@ -484,7 +485,7 @@ function practiceMinutes() {
     if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v && !timed.has(id + "|" + d)) add(d, 15); });
     else if (t.done && t.doneDate && !timed.has(id + "|" + t.doneDate)) add(t.doneDate, 15);
   });
-  Object.keys(fillDays()).forEach((d) => { if ((m[d] || 0) < PRACTICE_MIN) m[d] = PRACTICE_MIN; });   // 🛡️ 연속일 채우기 쿠폰으로 채운 날 = 실천한 날 (실천 시간 점수는 없음)
+  Object.keys(fillDays()).forEach((d) => { if ((m[d] || 0) < pracMin(d)) m[d] = pracMin(d); });   // 🛡️ 연속일 채우기 쿠폰으로 채운 날 = 실천한 날 (실천 시간 점수는 없음)
   return m;
 }
 // 🛡️ 쿠폰으로 채운 날 {날짜: 쿠폰 id}
@@ -494,14 +495,28 @@ function couponsDueOn(d) { return lottoVisible() && d >= today() ? rows(S.wins).
 // 할 일을 체크할 때 같이 기록한 시간 (실천 기록에 taskId로 연결)
 function taskLogs(taskId, day) { return rows(S.logs).filter((l) => l.taskId === taskId && (!day || l.date === day)); }
 function taskMinutes(taskId, day) { return taskLogs(taskId, day).reduce((s, l) => s + (Number(l.minutes) || 0), 0); }
-// 실천한 날 = 하루 50분 이상 (달력 초록 · 연속 실천 · 연속 보너스 모두 이 기준)
-const PRACTICE_MIN = 50;
-const practiced = (days, d) => (days[d] || 0) >= PRACTICE_MIN;
+// 실천한 날 = 하루 60분 이상 (달력 초록). 2026-10-11(일) 주부터 연속은 '주' 단위: 한 주(일~토)에 실천한 날 4일 이상이면 그 주 성공
+// 그 전 날짜는 예전 규칙 그대로 (50분 · 날마다 연속 · 7/15/30/90일 보너스) — 이미 받은 점수가 바뀌지 않게
+const WEEK_RULE_FROM = "2026-10-11", WEEK_GOAL = 4, PRACTICE_MIN = 60, OLD_PRACTICE_MIN = 50;
+const pracMin = (d) => d < WEEK_RULE_FROM ? OLD_PRACTICE_MIN : PRACTICE_MIN;
+const practiced = (days, d) => (days[d] || 0) >= pracMin(d);
+// 새 규칙의 주마다: { ws(일요일), n(실천한 날 수, 오늘까지), hit(4번째 실천한 날 = 성공한 날), past(지난 주) }
+function weekRuns(days) {
+  const t = today(), cur = sundayOf(t), out = [];
+  for (let ws = WEEK_RULE_FROM; ws <= cur; ws = addDays(ws, 7)) {
+    let n = 0, hit = null; const pd = [];
+    for (let i = 0; i < 7; i++) { const d = addDays(ws, i); if (d > t) break; if (practiced(days, d)) { n++; pd.push(d); if (n === WEEK_GOAL) hit = d; } }
+    out.push({ ws, n, hit, pd, past: ws < cur });
+  }
+  return out;
+}
+// 연속 = 성공한 주가 몇 주 이어졌나. 이번 주는 성공했으면 더하고, 아직이면 토요일 밤까지 기다림 (끊지 않음)
 function streak(days) {
-  const t = today(); let d = practiced(days, t) ? t : addDays(t, -1), n = 0;
-  while (practiced(days, d)) { n++; d = addDays(d, -1); }
+  const ws = weekRuns(days); let n = 0;
+  for (let i = ws.length - 1; i >= 0; i--) { if (ws[i].n >= WEEK_GOAL) n++; else if (ws[i].past) break; }
   return n;
 }
+function weekNow(days) { const w = weekRuns(days); return w[w.length - 1] || { n: 0 }; }
 function logMinutes(from, to) { let m = 0; S.logs.forEach((l) => { if (l.date >= from && l.date <= to) m += Number(l.minutes) || 0; }); return m; }
 function todayTasks() {
   const t = today();
@@ -592,10 +607,16 @@ function renderCalendar() {
   const startedAt = boardStart();
   const ptsDay = lottoVisible() && ptsShown() ? pointsLedger().day : null;   // 칸 오른쪽 아래 +포인트
   const fills = fillDays();
+  const wkMap = {}; weekRuns(prac).forEach((w) => { wkMap[w.ws] = w; });   // 일요일 → 그 주 결과 (달력 줄 위 띠)
   const logsByDay = {}; rows(S.logs).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((l) => { if (l.date && !l.taskId) (logsByDay[l.date] ||= []).push(l); });   // 할 일에 붙은 시간은 그 할 일 옆에 보임
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
+    if (i % 7 === 0 && wkMap[d]) {
+      const w = wkMap[d], st = w.n >= WEEK_GOAL ? "ok" : w.past ? "fail" : "now";
+      const label = st === "ok" ? `✅ ${w.n}일 실천 · 성공` : st === "fail" ? `${w.n}/${WEEK_GOAL}일 · 아쉬워요` : `이번 주 ${w.n}/${WEEK_GOAL}일`;
+      html += `<div class="wk-bar ${st}" title="이 주(일~토) ${label}" aria-label="이 주 ${label}"><i style="width:${Math.min(100, Math.round(w.n / WEEK_GOAL * 100))}%"></i><span>${label}</span></div>`;
+    }
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
     const cpDue = couponsDueOn(d);
     cpDue.forEach((w) => evs.push(`<div class="ev cpexp" data-act="winOpen" data-id="${esc(w.id)}" title="${esc(w.title)} 쿠폰 마감 · 눌러서 보기">🎟️ ${esc(w.title)} 마감</div>`));
@@ -613,9 +634,10 @@ function renderCalendar() {
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
     if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
-    const mm = prac[d] || 0, lv = mm >= 120 ? 4 : mm >= 90 ? 3 : mm >= 70 ? 2 : mm >= PRACTICE_MIN ? 1 : 0;   // 50분부터 초록
-    const missed = !mm && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 하나도 없음 (50분 안 되는 날은 색 없음)
-    const cls = ["day", lv ? "p" + lv : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
+    const mm = prac[d] || 0, lv = !practiced(prac, d) ? 0 : mm >= 180 ? 4 : mm >= 120 ? 3 : mm >= 90 ? 2 : 1;   // 60분부터 초록 (10/11 전은 50분)
+    const missed = !mm && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 하나도 없음 → 연한 빨강
+    const part = !lv && mm > 0 && d >= WEEK_RULE_FROM && d <= t;   // 조금 했는데 60분 안 됨 → 연한 노랑 + 40/60m
+    const cls = ["day", lv ? "p" + lv : part ? "part" : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
     // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
     const pts = ptsDay && ptsDay[d] && ptsDay[d].sum;
     // 폰 칸: 대표 아이콘 두 개까지 (🎯 > 🔥 > ❌ > 📌 > 📅 > 💰) + 남은 할 일 수
@@ -629,7 +651,7 @@ function renderCalendar() {
     if (income[d]) ics.push("💰");
     const cellIc = ics.length ? `<span class="cell-ic" aria-hidden="true">${ics.slice(0, 2).join("")}${openN > 1 && ics.slice(0, 2).some((c) => c === "📌" || c === "❌") ? `<small>${openN}</small>` : ""}</span>` : "";
     html += `<div class="${cls}${pts ? " has-pts" : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span></span>${shown.join("")}${cellIc}${pts ? `<span class="day-pts">+${pts}</span>` : ""}</div>`;
+      `<span class="top"><span class="num">${dt.getDate()}</span></span>${part ? `<small class="part-m" title="${Math.round(mm)}분 · 60분이면 실천한 날"><span class="pm-l">${Math.round(mm)}/60m</span><span class="pm-s">${Math.round(mm)}m</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts">+${pts}</span>` : ""}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
@@ -996,7 +1018,7 @@ const ODDS_DEF = { big: 3, mid: 25, small: 47, miss: 20, pen: 5 };
 const ODDS_LABEL = { big: "🥇 대박", mid: "🥈 쿠폰", small: "🥉 작은", miss: "😐 꽝", pen: "😈 벌칙" };
 function lotto() { return S.settings.lotto || {}; }
 function lottoOdds() { return { ...ODDS_DEF, ...(lotto().odds || {}) }; }
-// 연속 실천 30일+ 보너스 (확률에 더하고 빼는 %p, settings.lotto.bonus) · 결과는 0 아래로 안 내려감
+// 연속 실천 6주+ 보너스 (확률에 더하고 빼는 %p, settings.lotto.bonus) · 결과는 0 아래로 안 내려감
 const BONUS_DEF = { big: 1, mid: 2, small: 0, miss: -2, pen: -1 };
 function lottoBonus() { return { ...BONUS_DEF, ...(lotto().bonus || {}) }; }
 function streakOdds(o) { const b = lottoBonus(), r = {}; Object.keys(ODDS_DEF).forEach((k) => { r[k] = Math.max(0, (Number(o[k]) || 0) + (Number(b[k]) || 0)); }); return r; }
@@ -1061,7 +1083,7 @@ function renderLottoAdmin() {
   $("laOddsSum").innerHTML = sum === 100 ? "합계 100% ✅" : `<span style="color:var(--danger)">합계 ${sum}% — 100이 되게 맞춰 주세요</span>`;
   const b = lottoBonus(), so = streakOdds(o), bsum = Object.keys(ODDS_DEF).reduce((t, k) => t + (Number(b[k]) || 0), 0), ssum = Object.keys(ODDS_DEF).reduce((t, k) => t + so[k], 0);
   if (!keepFocus($("laBonus"))) $("laBonus").innerHTML = Object.keys(ODDS_DEF).map((k) => `<label>${ODDS_LABEL[k]}<input type="number" min="-100" max="100" step="1" value="${Number(b[k]) || 0}" data-bonus="${k}"></label>`).join("");
-  $("laBonusSum").innerHTML = `30일+ 확률: ${Object.keys(ODDS_DEF).map((k) => `${ODDS_LABEL[k].split(" ")[0]} <b>${so[k]}</b>`).join(" · ")}` +
+  $("laBonusSum").innerHTML = `6주+ 확률: ${Object.keys(ODDS_DEF).map((k) => `${ODDS_LABEL[k].split(" ")[0]} <b>${so[k]}</b>`).join(" · ")}` +
     (bsum !== 0 ? ` <span style="color:var(--danger)">· 보너스 합계 ${bsum > 0 ? "+" : ""}${bsum} (0으로 맞추면 합계가 그대로 100)</span>` : ssum !== 100 ? ` <span class="muted">· 0 아래는 0으로 쳐서 합계 ${ssum} (비율대로 나눠 뽑아요)</span>` : " ✅");
   $("laPresetSec").hidden = tab !== "cp" || cs.length > 0 || ps.length > 0;
   const rn = cs.filter((v) => PRESET_RENAMES[v.title]);
@@ -1168,7 +1190,7 @@ $("laStreak").addEventListener("change", (ev) => {   // 🛡️ 켜면 보통 �
 });
 $("lottoPage").addEventListener("change", (ev) => {
   const el = ev.target;
-  if (el.dataset.bonus) { saveLotto({ bonus: { [el.dataset.bonus]: Math.max(-100, Math.min(100, parseInt(el.value, 10) || 0)) } }, "🔥 30일+ 보너스를 바꿨어요."); return; }
+  if (el.dataset.bonus) { saveLotto({ bonus: { [el.dataset.bonus]: Math.max(-100, Math.min(100, parseInt(el.value, 10) || 0)) } }, "🔥 6주+ 보너스를 바꿨어요."); return; }
   if (el.dataset.odds) { saveLotto({ odds: { [el.dataset.odds]: Math.max(0, Math.min(100, parseInt(el.value, 10) || 0)) } }, "확률을 바꿨어요."); return; }
   if (!el.dataset.la) return;
   let v = el.value; if (el.dataset.f === "days") v = Math.max(1, parseInt(v, 10) || 1); if (el.dataset.f === "title") { v = v.trim(); if (!v) { toast("내용을 적어 주세요."); renderLottoAdmin(); return; } }
@@ -1180,7 +1202,7 @@ $("lottoPage").addEventListener("change", (ev) => {
 let scratch = null;   // { res, committed, revealed }
 function ticketsLeft() { return Math.max(0, Math.floor(pointsLedger().total / PT_TICKET) - S.wins.size); }
 function drawLotto() {
-  const o0 = lottoOdds(), o = streak(practiceMinutes()) >= 30 ? streakOdds(o0) : o0;   // 연속 30일+ 보너스
+  const o0 = lottoOdds(), o = streak(practiceMinutes()) >= 6 ? streakOdds(o0) : o0;   // 연속 6주+ 보너스
   const keys = Object.keys(ODDS_DEF), tot = keys.reduce((t, k) => t + (Number(o[k]) || 0), 0) || 1;
   let r = Math.random() * tot, pick = "miss";
   for (const k of keys) { r -= Number(o[k]) || 0; if (r < 0) { pick = k; break; } }
@@ -1280,13 +1302,13 @@ let fillFor = null;
 function openFill(id) {
   const w = S.wins.get(id); if (!w || w.usedAt || !ready()) return;
   const t = today(), pm = practiceMinutes(), st = boardStart(), ds = [];
-  for (let i = 1; i <= 30; i++) { const d = addDays(t, -i); if (st && d < st) break; if (!practiced(pm, d)) ds.push(d); }
+  for (let i = 1; i <= 30; i++) { const d = addDays(t, -i); if ((st && d < st) || d < WEEK_RULE_FROM) break; if (!practiced(pm, d)) ds.push(d); }
   if (!ds.length) { toast("최근 30일에 빈 날이 없어요. 쿠폰은 아껴 둬요! 👍"); return; }
   const now = streak(pm);
   fillFor = id;
   $("mvTitle").textContent = "🛡️ 어느 날을 채울까요?";
-  $("mvText").innerHTML = `<p class="small muted">최근 30일 중 실천을 50분 못 채운 날이에요. 고른 날은 실천한 날로 쳐서 연속 실천이 이어지고 연속 보너스도 받아요. (실천 시간 점수는 없어요) 지금 연속 ${now}일.</p>` +
-    `<div class="fill-list">${ds.map((d) => { const n = streak({ ...pm, [d]: PRACTICE_MIN }); return `<button class="btn ghost small" type="button" data-act="fillDo" data-day="${d}">${shortDate(d)}${n > now ? ` <b>→ 연속 ${n}일</b>` : ""}</button>`; }).join("")}</div>`;
+  $("mvText").innerHTML = `<p class="small muted">최근 30일 중 실천을 60분 못 채운 날이에요. 고른 날은 실천한 날로 쳐서 그 주 실천한 날이 하루 늘어요 (한 주에 ${WEEK_GOAL}일이면 성공). 실천 시간 점수는 없어요. 지금 연속 ${now}주.</p>` +
+    `<div class="fill-list">${ds.map((d) => { const p2 = { ...pm, [d]: PRACTICE_MIN }, w = weekRuns(p2).find((x) => x.ws === sundayOf(d)), n = streak(p2); return `<button class="btn ghost small" type="button" data-act="fillDo" data-day="${d}">${shortDate(d)}${w ? ` · 그 주 ${w.n}/${WEEK_GOAL}일${w.n >= WEEK_GOAL ? " ✅" : ""}` : ""}${n > now ? ` <b>→ 연속 ${n}주</b>` : ""}</button>`; }).join("")}</div>`;
   $("mvBtns").innerHTML = '<button class="btn ghost" type="button" data-act="mvClose">취소</button>';
   openDlg($("moveDlg"));
 }
@@ -1640,11 +1662,12 @@ function stopGame() {
 }
 
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
-// 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 7일 30 / 15일 100 / 30일 250 / 90일 1000 / 그 뒤 30일마다 300 · 돈 기록 1 (월급 30)
+// 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 3주 30 / 5주 100 / 9주 250 / 14주 1000 / 그 뒤 5주마다 300 · 한 주 4일 넘긴 날 +5, 7일 다 하면 +30 더 (10/11 전은 7·15·30·90일) · 돈 기록 1 (월급 30)
 const PT_GOAL = 300, PT_SUB = 50, PT_TICKET = 1000;
 function lottoOn() { return !!(S.settings.lotto && S.settings.lotto.on); }
 function isAdminDevice() { try { return localStorage.getItem("ukjin-admin") === "1"; } catch (e) { return false; } }
 function lottoVisible() { return lottoOn() || isAdminDevice(); }   // 쿠폰 목록 준비 끝나기 전에는 관리자 기기에서만 보임
+function weekStreakBonus(n) { return n === 3 ? 30 : n === 5 ? 100 : n === 9 ? 250 : n === 14 ? 1000 : n > 14 && (n - 14) % 5 === 0 ? 300 : 0; }
 function streakBonus(n) { return n === 7 ? 30 : n === 15 ? 100 : n === 30 ? 250 : n === 90 ? 1000 : n > 90 && (n - 90) % 30 === 0 ? 300 : 0; }
 function pointsLedger() {
   const day = {}, at = (d) => (day[d] ||= { sum: 0, min: 0, money: 0, salary: 0, lines: [] });
@@ -1660,12 +1683,20 @@ function pointsLedger() {
     if (g.achievedAt) { const x = at(g.achievedAt); x.sum += PT_GOAL; x.lines.push(["🎉", `목표 '${g.title}' 달성`, PT_GOAL]); }
     subsOf(g).forEach((v) => { if (v.doneAt) { const x = at(v.doneAt); x.sum += PT_SUB; x.lines.push(["🎉", `세부목표 '${v.title}' 달성`, PT_SUB]); } });
   });
-  // 연속 실천: 실천한 날(달력 초록 칸과 같은 기준)을 이어서 세고, 7·15·30·90일…에 닿는 날 보너스
-  const pm = practiceMinutes(), days = Object.keys(pm).filter((d) => practiced(pm, d)).sort();
+  // 연속 실천 (10/11 전): 실천한 날을 날마다 이어서 세고, 7·15·30·90일…에 닿는 날 보너스
+  const pm = practiceMinutes(), days = Object.keys(pm).filter((d) => d < WEEK_RULE_FROM && practiced(pm, d)).sort();
   let run = 0, prev = null;
   days.forEach((d) => {
     run = prev && addDays(prev, 1) === d ? run + 1 : 1; prev = d;
     const b = streakBonus(run); if (b) { const x = at(d); x.sum += b; x.lines.push(["🔥", `연속 실천 ${run}일 보너스`, b]); }
+  });
+  // 연속 (10/11 주부터): 성공한 주(4일)가 3·5·9·14주…째가 되는 날(그 주 4번째 실천한 날) 보너스
+  let wrun = 0;
+  weekRuns(pm).forEach((w) => {
+    if (w.n >= WEEK_GOAL) { wrun++; const b = weekStreakBonus(wrun); if (b) { const x = at(w.hit); x.sum += b; x.lines.push(["🔥", `연속 ${wrun}주 보너스`, b]); } }
+    else if (w.past) wrun = 0;
+    // 한 주에 4일을 넘기면 5·6·7번째 실천한 날 +5, 7일 다 하면 +30 더
+    w.pd.slice(WEEK_GOAL).forEach((d, i) => { const k = WEEK_GOAL + i + 1, x = at(d); x.sum += 5; x.lines.push(["🔥", `이번 주 ${k}일째 실천`, 5]); if (k === 7) { x.sum += 30; x.lines.push(["🏆", "일주일 다 실천", 30]); } });
   });
   Object.values(day).forEach((x) => {
     if (x.min) x.lines.unshift(["🔥", `실천 ${fmtHM(x.min)}`, x.min]);
@@ -1901,13 +1932,13 @@ const STAT_ICON = {
 };
 function renderToday() {
   // 달력 위 요약 4칸 + 달력 아래 목표
-  const t = today(), wk = mondayOf(t), list = todayTasks(), days = practiceMinutes();
+  const t = today(), wk = sundayOf(t), list = todayTasks(), days = practiceMinutes();
   const dn = list.filter((x) => isDone(x, t)).length;
   $("todayStats").innerHTML =
     statTile(STAT_ICON.task + "오늘 할 일", `${dn}/${list.length}`, list.length ? (dn === list.length ? "다 끝냈어요!" : "누르면 체크하러 가요") : "아직 없음", "click", "openToday") +
     statTile(STAT_ICON.clock + "오늘 실천", fmtHM(logMinutes(t, t))) +
-    statTile(STAT_ICON.week + "이번 주 실천", fmtHM(logMinutes(wk, addDays(wk, 6)))) +
-    statTile(STAT_ICON.fire + "연속 실천", streak(days) + "일", "50분 이상 실천한 날");
+    statTile(STAT_ICON.week + "이번 주 실천", fmtHM(logMinutes(wk, addDays(wk, 6))), (() => { const n = weekNow(days).n; return `실천한 날 ${n}/${WEEK_GOAL}일${n >= WEEK_GOAL ? " ✅" : ""}`; })()) +
+    statTile(STAT_ICON.fire + "연속 실천", streak(days) + "주", `한 주에 ${WEEK_GOAL}일 (하루 60분)`);
   renderHomeGoals();
 }
 
