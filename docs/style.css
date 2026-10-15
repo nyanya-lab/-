@@ -96,6 +96,12 @@ button { cursor: pointer; }
 .side-test { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); right: 10px; width: 34px; height: 34px; }
 .nags { display: grid; gap: 8px; margin-bottom: 12px; }
 .nag { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; background: var(--coral-soft, var(--sunk)); border: 2px solid var(--coral); border-radius: 12px; padding: 8px 12px; font-size: 14px; }
+/* 💰 가계부 모드: 돈 관리만 (메뉴·복권·테스트 버튼 숨김), '실천 보드로' 링크만 보임 */
+.only-money { display: none !important; }
+.app-money .only-money { display: flex !important; }
+.app-money .nav a:not([href="#money"]):not(.only-money), .app-money #sideReqs, .app-money .side-lotto, .app-money #topLotto, .app-money .test-btn, .app-money #testBar { display: none !important; }
+.app-money #moneyPage .page-head h2::before { content: "💰 "; }
+.test-bar.demo-bar { background: var(--grape-soft, var(--sunk)); border-color: var(--grape); }
 .m-tabs { margin: 4px 0 12px; }
 .m-tabs.seg3 { grid-template-columns: repeat(3, 1fr); }
 .m-tabs button { white-space: nowrap; }

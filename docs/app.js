@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zo";
-import { CHANGES } from "./changes.js?v=20261015zo";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zo";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016a";
+import { CHANGES } from "./changes.js?v=20261016a";
+import { firebaseConfig } from "./firebase-config.js?v=20261016a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -118,6 +118,9 @@ const CERT_TAGS = ["전체", "도면·CAD", "인테리어", "타일·마감", "�
 const S = { wins: new Map(), goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), requests: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null, history: [] };
 const ui = { reqArea: "달력", reqFilter: "open", mEdit: null, acctFilter: "all", page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "expense", certTag: "전체", certQ: "" };
 let backend = null;
+// 💰 가계부 모드 (money.html → index.html?app=money): 돈 관리만 보이는 같은 사이트. 관리자 기기는 가짜 연습 데이터(이 기기에만 저장)로 열림
+const APP = new URLSearchParams(location.search).get("app") === "money" ? "money" : "board";
+const DEMO = APP === "money" && (() => { try { return localStorage.getItem("ukjin-admin") === "1"; } catch (e) { return false; } })();
 
 // 저장 상태: 서버에 아직 안 올라간 쓰기 수 + 연결 여부. 옆 메뉴 점과 설정 창에 표시
 const sync = { pending: 0, connected: true };
@@ -234,11 +237,10 @@ function logCopies(ls) { return ls.map((l) => { const c = { ...l }; delete c.id;
 // ---------- 저장소 ----------
 // 1) Firebase 설정이 있으면: 구글 로그인 + Firestore (어느 기기에서든 같은 데이터)
 // 2) 없으면: 이 브라우저(localStorage)에만 저장
-function localBackend() {
-  const KEY = "ukjin-board-v1";
+function localBackend(KEY = "ukjin-board-v1", seed = null) {
   let data = null;
   try { data = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { /* 저장소 막힘 */ }
-  data = data || {};
+  data = data || (seed ? seed() : {});
   COLS.forEach((c) => { data[c] = data[c] || {}; });
   data.pics = data.pics || {};
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* 무시 */ } };
@@ -428,6 +430,7 @@ function ready() { if (!backend) { toast("아직 불러오는 중이에요."); r
 function showNote(msg, warn) { const n = $("modeNote"); n.hidden = !msg; n.textContent = msg || ""; n.classList.toggle("warn", !!warn); }
 function showMode() {
   if (!backend) return;
+  if (DEMO) { showNote(""); $("modeInfo").textContent = "🧪 연습 가계부: 가짜 데이터, 이 기기에만 저장돼요."; return; }
   if (backend.mode === "local") {
     showNote("지금은 이 브라우저에만 저장돼요. firebase-config.js에 Realtime Database 주소(databaseURL)를 넣으면 폰·PC 어디서든 같은 데이터를 써요.");
     $("modeInfo").textContent = "Firebase에 연결되지 않아 이 브라우저에만 저장돼요.";
@@ -571,8 +574,9 @@ function statTile(label, value, sub, cls, act) {
 function renderHeader() {
   const t = today();
   $("todayMono").textContent = t.replace(/-/g, ".");
-  $("brandName").textContent = me() + " 실천 보드";
-  document.title = me() + " 실천 보드";
+  const appName = me() + (APP === "money" ? " 가계부" : " 실천 보드");
+  $("brandName").textContent = appName; document.querySelectorAll(".topbar .brand b").forEach((b) => { b.textContent = appName; });
+  document.title = appName;
   document.querySelectorAll(".nav a").forEach((a) => {
     if (a.getAttribute("href") === "#" + ui.page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
@@ -1071,7 +1075,7 @@ function renderNags() {
   const t = today(), m = t.slice(0, 7), mon = +m.slice(5) + "월", r = monthTotals(m), pl = planOf(m), list = [];
   let later = ""; try { later = sessionStorage.getItem("ukjin-nag-later") || ""; } catch (e) { /* 무시 */ }
   const skip = (k) => later.split(",").includes(k + "@" + m);
-  const adm = isAdminDevice();
+  const adm = isAdminDevice() && !DEMO;   // 연습 가계부는 욱진이 화면처럼
   // 1일부터: 이 달 예산이 없으면 · 15일부터: 이 달 수입 기록이 없으면 (둘 다 모든 기기, 버튼은 욱진이만)
   if (!(S.settings.budgets || {})[m] && !skip("budget")) list.push(["budget", `🗓️ <b>이번 달 예산</b>이 아직 입력 안 됐어요. 입력해 주세요!`, adm ? "" : `<button class="btn small" type="button" data-act="nagGo" data-k="plan">예산 입력하기</button>` +
     (planSource(m) ? `<button class="btn ghost small" type="button" data-act="nagKeep">지난달 그대로 쓸게요</button>` : "")]);
@@ -1100,6 +1104,7 @@ function renderNags() {
     `<button class="btn small" type="button" data-act="prGet">받기</button>`]);
   // 🔄 새 버전이 올라왔으면 (checkNewVersion) 맨 위에. [나중에]는 그 버전만 숨김
   if (ui.newVer && !skip("upd" + ui.newVer)) list.unshift(["upd" + ui.newVer, "🔄 <b>새 버전이 나왔어요.</b> 새로고침하면 바뀐 걸 쓸 수 있어요.", `<button class="btn small" type="button" data-act="updReload">새로고침</button>`]);
+  if (APP === "money") for (let i = list.length - 1; i >= 0; i--) if (!/^(budget|income|give|gack|card|upd)/.test(list[i][0])) list.splice(i, 1);   // 가계부엔 돈 얘기만
   box.hidden = !list.length;
   box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag${k.startsWith("upd") || (k === "gack" && !txt.includes("모자라요")) ? " upd" : k.startsWith("pr") ? " praise" : ""}"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
 }
@@ -1182,6 +1187,7 @@ function praiseGetAll() {
 }
 // 욱진이 기기: 받을 칭찬이 있으면 열 때 팝업 (이번에 열린 동안 같은 칭찬은 한 번만, 다른 창이 떠 있으면 기다림). 닫아도 맨 위 띠로 남음
 function maybePraise() {
+  if (APP === "money") return;
   if (!S.loaded || isAdminDevice() || !lottoOn() || document.querySelector("dialog[open]")) return;
   const ps = pendingPraises(); if (!ps.length) return;
   const key = ps.map((p) => p.id).join(","); let seen = "";
@@ -1611,6 +1617,7 @@ $("cpSort").addEventListener("change", (ev) => { try { localStorage.setItem(cpSo
 const CP_PF = { all: ["전체", () => true], used: ["사용함", (w) => w.kind === "coupon" && !!w.usedAt], exp: ["기한 만료", (w) => w.kind === "coupon" && !w.usedAt], miss: ["😐 꽝", (w) => w.kind === "miss"], pen: ["😈 벌칙", (w) => w.kind === "pen"] };
 function cpPf() { try { const v = localStorage.getItem("ukjin-cp-pf"); return CP_PF[v] ? v : "all"; } catch (e) { return "all"; } }
 function maybeLottoIntro() {   // 공개된 뒤 처음 여는 기기에 한 번 소개
+  if (APP === "money") return;
   if (!lottoOn() || isAdminDevice()) return;
   try { if (localStorage.getItem("ukjin-lotto-intro")) return; localStorage.setItem("ukjin-lotto-intro", "1"); } catch (e) { return; }
   openDlg($("lottoIntroDlg"));
@@ -2329,7 +2336,7 @@ const sortedAccts = () => rows(S.accounts).sort((a, b) => (a.createdAt || 0) - (
 const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷" };
 
 // 관리자(여자친구) 기기에선 지출·자산은 안 보이게 (예산 금액 · 수입 · 보낸 돈만). 화면에서만 숨김
-function moneyAdminView() { return isAdminDevice(); }
+function moneyAdminView() { return isAdminDevice() && !DEMO; }
 function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
 function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "assets", "stats"].includes(v) || (v === "assets" && moneyAdminView())) v = "budget"; return v; }
@@ -2602,7 +2609,7 @@ function render() {
   renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   maybePraise();
-  if (S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
+  if (APP === "board" && S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
   if ($("settingsDlg").open) renderGcalBox();
@@ -2611,7 +2618,7 @@ function render() {
 // ---------- 동작 ----------
 const PAGES = ["calendar", "goals", "money", "certs", "requests", "help", "coupons", "lotto"];
 function route() {
-  const h = location.hash.slice(1); ui.page = PAGES.includes(h) ? h : "calendar"; if (ui.page === "coupons" && S.loaded && !lottoVisible()) ui.page = "calendar";
+  const h = location.hash.slice(1); ui.page = APP === "money" ? "money" : PAGES.includes(h) ? h : "calendar"; if (ui.page === "coupons" && S.loaded && !lottoVisible()) ui.page = "calendar";
   if (ui.page === "lotto" && !isAdminDevice()) ui.page = "calendar";   // 복권 관리는 관리자 기기만
   if (ui.page !== "lotto") ui.creqHi = null;
   if (ui.page === "requests" && isAdminDevice()) lsSet("ukjin-req-seen", Date.now());
@@ -2828,6 +2835,7 @@ document.addEventListener("click", (ev) => {
   if (a === "acctFilter") { ui.acctFilter = el.dataset.k; renderMoney(); return; }
   if (a === "newAcct") { openAcct(null); return; }
   if (a === "editAcct") { openAcct(id); return; }
+  if (a === "demoReset") { try { localStorage.removeItem("ukjin-money-demo"); } catch (e) { /* 무시 */ } toast("연습 데이터를 새로 만들어요…"); setTimeout(() => location.reload(), 300); return; }
   if (a === "mTab") { setMTab(el.dataset.k); return; }
   if (a === "closeAcct") { closeDlg($("acctDlg")); return; }
   if (a === "acType") { ac.type = el.dataset.k; renderAcctForm(); return; }
@@ -3315,10 +3323,45 @@ setInterval(checkNewVersion, 10 * 60 * 1000);
 setTimeout(checkNewVersion, 5000);
 document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (ev) => { ev.preventDefault(); hardReload(); }));
 
+// 🧪 연습 가계부 가짜 데이터: 통장·카드·현금·저축, 지난 3달 + 이번 달 월급(10일)·지출·카드값(15일)·줄 돈(15일), 예산·줄 돈
+// 특정 상황이 필요하면 여기에 더 넣으면 됨 (주인이 말해 주면 Claude가 상황에 맞게 추가)
+function makeDemoData() {
+  const t = today(), m0 = t.slice(0, 7), now = Date.now(), money = {}, rnd = (a, b) => Math.round((a + Math.random() * (b - a)) / 100) * 100;
+  let n = 0; const put = (doc) => { money["d" + (++n)] = { createdAt: now + n, ...doc }; };
+  const accounts = {
+    bank: { name: "국민 월급통장", type: "bank", initial: 1200000, createdAt: 1 },
+    card: { name: "현대카드", type: "card", initial: 0, createdAt: 2, pay: { day: 15, from: "bank", fm: -1, fd: 4, tm: 0, td: 3, since: shiftMonth(m0, -3) + "-01" } },
+    cash: { name: "현금", type: "cash", initial: 300000, createdAt: 3 },
+    save: { name: "청년 적금", type: "save", initial: 3000000, createdAt: 4 }
+  };
+  const spend = [["식비", 8000, 15000, 10], ["카페·간식", 3000, 7000, 6], ["교통·차량", 10000, 50000, 3], ["장보기", 20000, 60000, 3], ["데이트", 30000, 80000, 2], ["통신", 59000, 59000, 1], ["생필품", 5000, 25000, 2], ["쇼핑", 20000, 70000, 1]];
+  for (let k = -3; k <= 0; k++) {
+    const m = shiftMonth(m0, k), last = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate(), upto = k === 0 ? +t.slice(8) : last, day = (d) => `${m}-${pad(Math.min(d, last))}`;
+    if (upto >= 10) put({ kind: "income", cat: "월급", amount: 2600000 + (k % 2) * 100000, date: day(10), account: "bank", memo: `${+m.slice(5)}월 월급` });
+    spend.forEach(([cat, lo, hi, times]) => { for (let i = 0; i < times; i++) { const d = 1 + Math.floor(Math.random() * upto); put({ kind: "expense", cat, amount: rnd(lo, hi), date: day(d), account: cat === "통신" ? "bank" : Math.random() < 0.75 ? "card" : Math.random() < 0.8 ? "bank" : "cash", memo: "" }); } });
+    if (k < 0 || upto >= 15) put({ kind: "transfer", cat: "생활비", amount: 1500000, date: day(15), account: "bank", memo: `💝 ${+m.slice(5)}월 줄 돈` });
+  }
+  // 카드값: 15일에 이용기간(전월 4일 ~ 당월 3일) 카드 사용액만큼 통장 → 카드 (이번 달은 15일이 지났을 때만)
+  for (let k = -2; k <= 0; k++) {
+    const m = shiftMonth(m0, k), date = `${m}-15`, from = `${shiftMonth(m, -1)}-04`, to = `${m}-03`;
+    if (date > t) continue;
+    const amt = Object.values(money).filter((x) => x.kind === "expense" && x.account === "card" && x.date >= from && x.date <= to).reduce((a, x) => a + x.amount, 0);
+    if (amt) put({ kind: "move", amount: amt, date, account: "bank", toAccount: "card", memo: `💳 현대카드값 (${+from.slice(5, 7)}/4~${+m.slice(5)}/3 사용분)` });
+  }
+  const items = { a: { cat: "식비", memo: "점심", amount: 300000, createdAt: 1 }, b: { cat: "교통·차량", memo: "", amount: 150000, createdAt: 2 }, c: { cat: "통신", memo: "", amount: 60000, createdAt: 3 }, d: { cat: "데이트", memo: "", amount: 200000, createdAt: 4 }, e: { cat: "기타", memo: "", amount: 50000, createdAt: 5 } };
+  const budgets = {}; for (let k = -3; k <= 0; k++) budgets[shiftMonth(m0, k)] = { items: clone(items), give: 1500000 };
+  const autoTasks = {}; for (let k = -3; k <= 0; k++) { const m = shiftMonth(m0, k); autoTasks[`give-${m}`] = true; autoTasks[`cp-card-${m}`] = true; }
+  return { settings: { ...DEFAULTS, createdAt: now - 100 * 864e5, budgets, autoTasks, giveFrom: "bank" }, accounts, money, goals: {}, tasks: {}, logs: {}, requests: {}, wins: {} };
+}
+
 // ---------- 시작 ----------
 route();
 render();
-if (firebaseConfig && firebaseConfig.databaseURL) {
+if (DEMO) {
+  $("demoBar").hidden = false;
+  backend = wrapHistory(localBackend("ukjin-money-demo", makeDemoData));
+  render();
+} else if (firebaseConfig && firebaseConfig.databaseURL) {
   $("mainView").hidden = true;
   firebaseStart().catch(() => {
     showNote("Firebase에 연결하지 못했어요. 인터넷 연결과 firebase-config.js 값을 확인해 주세요.", true);
