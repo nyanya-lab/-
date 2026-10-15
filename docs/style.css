@@ -96,6 +96,9 @@ button { cursor: pointer; }
 .side-test { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); right: 10px; width: 34px; height: 34px; }
 .nags { display: grid; gap: 8px; margin-bottom: 12px; }
 .nag { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; background: var(--coral-soft, var(--sunk)); border: 2px solid var(--coral); border-radius: 12px; padding: 8px 12px; font-size: 14px; }
+.m-tabs { margin: 4px 0 12px; }
+.m-tabs.seg3 { grid-template-columns: repeat(3, 1fr); }
+.m-tabs button { white-space: nowrap; }
 .plan-give { align-items: end; }
 .plan-give > .f:first-child { flex: 2 1 220px; }
 .plan-give > .f:last-child { flex: 1 1 140px; }

@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zn";
-import { CHANGES } from "./changes.js?v=20261015zn";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zn";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zo";
+import { CHANGES } from "./changes.js?v=20261015zo";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zo";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2331,8 +2331,22 @@ const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷" };
 // 관리자(여자친구) 기기에선 지출·자산은 안 보이게 (예산 금액 · 수입 · 보낸 돈만). 화면에서만 숨김
 function moneyAdminView() { return isAdminDevice(); }
 function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
+// 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
+function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "assets", "stats"].includes(v) || (v === "assets" && moneyAdminView())) v = "budget"; return v; }
+function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } renderMoney(); }
+function renderMTabs() {
+  const tab = mTab(), adm = moneyAdminView();
+  document.querySelectorAll("#mTabs button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.k === tab));
+    b.hidden = adm && b.dataset.k === "assets";
+    if (b.dataset.k === "spend") b.textContent = adm ? "🧾 내역" : "🧾 지출";
+  });
+  $("mTabs").classList.toggle("seg3", adm);
+  document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.dataset.mtab !== tab; });
+}
 function renderMoney() {
   const m = ui.month, r = monthTotals(m), bal = balances(), adm = moneyAdminView();
+  renderMTabs();
   setCatMap(planOf(m).items.map((v) => v.cat).concat(Object.keys(r.byCat)));
   $("monthLabel").textContent = monthLabel(m);
   $("moneyPage").classList.toggle("admin-view", adm);
@@ -2448,6 +2462,7 @@ function renderMoneyForm(fill) {
 }
 function editMoney(id) {
   const x = S.money.get(id); if (!x) return;
+  try { localStorage.setItem("ukjin-mtab", "spend"); } catch (e) { /* 무시 */ }
   ui.mEdit = id; ui.kind = x.kind || "expense";
   $("mAmount").value = commaNum(x.amount || ""); $("mDate").value = x.date || today(); $("mMemo").value = x.memo || "";
   renderMoneyForm(x); renderMoney();
@@ -2678,7 +2693,7 @@ document.addEventListener("click", (ev) => {
   if (a === "openLottoAdmin") { openLottoAdmin(); return; }
   if (a === "openScratch") { openScratch(); return; }
   if (a === "helpTopic") { try { localStorage.setItem("ukjin-help-topic", el.dataset.k); } catch (e) { /* 무시 */ } renderHelp(); return; }
-  if (a === "nagGo") { ui.month = today().slice(0, 7); if (el.dataset.k === "income") ui.kind = "income"; location.hash = "#money"; setTimeout(() => { const p = $(el.dataset.k === "income" ? "moneyPanel" : "planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.dataset.k === "income") renderMoneyForm(); if (el.dataset.k === "give") $("planGive").focus(); }, 80); return; }
+  if (a === "nagGo") { ui.month = today().slice(0, 7); if (el.dataset.k === "income") ui.kind = "income"; try { localStorage.setItem("ukjin-mtab", el.dataset.k === "income" ? "spend" : "budget"); } catch (e) { /* 무시 */ } location.hash = "#money"; setTimeout(() => { const p = $(el.dataset.k === "income" ? "moneyPanel" : "planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.dataset.k === "income") renderMoneyForm(); if (el.dataset.k === "give") $("planGive").focus(); }, 80); return; }
   if (a === "nagKeep") { const m = today().slice(0, 7); savePlan(m, {}, `🗓️ ${+m.slice(5)}월 예산은 지난달 그대로 써요.`); return; }
   if (a === "giveAck") { const m = today().slice(0, 7); act(backend.saveSettingsDeep({ giveAck: { [m]: Number(el.dataset.inc) } }), "💝 이번 달 줄 돈은 그대로예요.").catch(() => {}); return; }
   if (a === "nagGive") { const m = today().slice(0, 7); saveSettingsReal({ giveConfirm: { [m]: { inc: Number(el.dataset.inc), give: Number(el.dataset.v), at: Date.now() } } }, `✅ ${+m.slice(5)}월 줄 돈 ${won(Number(el.dataset.v))} 확인했어요.`); return; }
@@ -2813,6 +2828,7 @@ document.addEventListener("click", (ev) => {
   if (a === "acctFilter") { ui.acctFilter = el.dataset.k; renderMoney(); return; }
   if (a === "newAcct") { openAcct(null); return; }
   if (a === "editAcct") { openAcct(id); return; }
+  if (a === "mTab") { setMTab(el.dataset.k); return; }
   if (a === "closeAcct") { closeDlg($("acctDlg")); return; }
   if (a === "acType") { ac.type = el.dataset.k; renderAcctForm(); return; }
   if (a === "delAcct") {
