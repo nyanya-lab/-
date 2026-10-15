@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zi";
-import { CHANGES } from "./changes.js?v=20261015zi";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zi";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zj";
+import { CHANGES } from "./changes.js?v=20261015zj";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zj";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2537,7 +2537,7 @@ document.addEventListener("click", (ev) => {
   if (a === "editTask") { const x = S.tasks.get(id); if (x && x.penId && S.wins.get(x.penId)) { openWin(x.penId); return; } openTask(id); return; }
   if (a === "closeTask") { closeDlg($("taskDlg")); return; }
   if (a === "tkRep") { tk.rep = el.dataset.k; renderTaskForm(); return; }
-  if (a === "repSplit") { doRepSplit(el.dataset.k); return; }
+  if (a === "repSplit") { doRepSplit(); return; }
   if (a === "tkTimes") { tk.times = +el.dataset.n; renderTaskForm(); return; }
   if (a === "dtTimes") { dt.times = +el.dataset.n; renderDayForm(); return; }
   if (a === "gtTimes") { gt.times = +el.dataset.n; renderGoalDlg(); return; }
@@ -3043,8 +3043,7 @@ $("taskEditForm").addEventListener("submit", (ev) => {
   act((async () => { await backend.update("tasks", tk.id, patch); if (timeOps) await timeOps(); })(), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
 });
 
-// 반복 방식 바꾸기: [오늘부터 새로] = 예전 할 일은 어제까지로 끝내고 같은 이름으로 오늘부터 새 할 일 (오늘 체크·기록 시간은 새 할 일로 옮김)
-//                  [지난 것도 바꾸기] = 통째로 바꿈 (지난 날도 새 방식으로 다시 보임)
+// 반복 방식 바꾸기: 지난 날이 있으면 늘 [오늘부터 새로] — 예전 할 일은 어제까지로 끝내고 같은 이름으로 오늘부터 새 할 일 (오늘 체크·기록 시간은 새 할 일로 옮김)
 let repSplit = null;   // { id, patch }
 function askRepSplit(id, patch) {
   const x = S.tasks.get(id); if (!x) return;
@@ -3052,15 +3051,13 @@ function askRepSplit(id, patch) {
   const from = repeatLabel(x).replace(/ ~.*$/, ""), to = repeatLabel({ ...x, ...patch }).replace(/ ~.*$/, "");
   $("mvTitle").textContent = "반복 방식을 바꿔요";
   $("mvText").innerHTML = `<p>'<b>${esc(x.title)}</b>' ${esc(from)} → <b>${esc(to)}</b></p><ul>` +
-    `<li><b>오늘부터 새로</b> (추천) · 어제까지는 '${esc(from)}' 기록 그대로 두고, 오늘부터 '${esc(to)}' 할 일로 새로 만들어요. 오늘 체크한 건 새 할 일로 옮겨요.</li>` +
-    `<li><b>지난 것도 바꾸기</b> · 지난 날도 '${esc(to)}' 방식으로 다시 보여요 (❌ 표시가 달라질 수 있어요).</li></ul>`;
-  $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="repSplit" data-k="new">오늘부터 새로</button><button class="btn ghost" type="button" data-act="repSplit" data-k="all">지난 것도 바꾸기</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>';
+    `<li>어제까지는 '${esc(from)}' 기록 그대로 두고, 오늘부터 '${esc(to)}' 할 일로 새로 만들어요.</li><li>오늘 체크한 건 새 할 일로 옮겨요.</li></ul>`;
+  $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="repSplit" data-k="new">오늘부터 새로 만들기</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>';
   openDlg($("moveDlg"));
 }
-function doRepSplit(kind) {
+function doRepSplit() {
   const r = repSplit; repSplit = null; closeDlg($("moveDlg"));
   const x = r && S.tasks.get(r.id); if (!x || !ready()) return;
-  if (kind === "all") { act(backend.update("tasks", r.id, r.patch), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {}); return; }
   const t = today(), start = r.patch.start > t ? r.patch.start : t, dd = x.doneDates || {};
   const moved = Object.keys(dd).filter((d) => dd[d] && d >= start), keepEnd = x.end && x.end < start ? x.end : addDays(start, -1);
   const doc = { title: r.patch.title, goalId: r.patch.goalId, subId: r.patch.subId, minutes: r.patch.minutes, repeat: r.patch.repeat, start, end: r.patch.end, doneDates: Object.fromEntries(moved.map((d) => [d, true])), createdAt: Date.now() };
