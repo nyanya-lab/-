@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z4";
-import { CHANGES } from "./changes.js?v=20261015z4";
-import { firebaseConfig } from "./firebase-config.js?v=20261015z4";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z5";
+import { CHANGES } from "./changes.js?v=20261015z5";
+import { firebaseConfig } from "./firebase-config.js?v=20261015z5";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -613,11 +613,7 @@ function renderCalendar() {
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
     const d = addDays(start, i), dt = parseYmd(d), evs = [];
-    if (i % 7 === 0 && wkMap[d]) {
-      const w = wkMap[d], st = w.n >= WEEK_GOAL ? "ok" : w.past ? "fail" : "now";
-      const label = st === "ok" ? `✅ ${w.n}일 실천 · 성공` : st === "fail" ? `${w.n}/${WEEK_GOAL}일 · 아쉬워요` : `이번 주 ${w.n}/${WEEK_GOAL}일`;
-      html += `<div class="wk-bar ${st}" title="이 주(일~토) ${label}" aria-label="이 주 ${label}"><i style="width:${Math.min(100, Math.round(w.n / WEEK_GOAL * 100))}%"></i><span>${label}</span>${w.run ? `<b class="wk-run">🔥 ${w.run}주 연속${st === "now" ? " 중" : ""}</b>` : ""}</div>`;
-    }
+    if (i % 7 === 0 && wkMap[d]) html += weekBar(wkMap[d]);
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
     const cpDue = couponsDueOn(d);
     cpDue.forEach((w) => evs.push(`<div class="ev cpexp" data-act="winOpen" data-id="${esc(w.id)}" title="${esc(w.title)} 쿠폰 마감 · 눌러서 보기">🎟️ ${esc(w.title)} 마감</div>`));
@@ -657,6 +653,18 @@ function renderCalendar() {
   $("calGrid").innerHTML = html;
   renderGcalChip();
   renderDaySide(); renderDayPanel();
+}
+// 🟩 주 도장판 (달력 줄 위 띠): 목표 4칸 ■ + 보너스 3칸 ★ (4일 넘긴 날마다 금색, 다 채우면 🏆) · 오른쪽 🔥 연속 ○주 (+그 주에 받은 연속 보너스)
+function weekBar(w) {
+  const n = Math.min(7, w.n), st = w.n >= WEEK_GOAL ? "ok" : w.past ? "fail" : "now";
+  const extra = Math.max(0, n - WEEK_GOAL) * 5 + (n >= 7 ? 30 : 0), sb = st === "ok" ? weekStreakBonus(w.run) : 0;
+  const goal = Array.from({ length: WEEK_GOAL }, (_, k) => `<i class="sq${k < n ? " on" : ""}"></i>`).join("");
+  const stars = st === "fail" ? "" : `<em class="sep"></em>` + Array.from({ length: 7 - WEEK_GOAL }, (_, k) => `<b class="star${k < n - WEEK_GOAL ? " on" : ""}">${k < n - WEEK_GOAL ? "★" : "☆"}</b>`).join("");
+  const mark = st !== "ok" ? "" : n >= 7 ? `🏆 +${extra}` : extra ? `+${extra}` : "✅";
+  const tip = st === "now" ? `이번 주 ${w.n}일 실천 · ${w.n >= WEEK_GOAL ? "클리어!" : `${WEEK_GOAL - w.n}일 남음`}` : st === "fail" ? `${w.n}일 실천 · ${WEEK_GOAL}일을 못 채웠어요` : `${w.n}일 실천 · 클리어${extra ? ` · 보너스 +${extra}` : ""}`;
+  const run = w.run ? `🔥 ${w.run}주${sb ? ` +${sb}` : ""}` : "";
+  return `<div class="wk-bar ${st}" title="${tip}${w.run ? ` · 연속 ${w.run}주` : ""}" aria-label="이 주 ${tip}${w.run ? `, 연속 ${w.run}주` : ""}">` +
+    `<span class="stamps" aria-hidden="true">${goal}${stars}</span>${mark ? `<span class="wk-mark">${mark}</span>` : ""}${run ? `<b class="wk-run">${run}</b>` : ""}</div>`;
 }
 // ---------- 체크하면 "얼마나 했어요?" ----------
 let doneFor = null, doneTimer = null;
