@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z6";
-import { CHANGES } from "./changes.js?v=20261015z6";
-import { firebaseConfig } from "./firebase-config.js?v=20261015z6";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015z7";
+import { CHANGES } from "./changes.js?v=20261015z7";
+import { firebaseConfig } from "./firebase-config.js?v=20261015z7";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -662,9 +662,9 @@ function weekBar(w) {
   const stars = st === "fail" ? "" : `<em class="sep"></em>` + Array.from({ length: 7 - WEEK_GOAL }, (_, k) => `<b class="star${k < n - WEEK_GOAL ? " on" : ""}">${k < n - WEEK_GOAL ? "★" : "☆"}</b>`).join("");
   const mark = st !== "ok" ? "" : n >= 7 ? `🏆 +${extra}` : extra ? `+${extra}` : "✅";
   const tip = st === "now" ? `이번 주 ${w.n}일 실천 · ${w.n >= WEEK_GOAL ? "클리어!" : `${WEEK_GOAL - w.n}일 남음`}` : st === "fail" ? `${w.n}일 실천 · ${WEEK_GOAL}일을 못 채웠어요` : `${w.n}일 실천 · 클리어${extra ? ` · 보너스 +${extra}` : ""}`;
-  // 연속이 없으면 불 대신 ❄️ (못 채운 주 = 얼어붙음, 이번 주가 0주면 ❄️ 0주 → 4일 채우면 🔥 1주로 녹음)
-  const run = w.run ? `🔥 ${w.run}주${sb ? ` +${sb}` : ""}` : st === "fail" ? "❄️" : "❄️ 0주";
-  return `<div class="wk-bar ${st}" title="${tip}${w.run ? ` · 연속 ${w.run}주` : " · 연속이 얼었어요 (4일 채우면 다시 🔥)"}" aria-label="이 주 ${tip}${w.run ? `, 연속 ${w.run}주` : ""}">` +
+  // 오른쪽: 성공한 주 🔥 ○주 · 못 채운 주 ❄️ · 이번 주(진행 중) 🔥 ○주 도전 (이어 온 연속이 없으면 흐린 🔥 1주 도전)
+  const run = st === "ok" ? `🔥 ${w.run}주${sb ? ` +${sb}` : ""}` : st === "fail" ? "❄️" : `${w.run ? "🔥" : '<span class="fire-dim">🔥</span>'} ${w.run + 1}주 도전`;
+  return `<div class="wk-bar ${st}" title="${tip}${st === "now" ? ` · 연속 ${w.run}주, 이번 주 4일 채우면 ${w.run + 1}주` : st === "fail" ? " · 연속이 끊겼어요" : ` · 연속 ${w.run}주`}" aria-label="이 주 ${tip}${w.run ? `, 연속 ${w.run}주` : ""}">` +
     `<span class="stamps" aria-hidden="true">${goal}${stars}</span>${mark ? `<span class="wk-mark">${mark}</span>` : ""}${run ? `<b class="wk-run">${run}</b>` : ""}</div>`;
 }
 // ---------- 체크하면 "얼마나 했어요?" ----------
@@ -1938,7 +1938,6 @@ const STAT_ICON = {
   task: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12.5l3 3 5-6"/></svg>',
   clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/></svg>',
   week: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 14h2M12 14h2M16 14h2"/></svg>',
-  ice: '<svg viewBox="0 0 24 24"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.6L12 7l2.5-2.4M9.5 19.4L12 17l2.5 2.4M4.6 10.6l3.3-.9-.9-3.3M19.4 13.4l-3.3.9.9 3.3M4.6 13.4l3.3.9-.9 3.3M19.4 10.6l-3.3-.9.9-3.3"/></svg>',
   fire: '<svg viewBox="0 0 24 24"><path d="M12 21c-3.9 0-6.5-2.6-6.5-6 0-3.7 3.2-5.6 3.6-9.5 2.4 1.5 3.6 3.6 3.4 6 1.1-.6 1.8-1.8 1.9-3.2 2.4 1.9 4.1 4.2 4.1 6.9 0 3.3-2.6 5.8-6.5 5.8z"/></svg>'
 };
 function renderToday() {
@@ -1949,7 +1948,11 @@ function renderToday() {
     statTile(STAT_ICON.task + "오늘 할 일", `${dn}/${list.length}`, list.length ? (dn === list.length ? "다 끝냈어요!" : "누르면 체크하러 가요") : "아직 없음", "click", "openToday") +
     statTile(STAT_ICON.clock + "오늘 실천", fmtHM(logMinutes(t, t))) +
     statTile(STAT_ICON.week + "이번 주 실천", fmtHM(logMinutes(wk, addDays(wk, 6))), (() => { const n = weekNow(days).n; return `실천한 날 ${n}/${WEEK_GOAL}일${n >= WEEK_GOAL ? " ✅" : ""}`; })()) +
-    (() => { const n = streak(days); return statTile((n ? STAT_ICON.fire : STAT_ICON.ice) + "연속 실천", (n ? "" : '<span class="ice-v">❄️ </span>') + n + "주", n ? `한 주에 ${WEEK_GOAL}일 (하루 60분)` : `❄️ 이번 주 ${WEEK_GOAL}일 채우면 🔥`); })();
+    (() => {   // 연속 실천: 이번 주를 아직 못 채웠으면 '채우면 ○주', 연속이 없으면 흐린 불꽃
+      const n = streak(days), cleared = weekNow(days).n >= WEEK_GOAL, dim = !n;
+      return statTile((dim ? STAT_ICON.fire.replace("<svg", '<svg class="dim"') : STAT_ICON.fire) + "연속 실천", (dim ? '<span class="fire-v">🔥</span>' : "") + n + "주",
+        cleared ? `한 주에 ${WEEK_GOAL}일 (하루 60분)` : `이번 주 ${WEEK_GOAL}일 채우면 ${n + 1}주`);
+    })();
   renderHomeGoals();
 }
 

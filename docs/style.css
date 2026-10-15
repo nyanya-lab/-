@@ -564,7 +564,8 @@ tr.clickable:hover td { background: var(--sunk); }
 .wk-bar { grid-column: 1 / -1; height: 22px; padding: 0 8px; background: var(--sunk); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; overflow: hidden; font-size: 11px; font-weight: 700; color: var(--fg); white-space: nowrap; }
 .wk-bar.ok { background: color-mix(in srgb, var(--mint) 22%, var(--surface)); }
 .wk-bar.fail { background: color-mix(in srgb, var(--coral) 16%, var(--surface)); }
-.stat b .ice-v { display: none; }   /* PC는 칸 이름 앞 ❄️ 아이콘으로 충분 */
+.stat b .fire-v { display: none; }   /* PC는 칸 이름 앞 흐린 불꽃 아이콘으로 충분 */
+.stat span svg.dim, .fire-dim, .fire-v { opacity: .45; filter: grayscale(.7); }   /* 꺼져 가는 불씨 */
 .stamps { display: inline-flex; align-items: center; gap: 3px; }
 .stamps .sq { width: 11px; height: 11px; border-radius: 3px; border: 1.5px solid color-mix(in srgb, var(--mint) 55%, var(--line)); background: var(--surface); }
 .stamps .sq.on { background: var(--mint); border-color: var(--mint); }
@@ -714,7 +715,7 @@ tr.clickable:hover td { background: var(--sunk); }
   /* 폰 달력: 칸엔 숫자 + 아이콘만, 고른 날은 아래 칸에 자세히 */
   .day .ev, .day .ev.more { display: none !important; }
   .wk-bar { height: 16px; padding: 0 5px; gap: 5px; font-size: 9.5px; }
-  .ice-v { display: inline !important; }   /* 폰은 요약 칸 아이콘이 없어서 0주일 때 ❄️를 숫자 앞에 */
+  .stat b .fire-v { display: inline; font-size: .8em; margin-right: 2px; }   /* 폰은 요약 칸 아이콘이 없어서 0주일 때 흐린 🔥를 숫자 앞에 */
   .stamps { gap: 2px; }
   .stamps .sq { width: 8px; height: 8px; border-radius: 2px; border-width: 1px; }
   .stamps .sep { height: 9px; margin: 0 2px; }
