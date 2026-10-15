@@ -1,6 +1,6 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zh";
-import { CHANGES } from "./changes.js?v=20261015zh";
-import { firebaseConfig } from "./firebase-config.js?v=20261015zh";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261015zi";
+import { CHANGES } from "./changes.js?v=20261015zi";
+import { firebaseConfig } from "./firebase-config.js?v=20261015zi";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2537,6 +2537,7 @@ document.addEventListener("click", (ev) => {
   if (a === "editTask") { const x = S.tasks.get(id); if (x && x.penId && S.wins.get(x.penId)) { openWin(x.penId); return; } openTask(id); return; }
   if (a === "closeTask") { closeDlg($("taskDlg")); return; }
   if (a === "tkRep") { tk.rep = el.dataset.k; renderTaskForm(); return; }
+  if (a === "repSplit") { doRepSplit(el.dataset.k); return; }
   if (a === "tkTimes") { tk.times = +el.dataset.n; renderTaskForm(); return; }
   if (a === "dtTimes") { dt.times = +el.dataset.n; renderDayForm(); return; }
   if (a === "gtTimes") { gt.times = +el.dataset.n; renderGoalDlg(); return; }
@@ -3034,9 +3035,44 @@ $("taskEditForm").addEventListener("submit", (ev) => {
     const end = $("tkEnd").value || null;
     if (end && end < date) { toast("끝나는 날이 시작일보다 빨라요."); return; }
     patch = { title, goalId, subId, minutes, repeat: tk.rep, start: date, end, days: tk.rep === "weekly" ? [...tk.days].sort() : null, times: tk.rep === "nweek" ? tk.times : null, date: null, done: null, doneDate: null };
+    // 반복 방식이 바뀌고 지난 날이 있으면: 지난 기록은 예전 방식 그대로 두고 오늘부터 새로 만들지 묻기
+    const sameDays = String([...(x.days || [])].sort()) === String(patch.days || []);
+    const ruleChanged = isRep(x) && (x.repeat !== tk.rep || (tk.rep === "weekly" && !sameDays) || (tk.rep === "nweek" && nweekNeed(x) !== tk.times));
+    if (ruleChanged && (x.start || today()) < today()) { askRepSplit(tk.id, patch); return; }
   }
   act((async () => { await backend.update("tasks", tk.id, patch); if (timeOps) await timeOps(); })(), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {});
 });
+
+// 반복 방식 바꾸기: [오늘부터 새로] = 예전 할 일은 어제까지로 끝내고 같은 이름으로 오늘부터 새 할 일 (오늘 체크·기록 시간은 새 할 일로 옮김)
+//                  [지난 것도 바꾸기] = 통째로 바꿈 (지난 날도 새 방식으로 다시 보임)
+let repSplit = null;   // { id, patch }
+function askRepSplit(id, patch) {
+  const x = S.tasks.get(id); if (!x) return;
+  repSplit = { id, patch };
+  const from = repeatLabel(x).replace(/ ~.*$/, ""), to = repeatLabel({ ...x, ...patch }).replace(/ ~.*$/, "");
+  $("mvTitle").textContent = "반복 방식을 바꿔요";
+  $("mvText").innerHTML = `<p>'<b>${esc(x.title)}</b>' ${esc(from)} → <b>${esc(to)}</b></p><ul>` +
+    `<li><b>오늘부터 새로</b> (추천) · 어제까지는 '${esc(from)}' 기록 그대로 두고, 오늘부터 '${esc(to)}' 할 일로 새로 만들어요. 오늘 체크한 건 새 할 일로 옮겨요.</li>` +
+    `<li><b>지난 것도 바꾸기</b> · 지난 날도 '${esc(to)}' 방식으로 다시 보여요 (❌ 표시가 달라질 수 있어요).</li></ul>`;
+  $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="repSplit" data-k="new">오늘부터 새로</button><button class="btn ghost" type="button" data-act="repSplit" data-k="all">지난 것도 바꾸기</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>';
+  openDlg($("moveDlg"));
+}
+function doRepSplit(kind) {
+  const r = repSplit; repSplit = null; closeDlg($("moveDlg"));
+  const x = r && S.tasks.get(r.id); if (!x || !ready()) return;
+  if (kind === "all") { act(backend.update("tasks", r.id, r.patch), "저장했어요.").then(() => closeDlg($("taskDlg"))).catch(() => {}); return; }
+  const t = today(), start = r.patch.start > t ? r.patch.start : t, dd = x.doneDates || {};
+  const moved = Object.keys(dd).filter((d) => dd[d] && d >= start), keepEnd = x.end && x.end < start ? x.end : addDays(start, -1);
+  const doc = { title: r.patch.title, goalId: r.patch.goalId, subId: r.patch.subId, minutes: r.patch.minutes, repeat: r.patch.repeat, start, end: r.patch.end, doneDates: Object.fromEntries(moved.map((d) => [d, true])), createdAt: Date.now() };
+  if (r.patch.days) doc.days = r.patch.days;
+  if (r.patch.times) doc.times = r.patch.times;
+  Object.keys(doc).forEach((k) => { if (doc[k] == null) delete doc[k]; });
+  act((async () => {
+    const nid = await backend.add("tasks", doc);
+    await backend.update("tasks", r.id, { end: keepEnd, doneDates: Object.fromEntries(moved.map((d) => [d, null])) });
+    for (const l of rows(S.logs).filter((l) => l.taskId === r.id && l.date >= start)) await backend.update("logs", l.id, { taskId: nid });
+  })(), `오늘부터 '${repeatLabel(doc)}'로 새로 만들었어요. 지난 기록은 그대로예요.`).then(() => closeDlg($("taskDlg"))).catch(() => {});
+}
 
 $("goalEditForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
