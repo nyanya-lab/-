@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261016g">
+<link rel="stylesheet" href="style.css?v=20261016h">
 </head>
 <body>
 
@@ -326,6 +326,8 @@
         <button type="button" data-act="helpTab" data-k="changes">업데이트 내역</button>
       </div>
       <div class="panel help" id="helpGuide">
+        <input type="search" id="helpQ" class="help-q" placeholder="🔍 설명서 검색 (예: 카드값, 쿠폰, 연속)" aria-label="설명서 검색" autocomplete="off">
+        <p class="empty" id="helpNone" hidden></p>
         <div class="help-topics" id="helpTopics" role="tablist" aria-label="설명서 주제">
           <button type="button" data-act="helpTopic" data-k="start">🚀 시작</button><button type="button" data-act="helpTopic" data-k="cal">📅 달력</button><button type="button" data-act="helpTopic" data-k="todo">✅ 할 일·실천</button><button type="button" data-act="helpTopic" data-k="goal">🎯 목표</button><button type="button" data-act="helpTopic" data-k="money">💰 가계부</button><button type="button" data-act="helpTopic" data-k="lotto" id="helpLottoBtn">🎟️ 복권</button><button type="button" data-act="helpTopic" data-k="etc">🔧 구글·문제 해결</button>
         </div>
@@ -334,6 +336,7 @@
         <ul>
           <li>비밀번호를 넣으면 열려요. 한 번 열면 그 기기에서는 <b>잠그기</b> 전까지 바로 열려요.</li>
           <li>폰·PC 어디서 열어도 같은 보드예요. 저장은 자동이에요 (⚙ 옆 점: 초록 = 저장됨).</li>
+          <li>궁금한 게 있으면 설명서 맨 위 <b>🔍 검색 칸</b>에 낱말을 쳐요 (예: 카드값). 모든 주제에서 그 설명만 모아 보여 줘요.</li>
           <li>화면이 이상하거나 업데이트가 안 보이면 <b>맨 위 로고</b>를 눌러요. 새로 받아와요.</li>
           <li>사이트가 새로 바뀌면 맨 위에 <b>🔄 새 버전이 나왔어요</b> 띠가 떠요. [새로고침]을 누르면 돼요.</li>
           <li>화면은 처음엔 밝게 보여요. <b>☀️/🌙 버튼</b>(폰은 맨 위 ⚙ 옆, PC는 왼쪽 아래)을 누를 때마다 밝게 ↔ 어둡게 바뀌어요. 버튼은 <b>지금 화면</b>을 보여 줘요: 밝으면 ☀️, 어두우면 🌙. 이 기기에만 기억해요.</li>
@@ -723,6 +726,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>지출</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261016g"></script>
+<script type="module" src="app.js?v=20261016h"></script>
 </body>
 </html>
