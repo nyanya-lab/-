@@ -6,18 +6,20 @@
 <meta name="color-scheme" content="only light">
 <script>/* 🌙 이 기기에서 고른 화면 색 (기본 밝게) — 그리기 전에 먼저 */try{if(localStorage.getItem("ukjin-theme")==="dark"){document.documentElement.dataset.theme="dark";document.querySelector('meta[name="color-scheme"]').content="dark";}}catch(e){}</script>
 <title>욱진 실천 보드</title>
+<script>/* 💰 가계부 모드 (index.html?app=money): 홈 화면 앱 이름·설정을 가계부로 */if(new URLSearchParams(location.search).get("app")==="money"){document.documentElement.classList.add("app-money");document.title="욱진 가계부";}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="실천 보드">
+<script>if(document.documentElement.classList.contains("app-money")){document.querySelector('meta[name="apple-mobile-web-app-title"]').content="가계부";document.querySelector('link[rel="manifest"]').href="money.webmanifest";}</script>
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#FFFFFF">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261015zo">
+<link rel="stylesheet" href="style.css?v=20261016a">
 </head>
 <body>
 
@@ -35,6 +37,7 @@
   <a class="brand" href="#calendar" title="새로 받아오기 (캐시 비우고 다시 열기)"><span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><b id="brandName">욱진 실천 보드</b><span class="mono" id="todayMono"></span></span></a>
   <button class="test-btn side-test" type="button" data-act="testMode" id="testBtnSide" hidden title="테스트 모드 (저장 안 됨)">🧪</button>
   <nav class="nav" aria-label="메뉴">
+      <a href="./" class="only-money"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span>실천 보드로</span></a>
       <a href="#calendar"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></a>
       <a href="#goals"><svg viewBox="0 0 24 24"><path d="M5 21V4h11l-1.8 3.8L16 12H5"/></svg><span>목표</span></a>
       <a href="#money"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg><span>돈 관리</span></a>
@@ -51,6 +54,7 @@
 </aside>
 
 <div class="wrap" id="wrap">
+  <div class="test-bar demo-bar" id="demoBar" hidden><span>🧪 <b>연습 가계부</b> · 가짜 데이터예요. 이 기기에만 저장되고 진짜 보드엔 안 가요.</span><span class="test-bar-btns"><button class="btn small ghost" type="button" data-act="demoReset">연습 데이터 새로 만들기</button><a class="btn small" href="./">보드로</a></span></div>
   <div class="test-bar" id="testBar" hidden><span>🧪 <b>테스트 모드</b> · 체크·기록·긁기는 저장 안 돼요. <b>🎟️ 복권 관리·👏 칭찬·쿠폰 요청</b>은 진짜로 저장돼요.</span><span class="test-bar-btns"><button class="btn small ghost" type="button" data-act="testPts">⭐ +1000점</button><button class="btn small" type="button" data-act="testMode">진짜 보드 보기</button></span></div>
   <div class="note" id="modeNote" hidden></div>
   <div class="nags" id="nags" hidden></div>
@@ -714,6 +718,6 @@
 </dialog>
 
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261015zo"></script>
+<script type="module" src="app.js?v=20261016a"></script>
 </body>
 </html>
