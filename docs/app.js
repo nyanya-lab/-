@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017u";
-import { CHANGES } from "./changes.js?v=20261017u";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017u";
-import { firebaseConfig } from "./firebase-config.js?v=20261017u";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017w";
+import { CHANGES } from "./changes.js?v=20261017w";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017w";
+import { firebaseConfig } from "./firebase-config.js?v=20261017w";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -577,6 +577,9 @@ function renderCalendar() {
   const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date && isWon(x)) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
   // '💰 10월 월급 1,860,000원' 할 일이 이미 체크된 날은 +수입 칸을 또 안 보임 (같은 돈이 두 번 보여서)
   S.tasks.forEach((x, id) => { const k = moneyTaskKind(x, id); if (k && k.k === "income" && x.done && x.date) delete income[x.date]; });
+  const calMoney = calMoneyShown(), spent = {};
+  if (calMoney) S.money.forEach((x) => { if ((x.kind === "expense" || x.kind === "transfer" || !x.kind) && x.date && isWon(x) && moneyShown(x)) spent[x.date] = (spent[x.date] || 0) + (Number(x.amount) || 0); });
+  $("calMoneyBtn").classList.toggle("off", !calMoney); $("calMoneyBtn").title = calMoney ? "달력에서 지출 숨기기 (월급만)" : "달력에 날마다 수입·지출 보이기";
   const habits = rows(S.tasks).filter(isRep);
   // 보드를 쓰기 시작한 날 (그 전 날짜는 '안 한 날'로 칠하지 않음)
   const startedAt = boardStart();
@@ -603,6 +606,7 @@ function renderCalendar() {
       `<span>${esc([l.text || "", l.minutes ? fmtHM(l.minutes) : ""].filter(Boolean).join(" · ") || "기록")}</span></div>`));
     gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
     if (income[d]) evs.push(`<div class="ev money">+${moneyShort(income[d])}</div>`);
+    if (spent[d]) evs.push(`<div class="ev money out">-${moneyShort(spent[d])}</div>`);
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
     if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
     const mm = prac[d] || 0, lv = !practiced(prac, d) ? 0 : mm >= 180 ? 4 : mm >= 120 ? 3 : mm >= 90 ? 2 : 1;   // 60분부터 초록 (10/11 전은 50분)
@@ -623,6 +627,7 @@ function renderCalendar() {
     if (openN) ics.push(d < t ? "❌" : "📌");
     if (gcalEventsOn(d).length) ics.push("📅");
     if (income[d] && !ics.includes("💰")) ics.push("💰");
+    if (spent[d]) ics.push("💸");
     const cellIc = ics.length ? `<span class="cell-ic" aria-hidden="true">${ics.slice(0, 2).join("")}${openN > 1 && ics.slice(0, 2).some((c) => c === "📌" || c === "❌") ? `<small>${openN}</small>` : ""}</span>` : "";
     html += `<div class="${cls}${pts ? " has-pts" : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
       `<span class="top"><span class="num">${dt.getDate()}</span></span>${part ? `<small class="part-m" title="${Math.round(mm)}분 · 60분이면 실천한 날"><span class="pm-l">${Math.round(mm)}/60m</span><span class="pm-s">${Math.round(mm)}m</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts">+${pts}</span>` : ""}</div>`;
@@ -1777,6 +1782,8 @@ function renderPoints() {
   if ($("pointsDlg").open) renderPointsDlg(L);
 }
 function ptsShown() { try { return localStorage.getItem("ukjin-pts-show") !== "0"; } catch (e) { return true; } }
+// 💰 달력 돈 보기 (이 기기에 기억, 기본 끔): 끄면 월급(수입)만, 켜면 날마다 +수입 · −지출(💝 준 돈 포함)
+function calMoneyShown() { try { return localStorage.getItem("ukjin-cal-money") === "1"; } catch (e) { return false; } }
 function renderPointsDlg(L) {
   L = L || pointsLedger();
   const used = S.wins.size, earned = Math.floor(L.total / PT_TICKET), prog = L.total % PT_TICKET;
@@ -2410,6 +2417,7 @@ document.addEventListener("click", (ev) => {
   if (a === "openPoints") { closeMenu(); if (S.loaded && lottoVisible() && ticketsLeft() > 0) { openScratch(); return; } location.hash = "#coupons"; return; }
   if (a === "openPtsDlg") { renderPointsDlg(); openDlg($("pointsDlg")); return; }
   if (a === "ptClose") { closeDlg($("pointsDlg")); return; }
+  if (a === "calMoneyToggle") { try { localStorage.setItem("ukjin-cal-money", calMoneyShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); toast(calMoneyShown() ? "💰 달력에 날마다 수입·지출을 보여요." : "💰 달력엔 월급(수입)만 보여요."); return; }
   if (a === "ptsToggle") { try { localStorage.setItem("ukjin-pts-show", ptsShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); renderPoints(); toast(ptsShown() ? "달력에 포인트를 보여요." : "달력에서 포인트를 숨겼어요."); return; }
   if (a === "goalAchieve") {
     if (!ready()) return; const g = S.goals.get(id); if (!g) return;
