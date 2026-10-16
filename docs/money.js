@@ -320,7 +320,7 @@ export const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷
 export function moneyAdminView() { return isAdminDevice() && !DEMO; }
 export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
-export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "assets", "stats", "settings"].includes(v) || ((v === "assets" || v === "settings") && moneyAdminView())) v = "budget"; return v; }
+export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "settings"].includes(v) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
 export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } if (k === "assets") { ui.asSel = null; ui.asOpen = false; } renderMoney(); }
 export function renderMTabs() {
   const adm = moneyAdminView(), tab = adm ? "stats" : mTab();   // 관리자 보드 '예산'은 통계만 (실제 수입 · 보낸 돈 · 나머지)
@@ -336,7 +336,7 @@ export function renderMTabs() {
   $("mTabs").classList.toggle("seg3", adm);
   document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.dataset.mtab !== tab; });
   // ⚙ 설정 탭은 달·요약 칸이 필요 없어서 숨김
-  const set = tab === "settings" || (tab === "stats" && !adm);   // 통계는 오른쪽 위에 따로 기간을 고름
+  const set = tab === "settings" || tab === "cal" || (tab === "stats" && !adm);   // 통계는 오른쪽 위에 따로 기간을 고름, 달력은 자기 달 넘기기
   document.querySelector("#moneyPage .month-nav").hidden = set; $("moneyStats").hidden = set;
   if (set && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
 }
@@ -402,6 +402,7 @@ export function renderMoney() {
 
   renderTx(m, r);
   if (mTab() === "stats" && !moneyAdminView()) renderStats();
+  if (mTab() === "cal" && !moneyAdminView()) renderMCal(m, r);
 }
 
 // ---------- 🏦 자산 탭: 왼쪽 목록(현금·통장·카드·저축 묶음, 합계, 접기) + 오른쪽 자세히 ----------
@@ -571,6 +572,39 @@ function txRow(x, ck) {
           `<span class="tx-d mono">${shortDate(x.date)}</span><span class="tx-a">${where}</span><span class="tx-c">${cat}</span><span class="tx-s">${esc(x.sub || "")}</span>` +
           `<span class="tx-amt won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${kind === "income" ? "+" : kind === "move" ? "" : "-"}${amtText(x)}</span>` +
           `<span class="tx-m">${esc(x.memo || "")}</span><span class="tx-n">${x.note ? esc(x.note) : ""}${n ? ` <span class="m-mark">📷${n > 1 ? n : ""}</span>` : ""}</span></div>`;
+}
+
+// ---------- 📅 가계부 달력: 위 칸 전체 · 수입 · 지출 (💝 준 돈은 지출에, 이체는 안 보임), 칸마다 +수입 · −지출 · 합계 ----------
+const MC_KINDS = [["all", "전체"], ["income", "수입"], ["expense", "지출"]];
+const WDS = ["일", "월", "화", "수", "목", "금", "토"];
+function renderMCal(m, r) {
+  const f = MC_KINDS.some(([k]) => k === ui.mcKind) ? ui.mcKind : "all", t = today();
+  const items = r.items.filter((x) => x.kind !== "move"), isInc = (x) => x.kind === "income";
+  const want = (x) => f === "all" || (f === "income" ? isInc(x) : !isInc(x));
+  const day = {}; items.forEach((x) => { if (!isWon(x)) return; const d = (day[x.date] ||= { inc: 0, out: 0 }), a = Number(x.amount) || 0; if (isInc(x)) d.inc += a; else d.out += a; });
+  const cnt = { all: items.length, income: items.filter(isInc).length, expense: items.filter((x) => !isInc(x)).length }, inc = r.inc, out = r.exp + r.out;
+  const sums = { all: inc - out, income: inc, expense: out };
+  $("mcMonth").textContent = monthLabel(m);
+  $("mcSum").innerHTML = MC_KINDS.map(([k, l]) => `<button type="button" class="tx-k k-${k}" role="tab" data-act="mcKind" data-k="${k}" aria-selected="${f === k}"><span>${l} (${cnt[k]})</span><b class="won"><span class="tx-l">${sums[k] < 0 ? "-" : ""}${won(Math.abs(sums[k]))}</span><span class="tx-short">${sums[k] < 0 ? "-" : ""}${moneyShort(Math.abs(sums[k]))}</span></b></button>`).join("");
+  const first = new Date(+m.slice(0, 4), +m.slice(5, 7) - 1, 1), last = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate(), lead = first.getDay();
+  const sel = ui.mcDay && ui.mcDay.slice(0, 7) === m ? ui.mcDay : t.slice(0, 7) === m ? t : `${m}-01`;
+  const short = (v) => v >= 1e5 ? Math.round(v / 1e4) + "만" : v >= 1e4 ? +(v / 1e4).toFixed(1) + "만" : commaNum(v);   // 폰 칸: 160만 · 4.4만 · 8,700
+  const num = (v, cls, sign) => `<i class="${cls}"><span class="l">${sign}${commaNum(v)}</span><span class="s">${sign}${short(v)}</span></i>`;
+  let h = WDS.map((w, i) => `<div class="mc-wd${i === 0 ? " sun" : i === 6 ? " sat" : ""}">${w}</div>`).join("");
+  for (let i = 0; i < Math.ceil((lead + last) / 7) * 7; i++) {
+    const dt = new Date(+m.slice(0, 4), +m.slice(5, 7) - 1, 1 - lead + i), d = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`, v = day[d] || { inc: 0, out: 0 }, dow = dt.getDay();
+    const lines = (f !== "expense" && v.inc ? num(v.inc, "plus", "+") : "") + (f !== "income" && v.out ? num(v.out, "minus", "-") : "") + (f === "all" && v.inc && v.out ? num(Math.abs(v.inc - v.out), "net", v.inc - v.out < 0 ? "-" : "") : "");
+    h += `<button type="button" class="mc-d${d.slice(0, 7) !== m ? " out" : ""}${d === t ? " today" : ""}${d === sel ? " on" : ""}${dow === 0 ? " sun" : dow === 6 ? " sat" : ""}" data-act="mcDay" data-day="${d}" aria-label="${shortDate(d)}"><span class="mc-n">${d.slice(0, 7) !== m ? `${dt.getMonth() + 1}/` : ""}${dt.getDate()}</span><span class="mc-v">${lines}</span></button>`;
+  }
+  $("mcCal").innerHTML = h;
+  // 고른 날: 수입 · 지출 + 내역 (누르면 서랍 창에서 고치기)
+  const its = items.filter((x) => x.date === sel && want(x)).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)), dv = day[sel] || { inc: 0, out: 0 };
+  $("mcDay").innerHTML = `<div class="mc-dh"><b>${shortDate(sel)}</b><button class="btn small" type="button" data-act="mcAdd">＋ 내역 추가</button></div>` +
+    `<div class="mc-ds"><span>수입<b class="won plus">${won(dv.inc)}</b></span><span>지출<b class="won minus">${won(dv.out)}</b></span></div>` +
+    `<div class="mc-list">${its.map((x) => { const k = x.kind || "expense";
+      return `<button type="button" class="mc-it" data-act="editMoney" data-id="${esc(x.id)}"><span class="c">${x.cat ? catDot(k, x.cat) + esc(x.cat) : esc(KIND_LABEL[k])}${x.sub ? ` <span class="muted small">· ${esc(x.sub)}</span>` : ""}${k === "transfer" ? " 💝" : ""}</span>` +
+        `<span class="a won ${k === "income" ? "plus" : "minus"}">${k === "income" ? "+" : "-"}${amtText(x)}</span><span class="m">${esc([x.memo, acctName(x.account)].filter(Boolean).join(" · "))}${memoMarks({ ...x, sub: null })}</span></button>`; }).join("") ||
+      '<p class="muted small" style="margin:0">이 날 기록이 없어요.</p>'}</div>`;
 }
 
 // ---------- 📊 통계 탭: [수입 | 지출] + 오른쪽 위 ‹ 기간 › [주간 · 월간 · 연간 · 기간] (처음엔 이번 달 월간) ----------
@@ -1091,6 +1125,9 @@ export function moneyAction(a, el, id, t) {
   if (a === "asBack") { ui.asOpen = false; renderMoney(); $("asGrid").scrollIntoView({ block: "start" }); return true; }
   if (a === "cardPayNow") { payCardNow(id); return true; }
   if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet("ukjin-as-fold", JSON.stringify(f)); renderMoney(); return true; }
+  if (a === "mcKind") { ui.mcKind = el.dataset.k; renderMoney(); return true; }
+  if (a === "mcDay") { ui.mcDay = el.dataset.day; if (ui.mcDay.slice(0, 7) !== ui.month) ui.month = ui.mcDay.slice(0, 7); renderMoney(); if (window.matchMedia("(max-width: 1100px)").matches) $("mcDay").scrollIntoView({ behavior: "smooth", block: "nearest" }); return true; }
+  if (a === "mcAdd") { const d = ui.mcDay && ui.mcDay.slice(0, 7) === ui.month ? ui.mcDay : today().slice(0, 7) === ui.month ? today() : `${ui.month}-01`; txAdd(); $("mDate").value = d; return true; }
   if (a === "stKind") { ui.stK = el.dataset.k; ui.stCat = null; renderMoney(); return true; }
   if (a === "stCat") { ui.stCat = el.dataset.k || null; renderMoney(); return true; }
   if (a === "stMove") { const st = stState(), d = +el.dataset.d; ui.stAt = st.p === "week" ? addDaysS(st.anchor, 7 * d) : st.p === "year" ? `${+st.anchor.slice(0, 4) + d}${st.anchor.slice(4)}` : `${shiftMonth(st.anchor.slice(0, 7), d)}-01`; renderMoney(); return true; }
