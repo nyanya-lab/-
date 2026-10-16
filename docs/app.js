@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016v";
-import { CHANGES } from "./changes.js?v=20261016v";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016v";
-import { firebaseConfig } from "./firebase-config.js?v=20261016v";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016x";
+import { CHANGES } from "./changes.js?v=20261016x";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016x";
+import { firebaseConfig } from "./firebase-config.js?v=20261016x";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -574,7 +574,7 @@ function renderCalendar() {
   $("calTitle").textContent = `${p[0]}년 ${+p[1]}월`;
   const prac = practiceMinutes();
   const exams = {}; rows(S.goals).forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
-  const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
+  const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date && isWon(x)) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
   const habits = rows(S.tasks).filter(isRep);
   // 보드를 쓰기 시작한 날 (그 전 날짜는 '안 한 날'로 칠하지 않음)
   const startedAt = boardStart();
@@ -903,7 +903,7 @@ function searchRows(q) {
   S.money.forEach((m, id) => {
     if (!m || !m.date || !(has(m.memo) || has(m.cat)) || !moneyShown(m)) return;
     const sign = m.kind === "income" ? "+" : m.kind === "move" ? "" : "-";
-    out.push({ date: m.date, icon: "💰", time: sign + won(m.amount), title: [m.kind === "transfer" ? partner() + "에게" : m.cat, m.memo].filter(Boolean).join(" · "), act: "searchMoney", id });
+    out.push({ date: m.date, icon: "💰", time: sign + amtText(m), title: [m.kind === "transfer" ? partner() + "에게" : m.cat, m.memo].filter(Boolean).join(" · "), act: "searchMoney", id });
   });
   return out.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 }
@@ -1573,7 +1573,7 @@ function renderDayPanel() {
   if (ls.length) h += `<div class="dp-sec"><h4>🔥 실천한 일</h4><div class="list">${ls.map((l) => `<div class="item"><button type="button" class="log-fire" data-act="logFire" data-id="${esc(l.id)}" aria-label="실천한 일 편집·삭제">🔥</button>` +
     `<div class="body" data-act="editLog" data-id="${esc(l.id)}" style="cursor:pointer"><div class="title">${esc(l.text || "기록")}</div><div class="meta"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "-"}</span></div></div><div class="actions"></div></div>`).join("")}</div></div>`;
   if (gs.length) h += `<div class="dp-sec"><h4>📅 구글 일정</h4><div class="list">${gs.map((g) => `<div class="item"><span class="tag mono">${esc(g.time || "종일")}</span><div class="body"><div class="title">${esc(g.title)}</div></div>${g.link ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("")}</div></div>`;
-  if (ms.length) h += `<div class="dp-sec"><h4>💰 돈</h4><div class="list">${ms.map((x) => `<div class="item" data-act="searchMoney" data-id="${esc(x.id)}" style="cursor:pointer"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${x.cat && x.kind !== "move" ? catDot(x.kind, x.cat) : ""}${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : x.kind === "move" ? "" : "minus"}">${x.kind === "income" ? "+" : x.kind === "move" ? "" : "-"}${won(x.amount)}</span></div>`).join("")}</div></div>`;
+  if (ms.length) h += `<div class="dp-sec"><h4>💰 돈</h4><div class="list">${ms.map((x) => `<div class="item" data-act="searchMoney" data-id="${esc(x.id)}" style="cursor:pointer"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${x.cat && x.kind !== "move" ? catDot(x.kind, x.cat) : ""}${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : x.kind === "move" ? "" : "minus"}">${x.kind === "income" ? "+" : x.kind === "move" ? "" : "-"}${amtText(x)}</span></div>`).join("")}</div></div>`;
   h += `<div class="dp-btns"><button class="btn ghost small" type="button" data-act="dpAddTask" data-day="${d}">＋ 할 일</button><button class="btn ghost small" type="button" data-act="openDayLogs" data-day="${d}">＋ 실천한 일</button></div>`;
   box.innerHTML = h;
 }
@@ -1953,7 +1953,7 @@ function renderDaySide() {
   const ms = rows(S.money).filter((x) => x.date === d && moneyShown(x));
   $("dayMoneySec").hidden = !ms.length;
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출" };
-  $("dayMoney").innerHTML = ms.map((x) => `<div class="item"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${x.cat && x.kind !== "move" ? catDot(x.kind, x.cat) : ""}${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : "minus"}">${x.kind === "income" ? "+" : "-"}${won(x.amount)}</span></div>`).join("");
+  $("dayMoney").innerHTML = ms.map((x) => `<div class="item"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${x.cat && x.kind !== "move" ? catDot(x.kind, x.cat) : ""}${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : "minus"}">${x.kind === "income" ? "+" : "-"}${amtText(x)}</span></div>`).join("");
 }
 
 const STAT_ICON = {
@@ -2863,7 +2863,7 @@ setTimeout(checkNewVersion, 5000);
 document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (ev) => { ev.preventDefault(); hardReload(); }));
 
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
-bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rows, shiftMonth, shortDate, statTile, toast, today, ui, won, get backend() { return backend; }, get testMode() { return testMode; } });
+bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won, get backend() { return backend; }, get testMode() { return testMode; } });
 initMoney();
 
 // ---------- 시작 ----------
