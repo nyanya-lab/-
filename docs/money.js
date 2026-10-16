@@ -537,6 +537,82 @@ function renderTx(m, r) {
           `<span class="tx-m">${esc(x.memo || "")}</span><span class="tx-n">${x.note ? esc(x.note) : ""}${n ? ` <span class="m-mark">📷${n > 1 ? n : ""}</span>` : ""}</span></div>`;
       }).join("");
 }
+// ---------- ▦ 다건입력: 줄마다 구분·날짜·자산·분류(이체는 받는 곳)·소분류·금액·화폐·내용·메모 → [저장]으로 한 번에 ----------
+const BULK_KINDS = ["income", "expense", "transfer", "move"];
+function bulkAcctOpts(kind, cur) {
+  return '<option value="">-</option>' + sortedAccts().filter((a) => !(kind === "income" && a.type === "card")).map((a) => `<option value="${esc(a.id)}"${a.id === cur ? " selected" : ""}>${esc(a.name)}</option>`).join("");
+}
+function bulkRowHtml(v) {
+  const k = BULK_KINDS.includes(v.kind) ? v.kind : "expense", cats = moneyCats(k === "move" ? "expense" : k);
+  const cat = k === "move" ? bulkAcctOpts(k, v.cat) : cats.map((c) => `<option${c === v.cat ? " selected" : ""}>${esc(c)}</option>`).join("");
+  return `<tr class="k-${k}"><td class="bk-n"></td>` +
+    `<td><select data-c="kind" aria-label="구분">${BULK_KINDS.map((x) => `<option value="${x}"${x === k ? " selected" : ""}>${KIND_LABEL[x]}</option>`).join("")}</select></td>` +
+    `<td><input type="date" data-c="date" value="${esc(v.date || today())}" aria-label="날짜"></td>` +
+    `<td><select data-c="acct" aria-label="자산">${bulkAcctOpts(k, v.acct)}</select></td>` +
+    `<td><select data-c="cat" aria-label="${k === "move" ? "받는 곳" : "분류"}">${cat}</select></td>` +
+    `<td><input type="text" data-c="sub" list="bulkSubList" maxlength="20" value="${esc(v.sub || "")}" aria-label="소분류"${k === "move" ? " disabled" : ""}></td>` +
+    `<td><input type="text" data-c="amt" class="amt-in" inputmode="numeric" value="${esc(v.amt || "")}" aria-label="금액"></td>` +
+    `<td><select data-c="cur" aria-label="화폐">${currencies().map((c) => `<option${c === (v.cur || "원") ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></td>` +
+    `<td><input type="text" data-c="memo" maxlength="80" value="${esc(v.memo || "")}" aria-label="내용"></td>` +
+    `<td><input type="text" data-c="note" maxlength="500" value="${esc(v.note || "")}" aria-label="메모"></td>` +
+    `<td><button class="bk-del" type="button" data-act="bulkDel" aria-label="이 줄 비우기" title="이 줄 비우기">✕</button></td></tr>`;
+}
+const bulkRead = (tr) => { const v = {}; tr.querySelectorAll("[data-c]").forEach((el) => { v[el.dataset.c] = el.value; }); return v; };
+function bulkNumber() { [...$("bulkBody").rows].forEach((tr, i) => { tr.cells[0].textContent = i + 1; }); bulkCount(); }
+function bulkCount() { const n = [...$("bulkBody").rows].filter((tr) => amtVal(tr.querySelector('[data-c="amt"]')) > 0).length; $("bulkCount").textContent = n ? `${n}줄 저장할 거예요` : ""; }
+function bulkAdd(n) { const acct = lastAcct("expense"); $("bulkBody").insertAdjacentHTML("beforeend", Array.from({ length: n }, () => bulkRowHtml({ acct })).join("")); bulkNumber(); }
+function bulkOpen() {
+  if (!$("bulkBody").rows.length) bulkAdd(10);
+  const subs = new Set(); S.money.forEach((x) => { if (x.sub) subs.add(x.sub); });
+  $("bulkSubList").innerHTML = [...subs].sort().map((v) => `<option value="${esc(v)}">`).join("");
+  openDlg($("bulkDlg"));
+  const first = $("bulkBody").querySelector('[data-c="amt"]'); if (first) first.focus();
+}
+// 구분을 바꾸면 그 줄의 자산·분류 칸을 그 구분에 맞게 다시 (적은 값은 그대로)
+function bulkRekind(tr) { const v = bulkRead(tr), tmp = document.createElement("tbody"); tmp.innerHTML = bulkRowHtml(v); const nt = tmp.firstElementChild; tr.replaceWith(nt); bulkNumber(); return nt; }
+function bulkSave() {
+  if (!ready()) return;
+  const docs = [], bad = [];
+  [...$("bulkBody").rows].forEach((tr, i) => {
+    const v = bulkRead(tr), amount = amtVal(tr.querySelector('[data-c="amt"]')), k = v.kind;
+    tr.classList.remove("bad");
+    if (!(amount > 0)) { if (v.memo.trim() || v.note.trim() || v.sub.trim()) { bad.push(i + 1); tr.classList.add("bad"); } return; }
+    if (k === "move" && (!v.acct || !v.cat || v.acct === v.cat)) { bad.push(i + 1); tr.classList.add("bad"); return; }
+    const base = { kind: k, amount, date: v.date || today(), cur: v.cur && v.cur !== "원" ? v.cur : null, memo: v.memo.trim(), note: v.note.trim() || null, account: v.acct || null };
+    docs.push(k === "move" ? { ...base, cat: null, sub: null, toAccount: v.cat } : { ...base, cat: v.cat, sub: v.sub.trim() || null, toAccount: null });
+  });
+  if (bad.length) { toast(`${bad.join(", ")}번 줄을 확인해 주세요 (금액, 이체는 보내는 곳·받는 곳).`); return; }
+  if (!docs.length) { toast("금액을 적은 줄이 없어요."); return; }
+  const t0 = Date.now();
+  act((async () => { for (let i = 0; i < docs.length; i++) await E.backend.add("money", { ...docs[i], createdAt: t0 + i }); })(), `▦ ${docs.length}건을 한 번에 기록했어요.`)
+    .then(() => { $("bulkBody").innerHTML = ""; closeDlg($("bulkDlg")); const m = docs[0].date.slice(0, 7); if (m !== ui.month) { ui.month = m; renderMoney(); } }).catch(() => {});
+}
+// 엑셀에서 복사한 칸 붙여넣기: 탭(칸)·줄바꿈(줄)대로 지금 칸부터 채움. 고르는 칸은 글자가 같은 것으로, 날짜는 2026.10.16 · 10/16도 됨
+function bulkCell(el, raw) {
+  const s = String(raw || "").trim();
+  if (el.tagName === "SELECT") { const o = [...el.options].find((x) => x.text.trim() === s || x.value === s); if (o) el.value = o.value; return; }
+  if (el.dataset.c === "date") { const p = s.split(/[^\d]+/).filter(Boolean); const y = p.length >= 3 ? (p[0].length === 2 ? "20" + p[0] : p[0]) : today().slice(0, 4), mm = p.length >= 3 ? p[1] : p[0], dd = p.length >= 3 ? p[2] : p[1]; if (mm && dd) el.value = `${y}-${pad(+mm)}-${pad(+dd)}`; return; }
+  el.value = el.dataset.c === "amt" ? commaNum(s) : s;
+}
+function bulkPaste(ev) {
+  const text = (ev.clipboardData && ev.clipboardData.getData("text")) || "", start = ev.target.closest && ev.target.closest("[data-c]");
+  if (!start || !/[\t\n]/.test(text.replace(/\s+$/, ""))) return;
+  ev.preventDefault();
+  const lines = text.replace(/\r/g, "").replace(/\n+$/, "").split("\n").map((l) => l.split("\t"));
+  const body = $("bulkBody"), cols = [...start.closest("tr").querySelectorAll("[data-c]")].map((x) => x.dataset.c);
+  let r0 = [...body.rows].indexOf(start.closest("tr")); const c0 = cols.indexOf(start.dataset.c);
+  if (body.rows.length < r0 + lines.length) bulkAdd(r0 + lines.length - body.rows.length);
+  lines.forEach((cells, r) => {
+    let tr = body.rows[r0 + r];
+    cells.forEach((v, c) => {
+      const col = cols[c0 + c]; if (!col) return;
+      bulkCell(tr.querySelector(`[data-c="${col}"]`), v);
+      if (col === "kind") tr = bulkRekind(tr);
+    });
+  });
+  bulkCount();
+}
+
 // 지출 탭 ＋: 새 기록 (지출, 마지막에 쓴 자산)
 function txAdd() {
   ui.mEdit = null; ui.kind = "expense"; ui.asFor = null;
@@ -752,6 +828,18 @@ export function makeDemoData() {
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
 export function initMoney() {
   $("mCat").addEventListener("change", () => { subList(); salaryHint(); });
+  // ▦ 다건입력: 구분 바꾸면 그 줄 칸 다시, Enter = 아래 칸 (마지막 줄이면 줄 더), 붙여넣기
+  $("bulkBody").addEventListener("change", (ev) => { const t = ev.target; if (t.dataset.c === "kind") { const nt = bulkRekind(t.closest("tr")); nt.querySelector('[data-c="kind"]').focus(); } bulkCount(); });
+  $("bulkBody").addEventListener("input", bulkCount);
+  $("bulkBody").addEventListener("paste", bulkPaste);
+  $("bulkBody").addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter" || ev.isComposing || !ev.target.dataset.c) return;
+    ev.preventDefault();
+    const tr = ev.target.closest("tr"), body = $("bulkBody"), i = [...body.rows].indexOf(tr);
+    if (i === body.rows.length - 1) bulkAdd(5);
+    const next = body.rows[i + 1].querySelector(`[data-c="${ev.target.dataset.c}"]`); if (next) next.focus();
+  });
+  $("bulkDlg").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); });
   // ☐ 고르기: 줄을 눌러 고치기와 안 겹치게 체크칸 누름은 여기서만
   $("txList").addEventListener("click", (ev) => { if (ev.target.closest("[data-noedit], .tx-th")) ev.stopPropagation(); }, true);
   $("txList").addEventListener("change", (ev) => {
@@ -877,6 +965,11 @@ export function moneyAction(a, el, id, t) {
   if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet("ukjin-as-fold", JSON.stringify(f)); renderMoney(); return true; }
   if (a === "txKind") { ui.txKind = el.dataset.k; renderMoney(); return true; }
   if (a === "txAdd") { txAdd(); return true; }
+  if (a === "bulkOpen") { bulkOpen(); return true; }
+  if (a === "bulkClose") { closeDlg($("bulkDlg")); return true; }
+  if (a === "bulkMore") { bulkAdd(5); return true; }
+  if (a === "bulkSave") { bulkSave(); return true; }
+  if (a === "bulkDel") { const tr = el.closest("tr"); tr.replaceWith(Object.assign(document.createElement("tbody"), { innerHTML: bulkRowHtml({ acct: lastAcct("expense") }) }).firstElementChild); bulkNumber(); return true; }
   if (a === "monthNow") { ui.month = today().slice(0, 7); renderMoney(); return true; }
   if (a === "txSelNone") { txSel.clear(); renderMoney(); return true; }
   if (a === "txDel") {
