@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016t";
-import { CHANGES } from "./changes.js?v=20261016t";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016t";
-import { firebaseConfig } from "./firebase-config.js?v=20261016t";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016u";
+import { CHANGES } from "./changes.js?v=20261016u";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016u";
+import { firebaseConfig } from "./firebase-config.js?v=20261016u";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -441,7 +441,7 @@ function practiceMinutes() {
   const add = (d, v) => { m[d] = (m[d] || 0) + v; };
   const add15 = (d) => { if (d < WEEK_RULE_FROM) add(d, 15); };
   const timed = new Set();   // 시간을 같이 기록한 할 일 (그 시간이 이미 기록으로 들어감)
-  S.logs.forEach((l) => { if (l.date) add(l.date, Math.max(Number(l.minutes) || 0, 1)); if (l.taskId) timed.add(l.taskId + "|" + l.date); });
+  S.logs.forEach((l) => { if (noPracLog(l)) return; if (l.date) add(l.date, Math.max(Number(l.minutes) || 0, 1)); if (l.taskId) timed.add(l.taskId + "|" + l.date); });
   S.tasks.forEach((t, id) => {
     if (t.noPractice) return;   // 돈 할 일(예산·수입 입력)은 실천으로 안 침
     if (isRep(t)) Object.entries(t.doneDates || {}).forEach(([d, v]) => { if (v && !timed.has(id + "|" + d)) add15(d); });
@@ -450,6 +450,10 @@ function practiceMinutes() {
   Object.keys(fillDays()).forEach((d) => { if ((m[d] || 0) < pracMin(d)) m[d] = pracMin(d); });   // 🛡️ 연속일 채우기 쿠폰으로 채운 날 = 실천한 날 (실천 시간 점수는 없음)
   return m;
 }
+// 돈 할 일(noPractice)에 예전에 붙은 시간 기록: 실천·포인트로 안 침 (화면에서도 안 보임)
+function noPracLog(l) { const t = l && l.taskId && S.tasks.get(l.taskId); return !!(t && t.noPractice); }
+// 끝낸 돈 할 일 아이콘: 🗓️ 예산 · 💰 수입 · 💳 카드값 (아니면 "")
+function moneyIcon(x) { const k = moneyTaskKind(x, x.id); return k ? (k.k === "budget" ? "🗓️" : "💰") : x.cardPay ? "💳" : ""; }
 // 🛡️ 쿠폰으로 채운 날 {날짜: 쿠폰 id}
 function fillDays() { const o = {}; S.wins.forEach((w, id) => { if (w && w.effect === "streak" && w.usedAt && w.fillDate) o[w.fillDate] = id; }); return o; }
 // 🎟️ 그 날이 마감인 안 쓴 쿠폰 (지난 마감은 안 보임, 공개 전엔 관리자 기기만)
@@ -483,7 +487,7 @@ function streak(days) {
   return n;
 }
 function weekNow(days) { const w = weekRuns(days); return w[w.length - 1] || { n: 0 }; }
-function logMinutes(from, to) { let m = 0; S.logs.forEach((l) => { if (l.date >= from && l.date <= to) m += Number(l.minutes) || 0; }); return m; }
+function logMinutes(from, to) { let m = 0; S.logs.forEach((l) => { if (l.date >= from && l.date <= to && !noPracLog(l)) m += Number(l.minutes) || 0; }); return m; }
 function todayTasks() {
   const t = today();
   return rows(S.tasks).filter((x) => {
@@ -552,13 +556,14 @@ function calTask(x, d, repeat) {
   const prac = done && tm > 0;   // 시간과 같이 체크 = 🔥 실천 (노랑), 시간 없이 체크 = ✅ 체크만 (민트)
   const later = repeat && d > today();   // 반복하는 일의 앞으로의 날은 그 날이 되면 체크
   const missed = !done && d < today();     // 지난 날 못 한 일 ❌
+  const mi = done && !prac ? moneyIcon(x) : "", title = mi && x.title.startsWith(mi) ? x.title.slice(mi.length).trim() : x.title;   // 끝낸 돈 할 일은 ✅ 대신 제 아이콘
   return `<div class="ev task ${color}${done ? " done" + (prac ? " prac" : "") : missed ? " miss" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
       : done   // 시간과 같이 끝낸 일은 🔥, 시간 없이 체크한 일은 ✅. 누르면 체크가 풀려서 다시 네모로
-      ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">${prac ? "🔥" : "✅"}</button>`
+      ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">${prac ? "🔥" : mi || "✅"}</button>`
       : `<button type="button" class="mini-check" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="false" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
-    `<span>${missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(x.title)}${x.repeat === "nweek" ? ` <small class="nw">${nweekCount(x, d)}/${nweekNeed(x)}</small>` : ""}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
+    `<span>${missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(title)}${x.repeat === "nweek" ? ` <small class="nw">${nweekCount(x, d)}/${nweekNeed(x)}</small>` : ""}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
@@ -609,13 +614,13 @@ function renderCalendar() {
     const ics = [];
     if ((exams[d] || []).length) ics.push("🎯");
     if (cpDue.length) ics.push("🎟️");
-    const doneTimed = dayTs.some((x) => isDone(x, d) && taskMinutes(x.id, isRep(x) ? d : x.doneDate) > 0);
+    const timedOn = (x) => !x.noPractice && taskMinutes(x.id, isRep(x) ? d : x.doneDate) > 0, doneTimed = dayTs.some((x) => isDone(x, d) && timedOn(x));
     if (doneTimed || (logsByDay[d] || []).length) ics.push("🔥");   // 실천 (시간 있는 끝낸 할 일 · 실천 기록)
-    if (dayTs.some((x) => isDone(x, d) && !(taskMinutes(x.id, isRep(x) ? d : x.doneDate) > 0))) ics.push("✅");   // 시간 없이 체크만 한 할 일
+    dayTs.filter((x) => isDone(x, d) && !timedOn(x)).forEach((x) => { const c = moneyIcon(x) || "✅"; if (!ics.includes(c)) ics.push(c); });   // 시간 없이 체크만 한 할 일 (돈 할 일은 🗓️·💰·💳)
     if (!doneN && !(logsByDay[d] || []).length && fills[d]) ics.push("🛡️");
     if (openN) ics.push(d < t ? "❌" : "📌");
     if (gcalEventsOn(d).length) ics.push("📅");
-    if (income[d]) ics.push("💰");
+    if (income[d] && !ics.includes("💰")) ics.push("💰");
     const cellIc = ics.length ? `<span class="cell-ic" aria-hidden="true">${ics.slice(0, 2).join("")}${openN > 1 && ics.slice(0, 2).some((c) => c === "📌" || c === "❌") ? `<small>${openN}</small>` : ""}</span>` : "";
     html += `<div class="${cls}${pts ? " has-pts" : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
       `<span class="top"><span class="num">${dt.getDate()}</span></span>${part ? `<small class="part-m" title="${Math.round(mm)}분 · 60분이면 실천한 날"><span class="pm-l">${Math.round(mm)}/60m</span><span class="pm-s">${Math.round(mm)}m</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts">+${pts}</span>` : ""}</div>`;
@@ -885,7 +890,7 @@ function searchRows(q) {
         out.push({ date: d, icon: done ? "🔥" : d < t ? "❌" : "📌", time: tm(done ? taskMinutes(id, d) || x.minutes : x.minutes), title: x.title, act: "editTask", id });
       }
     } else if (x.date) {
-      out.push({ date: x.date, icon: x.done ? "🔥" : x.date < t ? "❌" : "📌", time: tm(x.done ? taskMinutes(id, x.doneDate) || x.minutes : x.minutes), title: x.title, act: "editTask", id });
+      out.push({ date: x.date, icon: x.done ? moneyIcon(x) || "🔥" : x.date < t ? "❌" : "📌", time: x.noPractice ? "" : tm(x.done ? taskMinutes(id, x.doneDate) || x.minutes : x.minutes), title: x.title, act: "editTask", id });
       if (x.lateFrom) out.push({ date: x.lateFrom, icon: "❌", time: tm(x.minutes), title: x.title, act: "editTask", id });
     }
   });
@@ -1660,7 +1665,7 @@ function weekStreakBonus(n) { return n === 3 ? 30 : n === 6 ? 100 : n === 12 ? 2
 function streakBonus(n) { return n === 7 ? 30 : n === 15 ? 100 : n === 30 ? 250 : n === 90 ? 1000 : n > 90 && (n - 90) % 30 === 0 ? 300 : 0; }
 function pointsLedger() {
   const day = {}, at = (d) => (day[d] ||= { sum: 0, min: 0, money: 0, salary: 0, lines: [] });
-  S.logs.forEach((l) => { const m = Math.round(Number(l && l.minutes) || 0); if (l && l.date && m > 0) { const x = at(l.date); x.min += m; x.sum += m; } });
+  S.logs.forEach((l) => { const m = Math.round(Number(l && l.minutes) || 0); if (l && l.date && m > 0 && !noPracLog(l)) { const x = at(l.date); x.min += m; x.sum += m; } });
   S.money.forEach((m) => {
     if (!m || !m.date) return; const x = at(m.date);
     if (m.kind === "income" && m.cat === "월급") { x.salary++; x.sum += 30; } else { x.money++; x.sum += 1; }

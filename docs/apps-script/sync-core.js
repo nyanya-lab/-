@@ -2,7 +2,7 @@
  * 욱진 실천 보드 ↔ 구글 캘린더 동기화 본체
  * 욱진이 Apps Script의 짧은 코드(Code.gs)가 5분마다 이 파일을 받아서 실행해요.
  * 여기를 고쳐서 main에 합치면, 다시 붙여넣지 않아도 늦어도 15분 안에 적용돼요.
- *   · 보드 할 일·반복하는 일·시험일 → 구글 캘린더 (📌 파랑 / 시간과 같이 끝내면 🔥 노랑 · 시간 없이 체크만 하면 ✅ 초록 / 🎯 D-DAY 빨강)
+ *   · 보드 할 일·반복하는 일·시험일 → 구글 캘린더 (📌 파랑 / 시간과 같이 끝내면 🔥 노랑 · 시간 없이 체크만 하면 ✅ 초록 / 🎯 D-DAY 빨강, 끝낸 돈 할 일은 ✅ 없이 🗓️·💰·💳 제목 그대로)
  *   · 주 ○번 반복 (최근 1년) → 한 주에 하나: 📌 이번 주 2/3 · 다 채우면 🔥/✅ · 못 채운 주 ❌
  *   · 실천한 일(최근 1년) → 🔥 노랑
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
@@ -42,7 +42,7 @@ function pushToGoogle_(tasks, goals, logs) {
   const timed = {};
   Object.keys(logs || {}).forEach(function (id) {
     const l = logs[id];
-    if (l && l.taskId && l.date) timed[l.taskId + "|" + l.date] = (timed[l.taskId + "|" + l.date] || 0) + (Number(l.minutes) || 0);
+    if (l && l.taskId && l.date && !(tasks[l.taskId] && tasks[l.taskId].noPractice)) timed[l.taskId + "|" + l.date] = (timed[l.taskId + "|" + l.date] || 0) + (Number(l.minutes) || 0);   // 돈 할 일(noPractice)에 붙은 시간은 안 침
   });
   const withTime = function (taskId, day, title) { const m = timed[taskId + "|" + day]; return m ? title + " · " + fmtMin_(m) : title; };
   // 끝낸 할 일: 시간이 기록돼 있으면 🔥 노랑(실천), 없으면 ✅ 초록(체크만) — 보드 달력과 같게
@@ -84,8 +84,10 @@ function pushToGoogle_(tasks, goals, logs) {
     const missed = !t.done && t.date < today;   // 날짜가 지났는데 못 한 일
     // 늦게 한 일: 원래 날짜에는 ❌ 흔적, 한 날에는 🔥
     if (t.done && t.lateFrom) items["late:" + id] = { summary: MARK.miss + withPlan(t), colorId: COLOR.miss, date: t.lateFrom };
+    // 끝낸 돈 할 일(예산 🗓️ · 수입 💰 · 카드값 💳)은 ✅ 없이 제목의 아이콘 그대로: "🗓️ 10월 예산 760,000원"
+    const money = t.noPractice && (/^(mt|cp)-/.test(id) || t.mt || t.cardPay);
     items["task:" + id] = {
-      summary: t.done ? doneMark(id, t.doneDate) + withTime(id, t.doneDate, t.title) : (missed ? MARK.miss : MARK.plan) + withPlan(t),
+      summary: t.done ? (money ? t.title : doneMark(id, t.doneDate) + withTime(id, t.doneDate, t.title)) : (missed ? MARK.miss : MARK.plan) + withPlan(t),
       colorId: t.done ? doneColor(id, t.doneDate) : missed ? COLOR.miss : COLOR.plan, date: t.date
     };
   });
