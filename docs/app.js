@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017t";
-import { CHANGES } from "./changes.js?v=20261017t";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017t";
-import { firebaseConfig } from "./firebase-config.js?v=20261017t";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017u";
+import { CHANGES } from "./changes.js?v=20261017u";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017u";
+import { firebaseConfig } from "./firebase-config.js?v=20261017u";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -307,10 +307,10 @@ async function firebaseStart() {
       unsubs.push(rt.onValue(path(room, c), (snap) => {
         if (testMode) return;
         S[c] = new Map(Object.entries(snap.val() || {})); got[c] = true;
-        S.loaded = COLS.every((k) => got[k]); render();
+        S.loaded = COLS.every((k) => got[k]) && !!got.settings; render();   // 설정(예산 등)까지 와야 다 온 것 — 안 그러면 '예산 없음'으로 보고 할 일 체크를 풀었다 다시 함
       }, onErr));
     });
-    unsubs.push(rt.onValue(path(room, "settings"), (snap) => { if (testMode) return; S.settings = { ...DEFAULTS, ...(snap.val() || {}) }; render(); }, onErr));
+    unsubs.push(rt.onValue(path(room, "settings"), (snap) => { if (testMode) return; S.settings = { ...DEFAULTS, ...(snap.val() || {}) }; got.settings = true; S.loaded = COLS.every((k) => got[k]); render(); }, onErr));
     // 욱진이 구글 계정의 Apps Script가 5분마다 넣어 주는 구글 일정과 동기화 상태
     unsubs.push(rt.onValue(path(room, "gevents"), (snap) => { S.gevents = snap.val() || {}; render(); }, onErr));
     unsubs.push(rt.onValue(path(room, "gsync"), (snap) => { S.gsync = snap.val() || null; render(); }, onErr));
@@ -2232,7 +2232,10 @@ async function loadBackups() {
 let newsChecked = false;
 function render() {
   refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
-  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons(); sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); renderCouponReqs(); renderAdminN();
+  renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons();
+  // 저절로 고치는 일들(벌칙·돈 할 일·카드값·줄 돈): 관리자 기기가 테스트 모드로 바뀌기 직전엔 진짜 보드에 쓰지 않게 건너뜀
+  if (!(APP === "board" && !testMode && isAdminDevice() && !sessionReal())) { sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); }
+  renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   maybePraise();
   if (APP === "money" && S.loaded) {   // 보드 검색에서 누른 돈 기록 열기
