@@ -320,16 +320,7 @@ export function renderMoney() {
 
   // 내 자산
   const accts = sortedAccts();
-  const total = accts.reduce((s2, a) => s2 + (bal[a.id] || 0), 0);
-  const owed = accts.filter((a) => a.type === "card").reduce((s2, a) => s2 + Math.max(0, -(bal[a.id] || 0)), 0);
-  $("assetTotal").innerHTML = accts.length ? `총자산 <span class="won ${total < 0 ? "minus" : ""}">${won(total)}</span>${owed ? ` · 갚을 카드값 <span class="won minus">${won(owed)}</span>` : ""}` : "";
-  $("acctList").innerHTML = accts.map((a) => {
-    const v = bal[a.id] || 0, card = a.type === "card";
-    return `<button type="button" class="acct t-${esc(a.type || "bank")}" data-act="editAcct" data-id="${esc(a.id)}">` +
-      `<span class="acct-name"><span aria-hidden="true">${ACCT_ICON[a.type] || "🏦"}</span>${esc(a.name)}</span>` +
-      `<b class="won ${card ? (v < 0 ? "minus" : "") : v < 0 ? "minus" : ""}">${card ? won(Math.max(0, -v)) : won(v)}</b>` +
-      `<small>${card ? "갚을 카드값" : ACCT_TYPES[a.type] || "통장"}</small></button>`;
-  }).join("") + (accts.length ? "" : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>');
+  renderAssets(accts, bal);
 
   renderPlan(m, r);
 
@@ -387,6 +378,73 @@ export function renderMoney() {
           `<td>${esc(kind === "transfer" ? partner() + "에게" : KIND_LABEL[kind])}</td><td>${kind === "move" ? "-" : x.cat ? catDot(kind, x.cat) + esc(x.cat) : ""}</td><td>${where}</td><td>${esc(x.memo || "")}</td>` +
           `<td class="num won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${sign}${won(x.amount)}</td></tr>`;
       }).join("") + "</tbody>";
+}
+
+// ---------- 🏦 자산 탭: 왼쪽 목록(현금·통장·카드·저축 묶음, 합계, 접기) + 오른쪽 자세히 ----------
+// 자세히 = 그 달 입금·출금·합계·누적잔액 + 내역(줄마다 그때 잔액). 고른 자산·접은 묶음은 이 기기에 기억 (ukjin-as-sel, ukjin-as-fold)
+// 좁은 화면(≤1100px)은 목록만 → 자산을 누르면 자세히(ui.asOpen), [‹ 목록]으로 돌아감
+const AS_GROUPS = [["cash", "현금"], ["bank", "통장"], ["card", "카드"], ["save", "저축"]];
+function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 무시 */ } }
+function asFold() { try { return JSON.parse(lsGet("ukjin-as-fold") || "{}") || {}; } catch (e) { return {}; } }
+export function asSelected() { const id = lsGet("ukjin-as-sel"); if (S.accounts.has(id)) return id; const a = sortedAccts()[0]; return a ? a.id : null; }
+// 이 자산에 들고 난 돈 (d: + 들어옴 / − 나감), 날짜 → 넣은 순서
+export function acctFlow(id) {
+  const out = [];
+  S.money.forEach((x, mid) => {
+    const amt = Number(x.amount) || 0; let d = 0;
+    if (x.kind === "move") { if (x.account === id) d -= amt; if (x.toAccount === id) d += amt; }
+    else if (x.account === id) d = x.kind === "income" ? amt : -amt;
+    if (d) out.push({ ...x, id: mid, d });
+  });
+  return out.sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.createdAt || 0) - (b.createdAt || 0));
+}
+// 그 달에 보여 줄 기간 (지금은 달력 한 달)
+export function acctPeriod(a, m) { return { from: `${m}-01`, to: dayInMonth(m, 31) }; }
+const ymdDot = (s) => `${s.slice(2, 4)}.${+s.slice(5, 7)}.${+s.slice(8)}`;   // 2026-10-01 → 26.10.1
+function renderAssets(accts, bal) {
+  const fold = asFold(), sel = asSelected(), owedOf = (a) => Math.max(0, -(bal[a.id] || 0));
+  const total = accts.reduce((s2, a) => s2 + (bal[a.id] || 0), 0);
+  const owed = accts.filter((a) => a.type === "card").reduce((s2, a) => s2 + owedOf(a), 0);
+  $("assetTotal").innerHTML = accts.length ? `총자산 <span class="won ${total < 0 ? "minus" : ""}">${won(total)}</span>${owed ? ` · 갚을 카드값 <span class="won minus">${won(owed)}</span>` : ""}` : "";
+  $("acctList").innerHTML = accts.length ? AS_GROUPS.map(([t, label]) => {
+    const list = accts.filter((a) => (ACCT_TYPES[a.type] ? a.type : "bank") === t); if (!list.length) return "";
+    const card = t === "card", shut = !!fold[t], sum = list.reduce((s2, a) => s2 + (card ? owedOf(a) : bal[a.id] || 0), 0);
+    return `<div class="as-group t-${t}"><button type="button" class="as-gh" data-act="asFold" data-k="${t}" aria-expanded="${!shut}">` +
+      `<span>${ACCT_ICON[t]} ${label}<small>${list.length}</small><i class="as-chev" aria-hidden="true"></i></span><b class="won${!card && sum < 0 ? " minus" : ""}">${card ? "갚을 " : ""}${won(sum)}</b></button>` +
+      (shut ? "" : list.map((a) => { const v = bal[a.id] || 0;
+        return `<button type="button" class="as-row${a.id === sel ? " on" : ""}" data-act="asSel" data-id="${esc(a.id)}" aria-pressed="${a.id === sel}"><span class="as-name">${esc(a.name)}</span><b class="won${!card && v < 0 ? " minus" : ""}">${card ? won(owedOf(a)) : won(v)}</b></button>`;
+      }).join("")) + "</div>";
+  }).join("") : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>';
+  $("asGrid").classList.toggle("as-open", !!ui.asOpen && !!sel);
+  renderAssetDetail(sel);
+}
+function renderAssetDetail(id) {
+  const box = $("asDetail"), a = id && S.accounts.get(id);
+  if (!a) { box.innerHTML = '<p class="muted small" style="margin:0">자산을 추가하면 여기에 그 달 내역과 잔액이 보여요.</p>'; return; }
+  const m = ui.month, card = a.type === "card", p = acctPeriod(a, m), shown = [];
+  let run = Number(a.initial) || 0, endBal = run, inn = 0, out = 0;
+  acctFlow(id).forEach((x) => {
+    run += x.d; x.bal = run;
+    if (x.date <= p.to) endBal = run;
+    if (x.date >= p.from && x.date <= p.to) { shown.push(x); if (x.d > 0) inn += x.d; else out -= x.d; }
+  });
+  const balTxt = (v) => card ? `카드값 ${won(Math.max(0, -v))}` : `잔액 ${won(v)}`;
+  const tile = (label, v, cls) => `<div><span>${label}</span><b class="won${cls ? " " + cls : ""}">${v}</b></div>`;
+  box.innerHTML =
+    `<div class="as-head"><button class="icon-btn as-back" type="button" data-act="asBack">‹ 목록</button>` +
+    `<h3><span aria-hidden="true">${ACCT_ICON[a.type] || "🏦"}</span><span class="as-title">${esc(a.name)}</span><button class="icon-btn" type="button" data-act="editAcct" data-id="${esc(id)}" aria-label="${esc(a.name)} 고치기" title="이름·잔액${card ? "·결제일" : ""} 고치기">✏️</button></h3>` +
+    `<div class="as-month"><button class="chip" type="button" data-act="month" data-d="-1" aria-label="이전 달">‹</button><b>${monthLabel(m)}</b><button class="chip" type="button" data-act="month" data-d="1" aria-label="다음 달">›</button></div></div>` +
+    `<p class="small muted as-period">기간 ${ymdDot(p.from)} ~ ${ymdDot(p.to)}</p>` +
+    `<div class="as-stats">${tile(card ? "갚은 돈" : "입금", won(inn), "plus")}${tile(card ? "쓴 돈" : "출금", won(out), "minus")}${tile("합계", won(inn - out), inn - out < 0 ? "minus" : "")}` +
+    `${tile(card ? "남은 카드값" : "누적잔액", card ? won(Math.max(0, -endBal)) : won(endBal), !card && endBal < 0 ? "minus" : "")}</div>` +
+    `<div class="as-tx">${shown.reverse().map((x) => {
+      const kind = x.kind || "expense";
+      const what = kind === "move" ? (x.d < 0 ? `→ ${esc(acctName(x.toAccount))}` : `← ${esc(acctName(x.account))}`)
+        : `${x.cat ? catDot(kind, x.cat) + esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ` <span class="muted small">(${esc(partner())}에게)</span>` : ""}`;
+      return `<button type="button" class="as-tr" data-act="editMoney" data-id="${esc(x.id)}"><span class="as-d mono">${shortDate(x.date)}</span><span class="as-c">${what}</span><span class="as-m">${esc(x.memo || "")}</span>` +
+        `<span class="as-a"><b class="won ${x.d > 0 ? "plus" : "minus"}">${x.d > 0 ? "+" : "-"}${won(Math.abs(x.d))}</b><small>${balTxt(x.bal)}</small></span></button>`;
+    }).join("") || `<p class="muted small" style="margin:8px 0 0">${monthLabel(m)}에 이 자산 기록이 없어요.</p>`}</div>`;
 }
 
 // 돈 기록 폼: 종류에 맞게 자산·분류 칸 바꾸기
@@ -590,6 +648,9 @@ export function moneyAction(a, el, id, t) {
     act(E.backend.remove("money", ui.mEdit), "삭제했어요.").then(resetMoneyForm).catch(() => {});
     return true;
   }
+  if (a === "asSel") { lsSet("ukjin-as-sel", id); ui.asOpen = true; renderMoney(); if (window.matchMedia("(max-width: 1100px)").matches) $("asGrid").scrollIntoView({ block: "start" }); return true; }
+  if (a === "asBack") { ui.asOpen = false; renderMoney(); $("asGrid").scrollIntoView({ block: "start" }); return true; }
+  if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet("ukjin-as-fold", JSON.stringify(f)); renderMoney(); return true; }
   if (a === "acctFilter") { ui.acctFilter = el.dataset.k; renderMoney(); return true; }
   if (a === "newAcct") { openAcct(null); return true; }
   if (a === "editAcct") { openAcct(id); return true; }
