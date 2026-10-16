@@ -425,7 +425,7 @@ a.chip:hover { border-color: var(--ink); color: var(--ink); }
 .pie2 svg { width: 100%; max-width: 460px; height: auto; overflow: visible; }
 .pie2 .sl { cursor: pointer; transition: opacity .15s; outline: none; }
 .pie2 svg:hover .sl, .pie2 svg:has(.sl.on) .sl { opacity: .35; }
-.pie2 svg .sl:hover, .pie2 svg .sl.on { opacity: 1; }
+.pie2 svg .sl:hover, .pie2 svg .sl.on, .pie2 svg:hover .sl:hover, .pie2 svg:has(.sl.on) .sl.on { opacity: 1; }   /* 올린 조각은 진하게 (흐리게 규칙보다 세게) */
 .pie2 .seg { stroke: var(--surface); stroke-width: 1.5; fill-rule: evenodd; }
 .pie2 .halo { fill-rule: evenodd; }
 .pie2 .halo { opacity: 0; transition: opacity .15s; }
