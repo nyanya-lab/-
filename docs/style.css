@@ -463,6 +463,9 @@ table.t tr.cur td { background: var(--sunk); }
 .as-all b { font-size: 14px; white-space: nowrap; }
 .as-all.on { background: var(--blue-soft); border-color: var(--blue); }
 .as-stats.as-stats3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.as-top { margin-top: -4px; }
+.as-top b { font-size: 14px; }
+#moneyPage .as-row .as-cp b + b.minus { color: var(--blue); }
 .as-sec { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-radius: 10px; padding: 10px 14px; font-weight: 600; }
 .as-sec.plus { background: var(--coral-soft); color: var(--coral); } .as-sec.minus { background: var(--blue-soft); color: var(--blue); }
 .as-sec b { font-size: 16px; }
@@ -947,7 +950,8 @@ tr.clickable:hover td { background: var(--sunk); }
 .ev.fill { background: var(--mint-soft); border-left-color: var(--mint); color: var(--fg); cursor: pointer; }
 .fill-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .ev.exam { background: var(--coral); color: #FFFFFF; border-left-color: var(--coral); font-weight: 600; }
-.ev.money { background: var(--mint-soft); color: var(--ok); border-left-color: var(--mint); font-family: var(--f-mono); }
+.ev.money { background: var(--coral-soft); color: var(--danger); border-left-color: var(--danger); font-family: var(--f-body); font-variant-numeric: tabular-nums; }   /* 수입 빨강 */
+.ev.money.out { background: var(--blue-soft); color: var(--blue); border-left-color: var(--blue); }   /* 지출 파랑 (💰 켰을 때) */
 .ev.habit { background: transparent; border-left-color: var(--grape); color: var(--grape); font-weight: 600; }
 .ev.gev { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--muted); color: var(--fg); }
 .ev.gev b { font-family: var(--f-mono); font-weight: 600; color: var(--muted); }

@@ -465,19 +465,22 @@ function renderAssets(accts, bal) {
   const fold = asFold(), sel = asSelected(), owedOf = (a) => Math.max(0, -(bal[a.id] || 0));
   const total = accts.reduce((s2, a) => s2 + (bal[a.id] || 0), 0);
   const owed = accts.filter((a) => a.type === "card").reduce((s2, a) => s2 + owedOf(a), 0);
-  $("assetTotal").innerHTML = accts.length ? `총자산 <span class="won ${total < 0 ? "minus" : ""}">${won(total)}</span>${owed ? ` · 갚을 카드값 <span class="won minus">${won(owed)}</span>` : ""}` : "";
-  $("acctList").innerHTML = (accts.length ? `<button type="button" class="as-all${sel === "__all" ? " on" : ""}" data-act="asSel" data-id="__all" aria-pressed="${sel === "__all"}"><span>전체<small>${accts.length}</small></span><b class="won${total < 0 ? " minus" : ""}">${won(total)}</b></button>` : "") + (accts.length ? AS_GROUPS.map(([t, label]) => {
+  // 위 3칸: 자산(+ 잔액 합) · 부채(− 잔액·카드값 합) · 합계 — + 빨강 / − 파랑
+  const sg = (v) => v > 0 ? " plus" : v < 0 ? " minus" : "", A0 = accts.reduce((s2, a) => s2 + Math.max(0, bal[a.id] || 0), 0), D0 = accts.reduce((s2, a) => s2 + Math.max(0, -(bal[a.id] || 0)), 0);
+  $("assetTotal").hidden = !accts.length;
+  $("assetTotal").innerHTML = `<div><span>자산</span><b class="won plus">${won(A0)}</b></div><div><span>부채</span><b class="won minus">${D0 ? "-" : ""}${won(D0)}</b></div><div><span>합계</span><b class="won${sg(A0 - D0)}">${won(A0 - D0)}</b></div>`;
+  $("acctList").innerHTML = (accts.length ? `<button type="button" class="as-all${sel === "__all" ? " on" : ""}" data-act="asSel" data-id="__all" aria-pressed="${sel === "__all"}"><span>전체<small>${accts.length}</small></span><b class="won${sg(total)}">${won(total)}</b></button>` : "") + (accts.length ? AS_GROUPS.map(([t, label]) => {
     const list = accts.filter((a) => (ACCT_TYPES[a.type] ? a.type : "bank") === t); if (!list.length) return "";
     const card = t === "card", shut = !!fold[t], sum = list.reduce((s2, a) => s2 + (card ? owedOf(a) : bal[a.id] || 0), 0);
     // 💳 카드는 결제일 기준 두 칸: 결제예정(다음 결제일에 빠질 돈) · 미결제(그 뒤 이용기간에 쓰는 중). 결제일을 안 정했으면 갚을 카드값 전체를 결제예정 칸에
     const dues = card ? list.map((a) => cardDue(a, owedOf(a)) || { due: owedOf(a), open: 0, none: true }) : [];
-    const two = (l1, v1, l2, v2) => `<span class="as-cp"><span><small>${l1}</small><b class="won">${v1}</b></span><span><small>${l2}</small><b class="won">${v2}</b></span></span>`;
+    const two = (l1, v1, l2, v2) => `<span class="as-cp"><span><small>${l1}</small><b class="won minus">${v1}</b></span><span><small>${l2}</small><b class="won minus">${v2}</b></span></span>`;
     return `<div class="as-group t-${t}"><button type="button" class="as-gh" data-act="asFold" data-k="${t}" aria-expanded="${!shut}">` +
       `<span>${ACCT_ICON[t]} ${label}<small>${list.length}</small><i class="as-chev" aria-hidden="true"></i></span>` +
-      (card ? two("결제예정", won(dues.reduce((s2, d) => s2 + d.due, 0)), "미결제", won(dues.reduce((s2, d) => s2 + d.open, 0))) : `<b class="won${sum < 0 ? " minus" : ""}">${won(sum)}</b>`) + "</button>" +
+      (card ? two("결제예정", won(dues.reduce((s2, d) => s2 + d.due, 0)), "미결제", won(dues.reduce((s2, d) => s2 + d.open, 0))) : `<b class="won${sg(sum)}">${won(sum)}</b>`) + "</button>" +
       (shut ? "" : list.map((a, i) => { const v = bal[a.id] || 0, d = dues[i];
         return `<button type="button" class="as-row${a.id === sel ? " on" : ""}" data-act="asSel" data-id="${esc(a.id)}" aria-pressed="${a.id === sel}"><span class="as-name">${esc(a.name)}</span>` +
-          (card ? `<span class="as-cp"><b class="won">${won(d.due)}</b><b class="won">${d.none ? "-" : won(d.open)}</b></span>` : `<b class="won${v < 0 ? " minus" : ""}">${won(v)}</b>`) + "</button>";
+          (card ? `<span class="as-cp"><b class="won${d.due ? " minus" : ""}">${won(d.due)}</b><b class="won${d.open ? " minus" : ""}">${d.none ? "-" : won(d.open)}</b></span>` : `<b class="won${sg(v)}">${won(v)}</b>`) + "</button>";
       }).join("")) + "</div>";
   }).join("") : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>');
   $("asGrid").classList.toggle("as-open", !!ui.asOpen && !!sel);
