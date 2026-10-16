@@ -50,11 +50,12 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 - 한 달 예산: `settings.budgets[YYYY-MM]` = {items{id:{cat, memo, amount}}, give(💝 줄 돈, 욱진이가 정함, 없으면 null)} (예전 `income`은 안 씀). 수입 = 이번 달 실제, 아직이면 지난달 실제(`incAuto`). 위 4칸: 수입 · 쓸 돈 · 줄 돈(보냄·남은) · 잔액(수입 − 쓸 돈 − 줄 돈). 실제 수입이 들어오면 욱진이 기기에 확인 띠(`settings.giveAck[월]` = 그때 수입). 15일이 되면 `syncGive`가 줄 돈 − 이미 보낸 돈을 `money/give-{YYYY-MM}` transfer(auto, 보내는 통장 `settings.giveFrom`)로 한 번 기록 → 💝 칸 '준 돈 ✅' + [고치기]. 줄 돈 확인 `settings.giveConfirm[월]={inc,give,at}` (관리자 [확인했어요], 진짜 보드에 저장). 맨 위 알림 띠 `renderNags`. `saveSettingsDeep`로 칸 하나씩 저장. 예산이 없는 달은 그 전 가장 가까운 달 예산을 이어 쓰고, 고치는 순간 그 달 것으로 옮겨 저장.
 - 관리자 기기에선 돈 관리에서 지출·자산을 숨김 (`moneyAdminView`/`moneyShown`: 예산 금액 · 수입 · 보낸 돈만, 달력 날짜·검색도 같게).
 - 돈 `money.kind`: `income` / `expense` / `transfer`(여자친구에게 보낸 돈) / `move`(내 자산끼리 이체, 수입·지출 아님). `account`, `toAccount`.
-- 카드 `accounts/{id}.pay` = {day 결제일(31=말일), from 빠지는 통장, fm/fd ~ tm/td 이용기간(달 -2/-1/0 · 날), since 정한 날}. 결제일에 `syncCardPays`가 할 일 `tasks/cp-{카드}-{YYYY-MM}` '💳 카드값 이체하기 (예상 …원)'(noPractice, `cardPay{card,from,start,end}`) 생성. 체크 → 금액 확인 창(`openCardPay`, 이용기간 지출 합계, 고칠 수 있음) → [이체 기록하기]로 같은 id `money` move 기록. 체크 풀면 그 이체도 지움. 결제일 안 정한 카드는 욱진이 기기 맨 위 띠.
+- 카드 `accounts/{id}.pay` = {day 결제일(31=말일), from 빠지는 통장, fm/fd ~ tm/td 이용기간(달 -2/-1/0 · 날), since 정한 날}. 결제일에 `syncCardPays`가 할 일 `tasks/cp-{카드}-{YYYY-MM}` '💳 카드값 이체하기 (예상 …원)'(noPractice, `cardPay{card,from,start,end}`) 생성. 체크 → 금액 확인 창(`openCardPay`, 이용기간 지출 합계, 고칠 수 있음) → [이체 기록하기]로 같은 id `money` move 기록. 체크 풀면 그 이체도 지움. 결제일 안 정한 카드는 욱진이 기기 맨 위 띠. 자산 탭 카드 [💳 결제](`payCardNow`)도 같은 확인 창(`showCardPay`: 금액·날짜·빠지는 통장, 안 한 cp 할 일이 있으면 그 id로 기록·체크).
 
 ## 화면
 
 메뉴: 달력(첫 화면) · 목표 · 💰 가계부(욱진이 보드 = money.html 링크. 가계부 모드 메뉴 = 예산·지출·자산·통계: PC 옆 메뉴 `.m-nav`, 폰 아래 메뉴 `#mBottom`) · 예산(관리자 보드만: 보드 안 돈 화면 `#money` = 통계만 — 실제 수입 · 보낸 돈 · 나머지 3칸 + 달마다 표, 탭 없음) + '가계부 (연습)'(가짜 데이터) · 자격증 찾기 · 기능 요청 · 쿠폰함(탭: 쓸 쿠폰·벌칙·지난 것·요청) · 복권 관리(`#lotto`, 관리자 기기만) · ⚙ 설정(작은 창: 저장 상태, 백업 되돌리기, 구글 캘린더, 잠그기)
+- 가계부 자산 탭(`#asGrid`): 왼쪽 묶음 목록(현금·통장·카드·저축, 접기 localStorage `ukjin-as-fold`, 고른 자산 `ukjin-as-sel`) + 오른쪽 자세히(그 달 입금·출금·합계·누적잔액, 최근 12달 SVG 그래프 `drawAsChart`, 내역 + 줄마다 그때 잔액). 1100px 이하는 목록 → 자세히(`ui.asOpen`). 결제일 정한 카드는 결제일 기준(`acctPeriod` = `cardPayPlan`: 달 = 결제 달, 낸 돈 = 지난 결제일 다음 날~이번 결제일), 목록엔 결제예정·미결제(`cardDue`). ＋(`.fab`) · 내역 줄 → 서랍 창 `#mDrawer` (지출 탭 `#moneyPanel`을 옮겨 와 쓰고 닫으면 제자리, `closeDrawer`).
 - 폰(≤720px) 달력: 칸엔 숫자+아이콘 2개까지(`cell-ic`), 날짜 누르면 창 대신 달력 아래 `#dayPanel`에 그 날 자세히 (기본 오늘). PC는 칸에 글자 + 날짜 창.
 - 달력: 위 요약 4칸(폰은 한 줄), 아래는 목표 → 세부목표 → 할 일 (＋ 목표, ＋ 세부목표). 로고 = 강력 새로고침. 시간은 화면에 `1h 30m`, 입력은 [시간][분].
   칸 안 할 일 체크박스, 글자 누르면 편집 창, 빈 곳 누르면 그날 창([할 일]/[실천한 일]), 실천한 날 초록·안 한 지난 날 연한 빨강, 🔥 실천 목록, 구글 일정.

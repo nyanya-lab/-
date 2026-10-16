@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016o";
-import { CHANGES } from "./changes.js?v=20261016o";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016o";
-import { firebaseConfig } from "./firebase-config.js?v=20261016o";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261016t";
+import { CHANGES } from "./changes.js?v=20261016t";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261016t";
+import { firebaseConfig } from "./firebase-config.js?v=20261016t";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과

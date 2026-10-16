@@ -424,7 +424,7 @@ table.t tr.cur td { background: var(--sunk); }
 .as-group { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .as-gh, .as-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; padding: 10px 12px; }
 .as-gh { background: var(--sunk); font-weight: 600; }
-.as-gh > span:first-child { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.as-gh > span:first-child { display: flex; align-items: center; gap: 4px; white-space: nowrap; min-width: 0; }
 .as-gh small { font-family: var(--f-mono); font-weight: 500; font-size: 11.5px; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 0 7px; margin-left: 2px; }
 .as-chev { width: 7px; height: 7px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: translateY(2px) rotate(-135deg); margin-left: 8px; }
 .as-gh[aria-expanded="false"] .as-chev { transform: translateY(-2px) rotate(45deg); }
@@ -434,7 +434,7 @@ table.t tr.cur td { background: var(--sunk); }
 .as-row.on { background: var(--blue-soft); }
 .as-row.on .as-name { font-weight: 600; }
 .as-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.as-cp { display: grid; grid-template-columns: 96px 84px; gap: 6px; text-align: right; flex: 0 0 auto; }
+.as-cp { display: grid; grid-template-columns: 84px 68px; gap: 6px; text-align: right; flex: 0 0 auto; }
 .as-cp > span { display: grid; }
 .as-gh .as-cp small { font-family: inherit; font-size: 10.5px; font-weight: 500; color: var(--muted); background: none; padding: 0; margin: 0; }
 .as-cp b, .as-gh .as-cp b { font-size: 13px; }
@@ -465,6 +465,27 @@ table.t tr.cur td { background: var(--sunk); }
 .as-chart .cbar { fill: var(--coral); opacity: .55; }
 .as-chart .cbar.on { opacity: 1; }
 .as-tx { display: grid; }
+/* ＋ 동그란 버튼 (자산 자세히가 보일 때만) → 서랍 창 */
+.fab { position: fixed; right: 28px; bottom: 28px; z-index: 30; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--coral); color: #FFFFFF; font-size: 30px; line-height: 1; display: grid; place-items: center; cursor: pointer; box-shadow: 0 8px 20px rgba(10, 16, 28, 0.22); }
+.fab:hover { filter: brightness(1.05); }
+.as-grid { margin-bottom: 72px; }
+.dlg.drawer { margin: 0 0 0 auto; width: min(440px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; border-left: 1px solid var(--line); border-radius: 0; overflow: auto; }
+.drawer #moneyPanel { box-sizing: border-box; border: 0; box-shadow: none; border-radius: 0; min-height: 100%; align-content: start; padding: 18px 20px 24px; }
+.drawer #moneyPanel .panel-head { padding-right: 44px; }
+.drawer-x { position: absolute; top: 10px; right: 10px; z-index: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .dlg.drawer[open] { animation: drawer-in .2s ease-out; }
+  @keyframes drawer-in { from { transform: translateX(40px); opacity: 0; } }
+}
+@media (max-width: 720px) {
+  .app-money .fab { right: 16px; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+  .dlg.drawer { margin: auto 0 0; width: 100vw; height: fit-content; max-height: 90dvh; border-left: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; }
+  .drawer #moneyPanel { min-height: 0; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
+  .dlg.drawer[open] { animation-name: drawer-up; }
+  @keyframes drawer-up { from { transform: translateY(60px); opacity: 0; } }
+}
 .as-tr { display: grid; grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 9px 4px; font: inherit; font-size: 14px; color: inherit; text-align: left; cursor: pointer; }
 .as-tr:last-child { border-bottom: 0; }
 .as-tr:hover { background: var(--sunk); }
@@ -480,7 +501,6 @@ table.t tr.cur td { background: var(--sunk); }
 }
 @media (max-width: 720px) {
   .as-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
-  .as-cp { grid-template-columns: 84px 68px; }
   .as-tr { grid-template-columns: 62px minmax(0, 1fr) auto; }
   .as-d { grid-row: 1 / span 2; font-size: 12px; }
   .as-c { grid-column: 2; grid-row: 1; }
