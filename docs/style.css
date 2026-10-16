@@ -49,6 +49,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
+html { scrollbar-gutter: stable; }   /* 내용이 짧아 스크롤 막대가 없어져도 화면 넓이가 안 바뀌게 (탭·자산 옮길 때 들썩임 막기) */
 body {
   background: var(--bg); color: var(--fg);
   font-family: var(--f-body); font-size: 15px; line-height: 1.55;
