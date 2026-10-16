@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017s";
-import { CHANGES } from "./changes.js?v=20261017s";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017s";
-import { firebaseConfig } from "./firebase-config.js?v=20261017s";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017t";
+import { CHANGES } from "./changes.js?v=20261017t";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017t";
+import { firebaseConfig } from "./firebase-config.js?v=20261017t";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -575,6 +575,8 @@ function renderCalendar() {
   const prac = practiceMinutes();
   const exams = {}; rows(S.goals).forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
   const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date && isWon(x)) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
+  // '💰 10월 월급 1,860,000원' 할 일이 이미 체크된 날은 +수입 칸을 또 안 보임 (같은 돈이 두 번 보여서)
+  S.tasks.forEach((x, id) => { const k = moneyTaskKind(x, id); if (k && k.k === "income" && x.done && x.date) delete income[x.date]; });
   const habits = rows(S.tasks).filter(isRep);
   // 보드를 쓰기 시작한 날 (그 전 날짜는 '안 한 날'로 칠하지 않음)
   const startedAt = boardStart();
