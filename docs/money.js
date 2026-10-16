@@ -52,22 +52,55 @@ export function setCatMap(cats) {
 }
 export const catVar = (kind, cat) => `var(--c${catIdx(kind, cat)})`;
 export const catDot = (kind, cat) => `<span class="cdot" style="--c:${catVar(kind, cat)}" aria-hidden="true"></span>`;
-// 🥧 분류별 원형(도넛) + 범례: [{cat, amt}]. 9개 넘으면 작은 것들은 '그 밖'(회색)으로
+// 🥧 원형(도넛): 바깥에 이름·% (선으로 이어서), 가운데 제목, 마우스 올리면(폰은 누르면) 그 조각만 진하게 + 이름·%·금액 상자
+// list = [{cat, amt}], o = { legend(아래 목록, 기본 켬), color(x → 색), center(가운데 글자 색), amount(가운데 금액, 기본 켬) }. 10개 넘으면 작은 것들은 '그 밖'
+export const PIE_WARM = ["#FF5A3C", "#FF8A4C", "#F5A623", "#F7C948", "#A8D84E", "#4CC38A", "#3BB3C3", "#8E7CF0"];
+export const PIE_COOL = ["#2F6FEB", "#3DD6C4", "#5BC0EB", "#8E7CF0", "#A8D84E", "#F7C948", "#FF8A4C", "#D9488F"];
 export function pieHtml(kind, list, label, o = {}) {
   let xs = list.filter((x) => x.amt > 0).sort((a, b) => b.amt - a.amt);
   const total = xs.reduce((t, x) => t + x.amt, 0);
   if (!total) return "";
-  if (xs.length > 8) xs = xs.slice(0, 7).concat([{ cat: "그 밖", amt: xs.slice(7).reduce((t, x) => t + x.amt, 0), other: true }]);
-  const gap = xs.length > 1 ? 0.6 : 0, col = (x) => x.other ? `var(--c${CAT_N})` : o.color ? o.color(x) : catVar(kind, x.cat), pct = (x) => Math.round(x.amt / total * 100);
-  let acc = 0;
-  const segs = xs.map((x) => {
-    const p = x.amt / total * 100, d = Math.max(0.2, p - gap);
-    const s = `<circle cx="21" cy="21" r="15.9155" pathLength="100" stroke="${col(x)}" stroke-dasharray="${d.toFixed(2)} ${(100 - d).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"><title>${esc(x.cat)} ${won(x.amt)} (${pct(x)}%)</title></circle>`;
-    acc += p; return s;
+  if (xs.length > 10) xs = xs.slice(0, 9).concat([{ cat: "그 밖", amt: xs.slice(9).reduce((t, x) => t + x.amt, 0), other: true }]);
+  const col = (x) => x.other ? `var(--c${CAT_N})` : o.color ? o.color(x) : catVar(kind, x.cat), pctS = (x) => (x.amt / total * 100).toFixed(1).replace(/\.0$/, "");
+  const W = 460, H = 280, cx = W / 2, cy = H / 2, R = 92, r0 = 58, f = (v) => v.toFixed(1);
+  const pt = (a, rr) => `${f(cx + rr * Math.cos(a))} ${f(cy + rr * Math.sin(a))}`;
+  const arc = (a1, a2, ro, ri) => {
+    if (a2 - a1 > Math.PI * 2 - 0.01) { const h = a1 + Math.PI; return `M${pt(a1, ro)}A${ro} ${ro} 0 1 1 ${pt(h, ro)}A${ro} ${ro} 0 1 1 ${pt(a1, ro)}ZM${pt(a1, ri)}A${ri} ${ri} 0 1 0 ${pt(h, ri)}A${ri} ${ri} 0 1 0 ${pt(a1, ri)}Z`; }   // 한 조각 = 고리 전체
+    const lg = a2 - a1 > Math.PI ? 1 : 0; return `M${pt(a1, ro)}A${ro} ${ro} 0 ${lg} 1 ${pt(a2, ro)}L${pt(a2, ri)}A${ri} ${ri} 0 ${lg} 0 ${pt(a1, ri)}Z`;
+  };
+  let a = -Math.PI / 2;
+  const sl = xs.map((x) => { const a1 = a, a2 = a + Math.max(x.amt / total * Math.PI * 2, 0.0001); a = a2; return { x, a1, a2, mid: (a1 + a2) / 2, c: col(x) }; });
+  // 이름표: 오른쪽·왼쪽으로 나눠 위에서 아래로 겹치지 않게 (두 줄이라 28 간격)
+  [true, false].forEach((right) => {
+    const side = sl.filter((p) => (Math.cos(p.mid) >= 0) === right).map((p) => (p.ly = cy + (R + 22) * Math.sin(p.mid), p)).sort((p, q) => p.ly - q.ly);
+    side.forEach((p, k) => { if (k && p.ly < side[k - 1].ly + 28) p.ly = side[k - 1].ly + 28; });
+    for (let k = side.length - 1, lim = H - 16; k >= 0; k--) { if (side[k].ly > lim) side[k].ly = lim; lim = side[k].ly - 28; }
+    side.forEach((p) => { if (p.ly < 14) p.ly = 14; p.right = right; });
+  });
+  const g = sl.map((p) => {
+    const ex = p.right ? cx + R + 34 : cx - R - 34, name = p.x.cat.length > 14 ? p.x.cat.slice(0, 13) + "…" : p.x.cat;
+    return `<g class="sl" tabindex="0" data-n="${esc(p.x.cat)}" data-p="${pctS(p.x)}" data-v="${esc(won(p.x.amt))}" data-c="${esc(p.c)}">` +
+      `<path class="halo" d="${arc(p.a1, p.a2, R + 9, R)}" fill="${p.c}"/><path class="seg" d="${arc(p.a1, p.a2, R, r0)}" fill="${p.c}"/>` +
+      `<polyline class="pl-l" points="${pt(p.mid, R + 3)} ${pt(p.mid, R + 13)} ${f(ex)} ${f(p.ly)}" stroke="${p.c}"/>` +
+      `<text class="pl-n" x="${f(ex + (p.right ? 4 : -4))}" y="${f(p.ly - 1)}" text-anchor="${p.right ? "start" : "end"}">${esc(name)}</text>` +
+      `<text class="pl-p" x="${f(ex + (p.right ? 4 : -4))}" y="${f(p.ly + 13)}" text-anchor="${p.right ? "start" : "end"}">${pctS(p.x)} %</text><title>${esc(p.x.cat)} ${won(p.x.amt)} (${pctS(p.x)}%)</title></g>`;
   }).join("");
-  return `<div class="pie"><svg class="pie-svg" viewBox="0 0 42 42" role="img" aria-label="${esc(label)} ${won(total)} 분류별 원형"><g transform="rotate(-90 21 21)" fill="none" stroke-width="6.5">${segs}</g>` +
-    `<text x="21" y="19.6" class="pie-l">${esc(label)}</text><text x="21" y="25.4" class="pie-v">${moneyShort(total)}</text></svg>` +
-    (o.legend === false ? "" : `<ul class="pie-legend">${xs.map((x) => `<li><i style="background:${col(x)}"></i><span>${esc(x.cat)}</span><b>${won(x.amt)}</b><small>${pct(x)}%</small></li>`).join("")}</ul>`) + "</div>";
+  const mid = `<text class="pc-l" x="${cx}" y="${o.amount === false ? cy + 6 : cy - 2}" fill="${o.center || "var(--fg)"}">${esc(label)}</text>` + (o.amount === false ? "" : `<text class="pc-v" x="${cx}" y="${cy + 17}">${moneyShort(total)}</text>`);
+  return `<div class="pie2"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)} ${won(total)} 원형">${g}${mid}</svg><div class="pie-tip" hidden></div>` +
+    (o.legend === false ? "" : `<ul class="pie-legend">${xs.map((x) => `<li><i style="background:${col(x)}"></i><span>${esc(x.cat)}</span><b>${won(x.amt)}</b><small>${pctS(x)}%</small></li>`).join("")}</ul>`) + "</div>";
+}
+// 원형 위 상자: 이름 · % · 금액 (마우스를 올리거나 누른 조각)
+function pieTip(ev) {
+  const g = ev.target && ev.target.closest && ev.target.closest(".pie2 .sl");
+  document.querySelectorAll(".pie2").forEach((b) => { if (g && b.contains(g)) return; b.querySelector(".pie-tip").hidden = true; b.querySelectorAll(".sl.on").forEach((x) => x.classList.remove("on")); });
+  if (!g) return;
+  const box = g.closest(".pie2"), t = box.querySelector(".pie-tip"), rc = box.getBoundingClientRect();
+  box.querySelectorAll(".sl.on").forEach((x) => { if (x !== g) x.classList.remove("on"); }); g.classList.add("on");
+  const n = document.createElement("b"), p = document.createElement("span"), v = document.createElement("b");
+  n.textContent = g.dataset.n; p.textContent = g.dataset.p + "%"; v.textContent = g.dataset.v; v.className = "v"; v.style.color = g.dataset.c;
+  t.replaceChildren(n, p, v); t.hidden = false;
+  const x = Math.min(ev.clientX - rc.left + 14, rc.width - t.offsetWidth - 4), y = ev.clientY - rc.top + 14;
+  t.style.left = Math.max(4, x) + "px"; t.style.top = y + "px";
 }
 
 // 🗓️ 매달 1일 '예산 입력하기' · 15일 '수입 입력하기' 할 일 (이번 달·다음 달, 지난 날짜는 안 만듦, 한 번 만든 건 지워도 다시 안 만듦)
@@ -454,11 +487,11 @@ function renderAssets(accts, bal) {
 function renderAssetAll() {
   const box = $("asDetail"), accts = sortedAccts(), bal = balances(), m = ui.month;
   if (!accts.length) { box.innerHTML = '<p class="muted small" style="margin:0">자산을 추가하면 여기에 자산·부채·합계가 보여요.</p>'; return; }
-  const part = (sign) => accts.map((a) => ({ cat: a.name, amt: sign * (bal[a.id] || 0) })).filter((x) => x.amt > 0).sort((x1, x2) => x2.amt - x1.amt).map((x, i) => ({ ...x, col: `var(--c${i % CAT_N})` }));
+  const part = (sign) => accts.map((a) => ({ cat: a.name, amt: sign * (bal[a.id] || 0) })).filter((x) => x.amt > 0).sort((x1, x2) => x2.amt - x1.amt).map((x, i) => ({ ...x, col: (sign > 0 ? PIE_WARM : PIE_COOL)[i % PIE_WARM.length] }));
   const plus = part(1), minus = part(-1), A = plus.reduce((t, x) => t + x.amt, 0), D = minus.reduce((t, x) => t + x.amt, 0);
   const pts = Array.from({ length: 12 }, (_, i) => shiftMonth(m, i - 11)).map((mm) => { const b = balances(dayInMonth(mm, 31)), v = Object.values(b).reduce((t, x) => t + x, 0); return { lab: `${+mm.slice(5)}월`, v, on: mm === m, tip: `${monthLabel(mm)} 끝 합계 ${won(v)}` }; });
   const tile = (label, v, cls) => `<div><span>${label}</span><b class="won${cls ? " " + cls : ""}">${v}</b></div>`;
-  const sec = (cls, label, sum, list, name) => `<div class="as-sec ${cls}"><span>${label}</span><b class="won">${won(sum)}</b></div>` + (list.length ? pieHtml(null, list, name, { color: (x) => x.col }) : `<p class="muted small" style="margin:0">${name === "부채" ? "갚을 카드값·빚이 없어요." : "잔액이 있는 자산이 없어요."}</p>`);
+  const sec = (cls, label, sum, list, name) => `<div class="as-sec ${cls}"><span>${label}</span><b class="won">${won(sum)}</b></div>` + (list.length ? pieHtml(null, list, name, { color: (x) => x.col, legend: false, amount: false, center: name === "부채" ? "var(--blue)" : "var(--coral)" }) : `<p class="muted small" style="margin:0">${name === "부채" ? "갚을 카드값·빚이 없어요." : "잔액이 있는 자산이 없어요."}</p>`);
   box.innerHTML =
     `<div class="as-head"><button class="icon-btn as-back" type="button" data-act="asBack">‹ 목록</button><h3><span class="as-title">자산 전체</span></h3>` +
     `<div class="as-month"><button class="chip" type="button" data-act="month" data-d="-1" aria-label="이전 달">‹</button><b>${monthLabel(m)}</b><button class="chip" type="button" data-act="month" data-d="1" aria-label="다음 달">›</button></div></div>` +
@@ -966,6 +999,7 @@ export function makeDemoData() {
 
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
 export function initMoney() {
+  document.addEventListener("mousemove", pieTip); document.addEventListener("click", pieTip);
   $("mCat").addEventListener("change", () => { $("mSub").innerHTML = subOptions(ui.kind, $("mCat").value, ""); salaryHint(); });
   $("mSub").addEventListener("change", () => { if ($("mSub").value === "__add") askNewSub(ui.kind, $("mCat").value, $("mSub")); });
   // ▦ 다건입력: 구분 바꾸면 그 줄 칸 다시, Enter = 아래 칸 (마지막 줄이면 줄 더), 붙여넣기
