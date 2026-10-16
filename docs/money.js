@@ -1,6 +1,6 @@
 // 💰 돈 관리 (가계부) — 보드(index.html)와 가계부 모드(money.html → index.html?app=money)가 같이 쓰는 코드
 // 한 달 예산 · 지출 기록 · 자산(통장·카드·현금, 카드 결제일) · 분류·색·원형 그래프 · 줄 돈 15일 자동 · 카드값 할 일 · 연습 데이터
-// 화면 마크업은 index.html의 #moneyPage · #acctDlg · #catDlg. 보드 쪽 공통 함수·상태는 시작할 때 bindMoney(env)로 받음
+// 화면 마크업은 index.html의 #moneyPage(⚙ 설정 탭 #catEditor·#curEditor 포함) · #acctDlg · #mDrawer · #bulkDlg. 보드 쪽 공통 함수·상태는 시작할 때 bindMoney(env)로 받음
 // (따로 떼어 새 가계부를 만들 땐: 이 파일 + index.html의 위 마크업 + env로 넘기는 공통 함수(저장소·$·toast 등)만 가져가면 됨)
 
 let E = null;   // 보드 쪽 환경 (값이 바뀌는 backend·testMode·realBackend 는 E.이름 으로 읽음)
@@ -320,7 +320,7 @@ export const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷
 export function moneyAdminView() { return isAdminDevice() && !DEMO; }
 export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
-export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "assets", "stats"].includes(v) || (v === "assets" && moneyAdminView())) v = "budget"; return v; }
+export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "assets", "stats", "settings"].includes(v) || ((v === "assets" || v === "settings") && moneyAdminView())) v = "budget"; return v; }
 export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } renderMoney(); }
 export function renderMTabs() {
   const adm = moneyAdminView(), tab = adm ? "stats" : mTab();   // 관리자 보드 '예산'은 통계만 (실제 수입 · 보낸 돈 · 나머지)
@@ -335,6 +335,10 @@ export function renderMTabs() {
   });
   $("mTabs").classList.toggle("seg3", adm);
   document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.dataset.mtab !== tab; });
+  // ⚙ 설정 탭은 달·요약 칸이 필요 없어서 숨김
+  const set = tab === "settings";
+  document.querySelector("#moneyPage .month-nav").hidden = set; $("moneyStats").hidden = set;
+  if (set && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
 }
 export function renderMoney() {
   const m = ui.month, r = monthTotals(m), bal = balances(), adm = moneyAdminView();
@@ -550,7 +554,7 @@ function bulkRowHtml(v) {
     `<td><input type="date" data-c="date" value="${esc(v.date || today())}" aria-label="날짜"></td>` +
     `<td><select data-c="acct" aria-label="자산">${bulkAcctOpts(k, v.acct)}</select></td>` +
     `<td><select data-c="cat" aria-label="${k === "move" ? "받는 곳" : "분류"}">${cat}</select></td>` +
-    `<td><input type="text" data-c="sub" list="bulkSubList" maxlength="20" value="${esc(v.sub || "")}" aria-label="소분류"${k === "move" ? " disabled" : ""}></td>` +
+    `<td><select data-c="sub" aria-label="소분류"${k === "move" ? " disabled" : ""}>${k === "move" ? "" : subOptions(k, v.cat && cats.includes(v.cat) ? v.cat : cats[0], v.sub && v.sub !== "__add" ? v.sub : "")}</select></td>` +
     `<td><input type="text" data-c="amt" class="amt-in" inputmode="numeric" value="${esc(v.amt || "")}" aria-label="금액"></td>` +
     `<td><select data-c="cur" aria-label="화폐">${currencies().map((c) => `<option${c === (v.cur || "원") ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></td>` +
     `<td><input type="text" data-c="memo" maxlength="80" value="${esc(v.memo || "")}" aria-label="내용"></td>` +
@@ -563,8 +567,6 @@ function bulkCount() { const n = [...$("bulkBody").rows].filter((tr) => amtVal(t
 function bulkAdd(n) { const acct = lastAcct("expense"); $("bulkBody").insertAdjacentHTML("beforeend", Array.from({ length: n }, () => bulkRowHtml({ acct })).join("")); bulkNumber(); }
 function bulkOpen() {
   if (!$("bulkBody").rows.length) bulkAdd(10);
-  const subs = new Set(); S.money.forEach((x) => { if (x.sub) subs.add(x.sub); });
-  $("bulkSubList").innerHTML = [...subs].sort().map((v) => `<option value="${esc(v)}">`).join("");
   openDlg($("bulkDlg"));
   const first = $("bulkBody").querySelector('[data-c="amt"]'); if (first) first.focus();
 }
@@ -576,10 +578,11 @@ function bulkSave() {
   [...$("bulkBody").rows].forEach((tr, i) => {
     const v = bulkRead(tr), amount = amtVal(tr.querySelector('[data-c="amt"]')), k = v.kind;
     tr.classList.remove("bad");
-    if (!(amount > 0)) { if (v.memo.trim() || v.note.trim() || v.sub.trim()) { bad.push(i + 1); tr.classList.add("bad"); } return; }
+    if (v.sub === "__add") v.sub = "";
+    if (!(amount > 0)) { if (v.memo.trim() || v.note.trim()) { bad.push(i + 1); tr.classList.add("bad"); } return; }
     if (k === "move" && (!v.acct || !v.cat || v.acct === v.cat)) { bad.push(i + 1); tr.classList.add("bad"); return; }
     const base = { kind: k, amount, date: v.date || today(), cur: v.cur && v.cur !== "원" ? v.cur : null, memo: v.memo.trim(), note: v.note.trim() || null, account: v.acct || null };
-    docs.push(k === "move" ? { ...base, cat: null, sub: null, toAccount: v.cat } : { ...base, cat: v.cat, sub: v.sub.trim() || null, toAccount: null });
+    docs.push(k === "move" ? { ...base, cat: null, sub: null, toAccount: v.cat } : { ...base, cat: v.cat, sub: v.sub || null, toAccount: null });
   });
   if (bad.length) { toast(`${bad.join(", ")}번 줄을 확인해 주세요 (금액, 이체는 보내는 곳·받는 곳).`); return; }
   if (!docs.length) { toast("금액을 적은 줄이 없어요."); return; }
@@ -590,7 +593,11 @@ function bulkSave() {
 // 엑셀에서 복사한 칸 붙여넣기: 탭(칸)·줄바꿈(줄)대로 지금 칸부터 채움. 고르는 칸은 글자가 같은 것으로, 날짜는 2026.10.16 · 10/16도 됨
 function bulkCell(el, raw) {
   const s = String(raw || "").trim();
-  if (el.tagName === "SELECT") { const o = [...el.options].find((x) => x.text.trim() === s || x.value === s); if (o) el.value = o.value; return; }
+  if (el.tagName === "SELECT") {
+    let o = [...el.options].find((x) => x.text.trim() === s || x.value === s);
+    if (!o && el.dataset.c === "sub" && s) { o = new Option(s, s); el.add(o, el.options.length - 1); }   // 목록에 없는 소분류도 그 줄엔 남김
+    if (o) el.value = o.value; return;
+  }
   if (el.dataset.c === "date") { const p = s.split(/[^\d]+/).filter(Boolean); const y = p.length >= 3 ? (p[0].length === 2 ? "20" + p[0] : p[0]) : today().slice(0, 4), mm = p.length >= 3 ? p[1] : p[0], dd = p.length >= 3 ? p[2] : p[1]; if (mm && dd) el.value = `${y}-${pad(+mm)}-${pad(+dd)}`; return; }
   el.value = el.dataset.c === "amt" ? commaNum(s) : s;
 }
@@ -608,6 +615,7 @@ function bulkPaste(ev) {
       const col = cols[c0 + c]; if (!col) return;
       bulkCell(tr.querySelector(`[data-c="${col}"]`), v);
       if (col === "kind") tr = bulkRekind(tr);
+      if (col === "cat" && tr.querySelector('[data-c="kind"]').value !== "move") tr.querySelector('[data-c="sub"]').innerHTML = subOptions(tr.querySelector('[data-c="kind"]').value, tr.querySelector('[data-c="cat"]').value, "");
     });
   });
   bulkCount();
@@ -629,12 +637,6 @@ function memoMarks(x) {
 // 📄 월급 기록이면 월급명세서 사진을 붙이라고 (사진이 있으면 안 보임)
 const isSalary = () => ui.kind === "income" && $("mCat").value === "월급";
 function salaryHint() { $("mSalaryHint").hidden = !isSalary() || mPics.length > 0; }
-// 소분류 추천: 같은 분류로 전에 적은 소분류들
-function subList() {
-  const cat = $("mCat").value, set = new Set();
-  S.money.forEach((x) => { if (x.sub && x.cat === cat) set.add(x.sub); });
-  $("mSubList").innerHTML = [...set].sort().map((v) => `<option value="${esc(v)}">`).join("");
-}
 // 📷 메모 사진: 고르기·찍기, PC는 캡처 후 Ctrl+V. 긴 쪽 1280px + 작은 사진 360px로 줄여서 pics/{사진id}에 (돈 기록 money.pics = {사진id: 날짜})
 const M_PIC_MAX = 4;
 let mPics = [];   // [{ id, old(이미 저장된 것), thumb, full }]
@@ -690,8 +692,9 @@ export function renderMoneyForm(fill) {
   if (!curs.includes(cv)) curs.push(cv);
   $("mCur").innerHTML = curs.map((c) => `<option>${esc(c)}</option>`).join("") + '<option value="__add">＋ 화폐 추가</option>';
   $("mCur").value = cv;
-  if (fill) { $("mSub").value = fill.sub || ""; $("mNote").value = fill.note || ""; }
-  subList();
+  if (fill) $("mNote").value = fill.note || "";
+  const sv = fill ? fill.sub || "" : $("mSub").value;
+  $("mSub").innerHTML = subOptions(k, mc.value, sv && sv !== "__add" ? sv : "");
   salaryHint();
   $("mHint").textContent = k === "income" ? "월급, 수당 같은 들어온 돈이에요."
     : k === "expense" ? "카드로 냈으면 카드를 고르세요. 카드값은 나중에 '이체'로 통장 → 카드로 적으면 돼요."
@@ -776,15 +779,42 @@ export function renderAcctForm() {
   $("acPay").hidden = !card;
 }
 
-// ---------- 분류 편집 ----------
+// ---------- ⚙ 가계부 설정: 분류 · 소분류 · 화폐 ----------
+// 소분류: settings.moneySubs[kind][catKey(분류)] = ["점심", "저녁"…] (기록·다건입력에서 골라서 씀)
+export function subsOf(kind, cat) { const v = (((S.settings.moneySubs || {})[kind === "move" ? "expense" : kind] || {})[catKey(cat || "")]); return Array.isArray(v) ? v.filter(Boolean) : v && typeof v === "object" ? Object.values(v).filter(Boolean) : []; }
+function saveSubs(kind, cat, list, msg) {
+  if (!ready()) return Promise.resolve();
+  const all = clone(S.settings.moneySubs || {}); all[kind] = all[kind] || {};
+  if (list.length) all[kind][catKey(cat)] = list; else delete all[kind][catKey(cat)];
+  return act(E.backend.saveSettings({ moneySubs: all }), msg).then(() => { renderCatEditor(); renderMoneyForm(); }).catch(() => {});
+}
+// 소분류 고르는 칸: 선택 안 함 + 그 분류 소분류 (+ 목록에 없는 예전 값) + '＋ 소분류 추가'
+export function subOptions(kind, cat, cur, add = true) {
+  const list = subsOf(kind, cat).slice(); if (cur && !list.includes(cur)) list.push(cur);
+  return '<option value="">-</option>' + list.map((v) => `<option${v === cur ? " selected" : ""}>${esc(v)}</option>`).join("") + (add ? '<option value="__add">＋ 소분류 추가</option>' : "");
+}
+// 고르는 칸에서 '＋ 소분류 추가' → 이름 묻고 설정에 더한 뒤 그걸로 골라 둠
+export function askNewSub(kind, cat, sel) {
+  const name = (prompt(`'${cat}' 소분류 이름 (예: 점심)`) || "").trim().slice(0, 20);
+  if (!name) { sel.value = ""; return; }
+  const list = subsOf(kind, cat); if (list.includes(name)) { sel.value = name; return; }
+  saveSubs(kind, cat, list.concat([name]), `'${cat}' 소분류에 '${name}'을 더했어요.`).then(() => { sel.innerHTML = subOptions(kind, cat, name); sel.value = name; });
+}
 export function renderCatEditor() {
   const groups = [["expense", "지출 분류"], ["income", "수입 분류"], ["transfer", "보낸 돈 분류"]];
   $("catEditor").innerHTML = groups.map(([k, label]) =>
-    `<div class="dlg-sec"><h4>${label}</h4><div class="chips">` +
-    moneyCats(k).map((c, i) => `<span class="chip"><button type="button" class="cdot-btn" data-act="catColor" data-k="${k}" data-i="${i}" style="--c:${catVar(k, c)}" aria-label="${esc(c)} 색 바꾸기" title="눌러서 색 바꾸기"></button>${esc(c)} <button class="link-btn" type="button" data-act="catDel" data-k="${k}" data-i="${i}" aria-label="${esc(c)} 지우기">×</button></span>`).join("") +
-    `</div><form class="mini-row" data-cat-form="${k}" autocomplete="off"><input type="text" maxlength="12" placeholder="새 분류 이름" aria-label="${label} 추가"><button class="btn small" type="submit">추가</button></form></div>`
-  ).join("") + '<div class="dlg-foot"><button class="btn ghost small" type="button" data-act="catReset">기본 분류로 되돌리기</button><span class="small muted">이미 적은 기록의 분류는 바뀌지 않아요.</span></div>';
+    `<div class="set-grp"><h4>${label}</h4><div class="cat-rows">` +
+    moneyCats(k).map((c, i) => `<div class="cat-row"><span class="cat-name"><button type="button" class="cdot-btn" data-act="catColor" data-k="${k}" data-i="${i}" style="--c:${catVar(k, c)}" aria-label="${esc(c)} 색 바꾸기" title="눌러서 색 바꾸기"></button><span class="nm">${esc(c)}</span><button class="link-btn" type="button" data-act="catDel" data-k="${k}" data-i="${i}" aria-label="${esc(c)} 분류 지우기" title="분류 지우기">×</button></span>` +
+      `<div class="sub-chips">${subsOf(k, c).map((v, j) => `<span class="chip">${esc(v)} <button class="link-btn" type="button" data-act="subDel" data-k="${k}" data-i="${i}" data-j="${j}" aria-label="${esc(v)} 소분류 지우기">×</button></span>`).join("")}` +
+      `<form class="sub-add" data-sub-form="${k}" data-i="${i}" autocomplete="off"><input type="text" maxlength="20" placeholder="＋ 소분류" aria-label="${esc(c)} 소분류 추가"></form></div></div>`).join("") +
+    `</div><form class="mini-row" data-cat-form="${k}" autocomplete="off"><input type="text" maxlength="12" placeholder="새 분류 이름" aria-label="${label} 추가"><button class="btn small" type="submit">분류 추가</button></form></div>`
+  ).join("") + '<div class="set-foot"><button class="btn ghost small" type="button" data-act="catReset">기본 분류로 되돌리기</button><span class="small muted">이미 적은 기록의 분류·소분류는 바뀌지 않아요. 소분류는 입력하고 Enter.</span></div>';
 }
+function renderCurEditor() {
+  $("curEditor").innerHTML = `<div class="sub-chips">${currencies().map((c, i) => `<span class="chip">${esc(c)}${i ? ` <button class="link-btn" type="button" data-act="curDel" data-i="${i}" aria-label="${esc(c)} 지우기">×</button>` : ' <span class="muted small">기본</span>'}</span>`).join("")}` +
+    '<form class="sub-add" id="curForm" autocomplete="off"><input type="text" maxlength="8" placeholder="＋ 화폐 (예: 달러)" aria-label="화폐 추가"></form></div>';
+}
+function saveCurs(list, msg) { if (!ready()) return Promise.resolve(); return act(E.backend.saveSettings({ currencies: list }), msg).then(() => { renderCurEditor(); renderMoneyForm(); }).catch(() => {}); }
 export function saveCats(kind, list) {
   if (!ready()) return;
   const all = { income: moneyCats("income"), expense: moneyCats("expense"), transfer: moneyCats("transfer") };
@@ -827,9 +857,16 @@ export function makeDemoData() {
 
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
 export function initMoney() {
-  $("mCat").addEventListener("change", () => { subList(); salaryHint(); });
+  $("mCat").addEventListener("change", () => { $("mSub").innerHTML = subOptions(ui.kind, $("mCat").value, ""); salaryHint(); });
+  $("mSub").addEventListener("change", () => { if ($("mSub").value === "__add") askNewSub(ui.kind, $("mCat").value, $("mSub")); });
   // ▦ 다건입력: 구분 바꾸면 그 줄 칸 다시, Enter = 아래 칸 (마지막 줄이면 줄 더), 붙여넣기
-  $("bulkBody").addEventListener("change", (ev) => { const t = ev.target; if (t.dataset.c === "kind") { const nt = bulkRekind(t.closest("tr")); nt.querySelector('[data-c="kind"]').focus(); } bulkCount(); });
+  $("bulkBody").addEventListener("change", (ev) => {
+    const t = ev.target, tr = t.closest("tr"), kind = tr && tr.querySelector('[data-c="kind"]').value;
+    if (t.dataset.c === "kind") { const nt = bulkRekind(tr); nt.querySelector('[data-c="kind"]').focus(); }
+    else if (t.dataset.c === "cat" && kind !== "move") tr.querySelector('[data-c="sub"]').innerHTML = subOptions(kind, t.value, "");
+    else if (t.dataset.c === "sub" && t.value === "__add") askNewSub(kind, tr.querySelector('[data-c="cat"]').value, t);
+    bulkCount();
+  });
   $("bulkBody").addEventListener("input", bulkCount);
   $("bulkBody").addEventListener("paste", bulkPaste);
   $("bulkBody").addEventListener("keydown", (ev) => {
@@ -875,7 +912,7 @@ export function initMoney() {
     if (k === "move" && account === toAccount) { toast("보내는 곳과 받는 곳이 같아요."); return; }
     if (isSalary() && !mPics.length && !confirm("📄 월급명세서 사진을 아직 안 붙였어요.\n사진 없이 저장할까요? ([취소]를 누르면 돌아가서 붙일 수 있어요)")) return;
     const cur = $("mCur").value && $("mCur").value !== "원" && $("mCur").value !== "__add" ? $("mCur").value : null;
-    const doc = { kind: k, amount, date, cat: k === "move" ? null : $("mCat").value, sub: k === "move" ? null : $("mSub").value.trim() || null, cur,
+    const doc = { kind: k, amount, date, cat: k === "move" ? null : $("mCat").value, sub: k === "move" || !$("mSub").value || $("mSub").value === "__add" ? null : $("mSub").value, cur,
       memo: $("mMemo").value.trim(), note: $("mNote").value.trim() || null, account, toAccount };
     rememberAcct(k, account); if (k === "move") rememberAcct("moveTo", toAccount);
     const editing = ui.mEdit && S.money.has(ui.mEdit), id0 = editing ? ui.mEdit : null, old = editing ? S.money.get(id0).pics || {} : {};
@@ -908,6 +945,14 @@ export function initMoney() {
       .then(() => closeDlg($("acctDlg"))).catch(() => {});
   });
   $("catEditor").addEventListener("submit", (ev) => {
+    const sf = ev.target.closest("[data-sub-form]");
+    if (sf) {   // 소분류 더하기 (Enter)
+      ev.preventDefault();
+      const k = sf.dataset.subForm, cat = moneyCats(k)[+sf.dataset.i], v = sf.querySelector("input").value.trim().slice(0, 20); if (!v || cat == null) return;
+      const list = subsOf(k, cat); if (list.includes(v)) { toast("이미 있는 소분류예요."); return; }
+      saveSubs(k, cat, list.concat([v]), `'${cat}' 소분류에 '${v}'을 더했어요.`).then(() => { const inp = $("catEditor").querySelector(`[data-sub-form="${k}"][data-i="${sf.dataset.i}"] input`); if (inp) inp.focus(); });
+      return;
+    }
     const f = ev.target.closest("[data-cat-form]"); if (!f) return;
     ev.preventDefault();
     const k = f.dataset.catForm, v = f.querySelector("input").value.trim(); if (!v) return;
@@ -915,6 +960,12 @@ export function initMoney() {
     list.push(v); saveCats(k, list);
   });
 
+  $("curEditor").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const v = (ev.target.querySelector("input").value || "").trim().slice(0, 8); if (!v) return;
+    if (currencies().includes(v)) { toast("이미 있는 화폐예요."); return; }
+    saveCurs(currencies().slice(1).concat([v]), `💱 '${v}'을 화폐에 더했어요.`);
+  });
   ["histFrom", "histTo"].forEach((k) => $(k).addEventListener("change", () => { ui[k] = $(k).value || null; renderMoney(); }));
   $("planAddForm").addEventListener("submit", (ev) => {
     ev.preventDefault();
@@ -991,8 +1042,9 @@ export function moneyAction(a, el, id, t) {
     act(E.backend.remove("accounts", ac.id), "자산을 지웠어요.").then(() => closeDlg($("acctDlg"))).catch(() => {});
     return true;
   }
-  if (a === "editCats") { renderCatEditor(); openDlg($("catDlg")); return true; }
-  if (a === "closeCats") { closeDlg($("catDlg")); return true; }
+  if (a === "editCats") { closeDrawer(); setMTab("settings"); return true; }
+  if (a === "subDel") { const k = el.dataset.k, cat = moneyCats(k)[+el.dataset.i]; if (cat == null) return true; const list = subsOf(k, cat), v = list[+el.dataset.j]; list.splice(+el.dataset.j, 1); saveSubs(k, cat, list, `'${v}' 소분류를 뺐어요.`); return true; }
+  if (a === "curDel") { const list = currencies().slice(1), v = list[+el.dataset.i - 1]; list.splice(+el.dataset.i - 1, 1); saveCurs(list, `'${v}'을 화폐에서 뺐어요.`); return true; }
   if (a === "catColor") {
     if (!ready()) return true;
     const k = el.dataset.k, c = moneyCats(k)[+el.dataset.i]; if (c == null) return true;

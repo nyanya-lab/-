@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017b";
-import { CHANGES } from "./changes.js?v=20261017b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017b";
-import { firebaseConfig } from "./firebase-config.js?v=20261017b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017d";
+import { CHANGES } from "./changes.js?v=20261017d";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017d";
+import { firebaseConfig } from "./firebase-config.js?v=20261017d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -430,7 +430,7 @@ function openDlg(d) { if (d.open) return; if (typeof d.showModal === "function")
 function closeDlg(d) { if (d.open) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); } }
 function closeSettings() { closeDlg($("settingsDlg")); }
 // 바깥(어두운 부분) 누르면 닫힘
-["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "catDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg", "picDlg", "winDlg", "proofDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
+["settingsDlg", "dayDlg", "goalDlg", "taskDlg", "acctDlg", "moveDlg", "logDlg", "newsDlg", "pointsDlg", "lottoIntroDlg", "picDlg", "winDlg", "proofDlg"].forEach((id) => $(id).addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDlg(ev.currentTarget); }));
 function openMenu() { $("side").classList.add("open"); document.querySelector(".scrim").hidden = false; }
 function closeMenu() { $("side").classList.remove("open"); document.querySelector(".scrim").hidden = true; }
 
