@@ -299,12 +299,12 @@ export function monthTotals(m) {
   r.left = r.inc - r.out - r.exp;
   return r;
 }
-// 자산별 잔액: 시작 잔액 + 들어온 돈 − 나간 돈 (카드는 음수 = 갚을 카드값)
-export function balances() {
+// 자산별 잔액: 시작 잔액 + 들어온 돈 − 나간 돈 (카드는 음수 = 갚을 카드값). upTo = 그 날까지만
+export function balances(upTo) {
   const b = {};
   S.accounts.forEach((a, id) => { b[id] = Number(a.initial) || 0; });
   S.money.forEach((x) => {
-    if (!isWon(x)) return;
+    if (!isWon(x) || (upTo && x.date > upTo)) return;
     const amt = Number(x.amount) || 0;
     if (x.kind === "income") { if (x.account in b) b[x.account] += amt; }
     else if (x.kind === "move") { if (x.account in b) b[x.account] -= amt; if (x.toAccount in b) b[x.toAccount] += amt; }
@@ -321,7 +321,7 @@ export function moneyAdminView() { return isAdminDevice() && !DEMO; }
 export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
 export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "assets", "stats", "settings"].includes(v) || ((v === "assets" || v === "settings") && moneyAdminView())) v = "budget"; return v; }
-export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } renderMoney(); }
+export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } if (k === "assets") { ui.asSel = null; ui.asOpen = false; } renderMoney(); }
 export function renderMTabs() {
   const adm = moneyAdminView(), tab = adm ? "stats" : mTab();   // 관리자 보드 '예산'은 통계만 (실제 수입 · 보낸 돈 · 나머지)
   $("mTabs").hidden = adm;
@@ -405,13 +405,14 @@ export function renderMoney() {
 }
 
 // ---------- 🏦 자산 탭: 왼쪽 목록(현금·통장·카드·저축 묶음, 합계, 접기) + 오른쪽 자세히 ----------
-// 자세히 = 그 달 입금·출금·합계·누적잔액 + 내역(줄마다 그때 잔액). 고른 자산·접은 묶음은 이 기기에 기억 (ukjin-as-sel, ukjin-as-fold)
+// 자세히 = 그 달 입금·출금·합계·누적잔액 + 내역(줄마다 그때 잔액). 접은 묶음은 이 기기에 기억 (ukjin-as-fold)
 // 좁은 화면(≤1100px)은 목록만 → 자산을 누르면 자세히(ui.asOpen), [‹ 목록]으로 돌아감
 const AS_GROUPS = [["cash", "현금"], ["bank", "통장"], ["card", "카드"], ["save", "저축"]];
 function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 무시 */ } }
 function asFold() { try { return JSON.parse(lsGet("ukjin-as-fold") || "{}") || {}; } catch (e) { return {}; } }
-export function asSelected() { const id = lsGet("ukjin-as-sel"); if (S.accounts.has(id)) return id; const a = sortedAccts()[0]; return a ? a.id : null; }
+// 고른 자산: 탭에 처음 들어오면 '전체'(__all = 자산·부채·합계 한눈에)
+export function asSelected() { return S.accounts.has(ui.asSel) ? ui.asSel : "__all"; }
 // 이 자산에 들고 난 돈 (d: + 들어옴 / − 나감), 날짜 → 넣은 순서
 export function acctFlow(id) {
   const out = [];
@@ -432,7 +433,7 @@ function renderAssets(accts, bal) {
   const total = accts.reduce((s2, a) => s2 + (bal[a.id] || 0), 0);
   const owed = accts.filter((a) => a.type === "card").reduce((s2, a) => s2 + owedOf(a), 0);
   $("assetTotal").innerHTML = accts.length ? `총자산 <span class="won ${total < 0 ? "minus" : ""}">${won(total)}</span>${owed ? ` · 갚을 카드값 <span class="won minus">${won(owed)}</span>` : ""}` : "";
-  $("acctList").innerHTML = accts.length ? AS_GROUPS.map(([t, label]) => {
+  $("acctList").innerHTML = (accts.length ? `<button type="button" class="as-all${sel === "__all" ? " on" : ""}" data-act="asSel" data-id="__all" aria-pressed="${sel === "__all"}"><span>전체<small>${accts.length}</small></span><b class="won${total < 0 ? " minus" : ""}">${won(total)}</b></button>` : "") + (accts.length ? AS_GROUPS.map(([t, label]) => {
     const list = accts.filter((a) => (ACCT_TYPES[a.type] ? a.type : "bank") === t); if (!list.length) return "";
     const card = t === "card", shut = !!fold[t], sum = list.reduce((s2, a) => s2 + (card ? owedOf(a) : bal[a.id] || 0), 0);
     // 💳 카드는 결제일 기준 두 칸: 결제예정(다음 결제일에 빠질 돈) · 미결제(그 뒤 이용기간에 쓰는 중). 결제일을 안 정했으면 갚을 카드값 전체를 결제예정 칸에
@@ -445,11 +446,30 @@ function renderAssets(accts, bal) {
         return `<button type="button" class="as-row${a.id === sel ? " on" : ""}" data-act="asSel" data-id="${esc(a.id)}" aria-pressed="${a.id === sel}"><span class="as-name">${esc(a.name)}</span>` +
           (card ? `<span class="as-cp"><b class="won">${won(d.due)}</b><b class="won">${d.none ? "-" : won(d.open)}</b></span>` : `<b class="won${v < 0 ? " minus" : ""}">${won(v)}</b>`) + "</button>";
       }).join("")) + "</div>";
-  }).join("") : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>';
+  }).join("") : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>');
   $("asGrid").classList.toggle("as-open", !!ui.asOpen && !!sel);
   renderAssetDetail(sel);
 }
+// 🏦 자산 전체: 자산 · 부채 · 합계, 최근 12달 합계 흐름, 자산 구성 · 부채 구성 원형
+function renderAssetAll() {
+  const box = $("asDetail"), accts = sortedAccts(), bal = balances(), m = ui.month;
+  if (!accts.length) { box.innerHTML = '<p class="muted small" style="margin:0">자산을 추가하면 여기에 자산·부채·합계가 보여요.</p>'; return; }
+  const part = (sign) => accts.map((a) => ({ cat: a.name, amt: sign * (bal[a.id] || 0) })).filter((x) => x.amt > 0).sort((x1, x2) => x2.amt - x1.amt).map((x, i) => ({ ...x, col: `var(--c${i % CAT_N})` }));
+  const plus = part(1), minus = part(-1), A = plus.reduce((t, x) => t + x.amt, 0), D = minus.reduce((t, x) => t + x.amt, 0);
+  const pts = Array.from({ length: 12 }, (_, i) => shiftMonth(m, i - 11)).map((mm) => { const b = balances(dayInMonth(mm, 31)), v = Object.values(b).reduce((t, x) => t + x, 0); return { lab: `${+mm.slice(5)}월`, v, on: mm === m, tip: `${monthLabel(mm)} 끝 합계 ${won(v)}` }; });
+  const tile = (label, v, cls) => `<div><span>${label}</span><b class="won${cls ? " " + cls : ""}">${v}</b></div>`;
+  const sec = (cls, label, sum, list, name) => `<div class="as-sec ${cls}"><span>${label}</span><b class="won">${won(sum)}</b></div>` + (list.length ? pieHtml(null, list, name, { color: (x) => x.col }) : `<p class="muted small" style="margin:0">${name === "부채" ? "갚을 카드값·빚이 없어요." : "잔액이 있는 자산이 없어요."}</p>`);
+  box.innerHTML =
+    `<div class="as-head"><button class="icon-btn as-back" type="button" data-act="asBack">‹ 목록</button><h3><span class="as-title">자산 전체</span></h3>` +
+    `<div class="as-month"><button class="chip" type="button" data-act="month" data-d="-1" aria-label="이전 달">‹</button><b>${monthLabel(m)}</b><button class="chip" type="button" data-act="month" data-d="1" aria-label="다음 달">›</button></div></div>` +
+    `<div class="as-stats as-stats3">${tile("자산", won(A), "plus")}${tile("부채", won(D), "minus")}${tile("합계", won(A - D), A - D < 0 ? "minus" : "")}</div>` +
+    `<div class="as-chart-h small muted">달마다 합계 (그 달 끝) · 최근 12달</div><div class="as-chart" id="asChart"></div>` +
+    sec("plus", "자산 구성", A, plus, "자산") + sec("minus", "부채 구성", D, minus, "부채") +
+    '<button class="fab" type="button" data-act="txAdd" aria-label="기록하기" title="기록하기">＋</button>';
+  setChart($("asChart"), { pts, label: "달마다 합계" });
+}
 function renderAssetDetail(id) {
+  if (id === "__all") { renderAssetAll(); return; }
   const box = $("asDetail"), a = id && S.accounts.get(id);
   if (!a) { box.innerHTML = '<p class="muted small" style="margin:0">자산을 추가하면 여기에 그 달 내역과 잔액이 보여요.</p>'; return; }
   const m = ui.month, card = a.type === "card", p = acctPeriod(a, m), shown = [], payCard = card && !!p.date;
@@ -1067,7 +1087,7 @@ export function moneyAction(a, el, id, t) {
     act(E.backend.remove("money", ui.mEdit), "삭제했어요.").then(resetMoneyForm).catch(() => {});
     return true;
   }
-  if (a === "asSel") { lsSet("ukjin-as-sel", id); ui.asOpen = true; renderMoney(); if (window.matchMedia("(max-width: 1100px)").matches) $("asGrid").scrollIntoView({ block: "start" }); return true; }
+  if (a === "asSel") { ui.asSel = id; ui.asOpen = true; renderMoney(); if (window.matchMedia("(max-width: 1100px)").matches) $("asGrid").scrollIntoView({ block: "start" }); return true; }
   if (a === "asBack") { ui.asOpen = false; renderMoney(); $("asGrid").scrollIntoView({ block: "start" }); return true; }
   if (a === "cardPayNow") { payCardNow(id); return true; }
   if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet("ukjin-as-fold", JSON.stringify(f)); renderMoney(); return true; }
