@@ -53,12 +53,12 @@ export function setCatMap(cats) {
 export const catVar = (kind, cat) => `var(--c${catIdx(kind, cat)})`;
 export const catDot = (kind, cat) => `<span class="cdot" style="--c:${catVar(kind, cat)}" aria-hidden="true"></span>`;
 // 🥧 분류별 원형(도넛) + 범례: [{cat, amt}]. 9개 넘으면 작은 것들은 '그 밖'(회색)으로
-export function pieHtml(kind, list, label) {
+export function pieHtml(kind, list, label, o = {}) {
   let xs = list.filter((x) => x.amt > 0).sort((a, b) => b.amt - a.amt);
   const total = xs.reduce((t, x) => t + x.amt, 0);
   if (!total) return "";
   if (xs.length > 8) xs = xs.slice(0, 7).concat([{ cat: "그 밖", amt: xs.slice(7).reduce((t, x) => t + x.amt, 0), other: true }]);
-  const gap = xs.length > 1 ? 0.6 : 0, col = (x) => x.other ? `var(--c${CAT_N})` : catVar(kind, x.cat), pct = (x) => Math.round(x.amt / total * 100);
+  const gap = xs.length > 1 ? 0.6 : 0, col = (x) => x.other ? `var(--c${CAT_N})` : o.color ? o.color(x) : catVar(kind, x.cat), pct = (x) => Math.round(x.amt / total * 100);
   let acc = 0;
   const segs = xs.map((x) => {
     const p = x.amt / total * 100, d = Math.max(0.2, p - gap);
@@ -67,7 +67,7 @@ export function pieHtml(kind, list, label) {
   }).join("");
   return `<div class="pie"><svg class="pie-svg" viewBox="0 0 42 42" role="img" aria-label="${esc(label)} ${won(total)} 분류별 원형"><g transform="rotate(-90 21 21)" fill="none" stroke-width="6.5">${segs}</g>` +
     `<text x="21" y="19.6" class="pie-l">${esc(label)}</text><text x="21" y="25.4" class="pie-v">${moneyShort(total)}</text></svg>` +
-    `<ul class="pie-legend">${xs.map((x) => `<li><i style="background:${col(x)}"></i><span>${esc(x.cat)}</span><b>${won(x.amt)}</b><small>${pct(x)}%</small></li>`).join("")}</ul></div>`;
+    (o.legend === false ? "" : `<ul class="pie-legend">${xs.map((x) => `<li><i style="background:${col(x)}"></i><span>${esc(x.cat)}</span><b>${won(x.amt)}</b><small>${pct(x)}%</small></li>`).join("")}</ul>`) + "</div>";
 }
 
 // 🗓️ 매달 1일 '예산 입력하기' · 15일 '수입 입력하기' 할 일 (이번 달·다음 달, 지난 날짜는 안 만듦, 한 번 만든 건 지워도 다시 안 만듦)
@@ -336,7 +336,7 @@ export function renderMTabs() {
   $("mTabs").classList.toggle("seg3", adm);
   document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.dataset.mtab !== tab; });
   // ⚙ 설정 탭은 달·요약 칸이 필요 없어서 숨김
-  const set = tab === "settings";
+  const set = tab === "settings" || (tab === "stats" && !adm);   // 통계는 오른쪽 위에 따로 기간을 고름
   document.querySelector("#moneyPage .month-nav").hidden = set; $("moneyStats").hidden = set;
   if (set && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
 }
@@ -401,6 +401,7 @@ export function renderMoney() {
   renderMoneyForm();
 
   renderTx(m, r);
+  if (mTab() === "stats" && !moneyAdminView()) renderStats();
 }
 
 // ---------- 🏦 자산 탭: 왼쪽 목록(현금·통장·카드·저축 묶음, 합계, 접기) + 오른쪽 자세히 ----------
@@ -463,10 +464,10 @@ function renderAssetDetail(id) {
     if (inP(x)) { shown.push(x); if (x.d > 0) inn += x.d; else out -= x.d; }
   });
   // 📈 최근 12달 (보고 있는 달까지): 통장·현금·저축 = 그 달 끝 잔액 꺾은선, 카드 = 그 달 기간에 쓴 돈 막대
-  asChart = { card, m, pts: Array.from({ length: 12 }, (_, i) => shiftMonth(m, i - 11)).map((mm) => {
-    const q = acctPeriod(a, mm);
-    return { m: mm, v: card ? flow.reduce((t, x) => t + (x.d < 0 && x.date >= q.from && x.date <= q.to ? -x.d : 0), 0) : init + flow.reduce((t, x) => t + (x.date <= q.to ? x.d : 0), 0) };
-  }) };
+  const asPts = Array.from({ length: 12 }, (_, i) => shiftMonth(m, i - 11)).map((mm) => {
+    const q = acctPeriod(a, mm), v = card ? flow.reduce((t, x) => t + (x.d < 0 && x.date >= q.from && x.date <= q.to ? -x.d : 0), 0) : init + flow.reduce((t, x) => t + (x.date <= q.to ? x.d : 0), 0);
+    return { lab: `${+mm.slice(5)}월`, v, on: mm === m, tip: `${monthLabel(mm)} ${card ? "쓴 돈" : "끝 잔액"} ${won(v)}` };
+  });
   const balTxt = (v) => card ? `카드값 ${won(Math.max(0, -v))}` : `잔액 ${won(v)}`;
   const tile = (label, v, cls) => `<div><span>${label}</span><b class="won${cls ? " " + cls : ""}">${v}</b></div>`;
   box.innerHTML =
@@ -489,27 +490,35 @@ function renderAssetDetail(id) {
         `<span class="as-a"><b class="won ${x.d > 0 ? "plus" : "minus"}">${x.d > 0 ? "+" : "-"}${won(Math.abs(x.d))}</b><small>${balTxt(x.bal)}</small></span></button>`;
     }).join("") || `<p class="muted small" style="margin:8px 0 0">${monthLabel(m)}에 이 자산 기록이 없어요.</p>`}</div>` +
     `<button class="fab" type="button" data-act="asAdd" data-id="${esc(id)}" aria-label="${esc(a.name)}(으)로 기록하기" title="${esc(a.name)}(으)로 기록하기">＋</button>`;
-  drawAsChart();
+  setChart($("asChart"), { bars: card, pts: asPts, label: card ? "달마다 쓴 돈" : "달마다 잔액" });
 }
-// 그래프는 칸 너비 그대로 그림 (글자가 안 줄어들게) → 너비가 바뀌면 다시 그림 (initMoney의 ResizeObserver)
-let asChart = null;
+// 📈 그래프: 칸 너비 그대로 그림 (글자가 안 줄어들게), 너비가 바뀌면 다시 그림 (ResizeObserver)
+// data = { bars(막대면 true), pts: [{ lab 아래 글자, v 값, on 지금 보는 칸, tip 마우스 올리면 }], label }
 const axisWon = (v) => { const n = Math.abs(v), s = v < 0 ? "-" : ""; return n >= 1e8 ? s + +(n / 1e8).toFixed(1) + "억" : n >= 1e4 ? s + Math.round(n / 1e4).toLocaleString("ko-KR") + "만" : s + n.toLocaleString("ko-KR"); };
 function niceStep(span) { const raw = span / 4 || 1, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
-export function drawAsChart() {
-  const el = $("asChart"); if (!el || !asChart) return;
-  const { card, m, pts } = asChart, W = Math.max(260, el.clientWidth || 600), H = 170, L = 44, R = 8, T = 8, B = 24, pw = W - L - R, ph = H - T - B;
+let chartRO = null;
+export function setChart(el, data) {
+  if (!el) return;
+  el._chart = data; drawChart(el);
+  if (window.ResizeObserver) { chartRO = chartRO || new ResizeObserver((es) => es.forEach((e) => { const w = Math.round(e.contentRect.width); if (w && w !== e.target._w) drawChart(e.target); })); chartRO.observe(el); }
+}
+function drawChart(el) {
+  const d = el._chart; if (!d) return;
+  const pts = d.pts, W = Math.max(260, el.clientWidth || 600), H = 170, L = 44, R = 8, T = 8, B = 24, pw = W - L - R, ph = H - T - B;
+  el._w = Math.round(el.clientWidth);
   const vs = pts.map((p) => p.v);
   let lo = Math.min(0, ...vs), hi = Math.max(0, ...vs); if (hi === lo) hi = lo + 10000;
   const st = niceStep(hi - lo); lo = Math.floor(lo / st) * st; hi = Math.ceil(hi / st) * st;
   const n = pts.length, cw = pw / n, x = (i) => L + cw * (i + 0.5), y = (v) => T + ph - (v - lo) / (hi - lo) * ph, f = (v) => v.toFixed(1);
   let s = `<rect x="${L}" y="${T}" width="${f(pw)}" height="${ph}" class="bg"/>`;
   for (let k = 0, steps = Math.round((hi - lo) / st); k <= steps; k++) { const v = lo + k * st; s += `<line x1="${L}" x2="${f(W - R)}" y1="${f(y(v))}" y2="${f(y(v))}"${v === 0 ? ' class="z"' : ""}/><text x="${L - 6}" y="${f(y(v) + 3.5)}" class="yl">${axisWon(v)}</text>`; }
-  s += `<line x1="${f(x(n - 1))}" x2="${f(x(n - 1))}" y1="${T}" y2="${T + ph}" class="cur"/>`;
-  if (card) { const bw = Math.min(26, cw * 0.55); s += pts.map((p, i) => `<rect x="${f(x(i) - bw / 2)}" y="${f(Math.min(y(p.v), y(0)))}" width="${f(bw)}" height="${f(p.v ? Math.max(1.5, Math.abs(y(0) - y(p.v))) : 0)}" rx="3" class="cbar${p.m === m ? " on" : ""}"><title>${monthLabel(p.m)} 쓴 돈 ${won(p.v)}</title></rect>`).join(""); }
-  else s += `<polyline points="${pts.map((p, i) => f(x(i)) + "," + f(y(p.v))).join(" ")}" class="ln"/>` + pts.map((p, i) => `<circle cx="${f(x(i))}" cy="${f(y(p.v))}" r="${p.m === m ? 4.5 : 3}" class="dot"><title>${monthLabel(p.m)} 끝 잔액 ${won(p.v)}</title></circle>`).join("");
-  const every = cw < 30 ? 2 : 1;
-  s += pts.map((p, i) => (n - 1 - i) % every ? "" : `<text x="${f(x(i))}" y="${H - 7}" class="xl${p.m === m ? " on" : ""}">${+p.m.slice(5)}월</text>`).join("");
-  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${card ? "달마다 쓴 돈" : "달마다 잔액"} 최근 12달">${s}</svg>`;
+  const ci = pts.findIndex((p) => p.on);
+  if (ci >= 0) s += `<line x1="${f(x(ci))}" x2="${f(x(ci))}" y1="${T}" y2="${T + ph}" class="cur"/>`;
+  if (d.bars) { const bw = Math.min(26, cw * 0.55); s += pts.map((p, i) => `<rect x="${f(x(i) - bw / 2)}" y="${f(Math.min(y(p.v), y(0)))}" width="${f(bw)}" height="${f(p.v ? Math.max(1.5, Math.abs(y(0) - y(p.v))) : 0)}" rx="3" class="cbar${p.on ? " on" : ""}"><title>${esc(p.tip || "")}</title></rect>`).join(""); }
+  else s += `<polyline points="${pts.map((p, i) => f(x(i)) + "," + f(y(p.v))).join(" ")}" class="ln"/>` + pts.map((p, i) => `<circle cx="${f(x(i))}" cy="${f(y(p.v))}" r="${p.on ? 4.5 : 3}" class="dot"><title>${esc(p.tip || "")}</title></circle>`).join("");
+  const every = Math.max(1, Math.ceil(34 / cw));
+  s += pts.map((p, i) => (n - 1 - i) % every ? "" : `<text x="${f(x(i))}" y="${H - 7}" class="xl${p.on ? " on" : ""}">${esc(p.lab)}</text>`).join("");
+  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(d.label || "그래프")}">${s}</svg>`;
 }
 
 // ---------- 🧾 내역 (지출 탭): 요약 칸 = 전체 · 수입 · 지출 · 💝 준 돈 (누르면 그것만), 표 = ☐ 날짜 · 자산 · 분류 · 소분류 · 금액 · 내용 · 메모 ----------
@@ -530,16 +539,63 @@ function renderTx(m, r) {
   $("txList").innerHTML = !S.loaded ? '<p class="muted small">불러오는 중…</p>'
     : !items.length ? `<p class="muted small" style="margin:8px 0">${monthLabel(m)} ${f === "all" ? "" : TX_KINDS.find(([k]) => k === f)[1] + " "}기록이 없어요. 오른쪽 아래 ＋로 기록해요.</p>`
     : `<div class="tx-row tx-th"><label class="tx-ck"><input type="checkbox" data-txall ${all ? "checked" : ""} aria-label="모두 고르기"></label><span>날짜</span><span>자산</span><span>분류</span><span>소분류</span><span class="tx-amt">금액</span><span>내용</span><span>메모</span></div>` +
-      items.map((x) => {
+      items.map((x) => txRow(x, true)).join("");
+}
+// 내역 한 줄 (ck = ☐ 고르기 칸 같이) — 지출 탭 · 통계 탭이 같이 씀
+function txRow(x, ck) {
         const kind = x.kind || "expense", n = x.pics && typeof x.pics === "object" ? Object.keys(x.pics).length : 0;
         const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
         const cat = kind === "move" ? '<span class="muted">이체</span>' : `${x.cat ? catDot(kind, x.cat) + esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ' <span class="muted small">💝</span>' : ""}`;
-        return `<div class="tx-row k-${kind}${ui.mEdit === x.id ? " cur" : ""}${txSel.has(x.id) ? " sel" : ""}" data-act="editMoney" data-id="${esc(x.id)}" role="button" tabindex="0">` +
-          `<label class="tx-ck" data-noedit><input type="checkbox" data-txck="${esc(x.id)}" ${txSel.has(x.id) ? "checked" : ""} aria-label="고르기"></label>` +
+        return `<div class="tx-row k-${kind}${ck ? "" : " no-ck"}${ui.mEdit === x.id ? " cur" : ""}${ck && txSel.has(x.id) ? " sel" : ""}" data-act="editMoney" data-id="${esc(x.id)}" role="button" tabindex="0">` +
+          (ck ? `<label class="tx-ck" data-noedit><input type="checkbox" data-txck="${esc(x.id)}" ${txSel.has(x.id) ? "checked" : ""} aria-label="고르기"></label>` : "") +
           `<span class="tx-d mono">${shortDate(x.date)}</span><span class="tx-a">${where}</span><span class="tx-c">${cat}</span><span class="tx-s">${esc(x.sub || "")}</span>` +
           `<span class="tx-amt won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${kind === "income" ? "+" : kind === "move" ? "" : "-"}${amtText(x)}</span>` +
           `<span class="tx-m">${esc(x.memo || "")}</span><span class="tx-n">${x.note ? esc(x.note) : ""}${n ? ` <span class="m-mark">📷${n > 1 ? n : ""}</span>` : ""}</span></div>`;
-      }).join("");
+}
+
+// ---------- 📊 통계 탭: [수입 | 지출] + 오른쪽 위 ‹ 기간 › [주간 · 월간 · 연간 · 기간] (처음엔 이번 달 월간) ----------
+// 왼쪽 = 분류별 원형 + 목록 (누르면 그 분류만), 오른쪽 = 합계 · 최근 흐름 그래프 · 그 기간 내역
+const ST_P = { week: "주간", month: "월간", year: "연간", range: "기간" };
+const addDaysS = (d, n) => { const t = new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8) + n); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`; };
+const sundayOfS = (d) => addDaysS(d, -new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8)).getDay());
+// 기간 하나: anchor 날짜가 든 주(일~토)·달·해, k칸 앞뒤로 옮긴 것
+function stRange(p, anchor, k = 0) {
+  if (p === "week") { const s = addDaysS(sundayOfS(anchor), 7 * k); return { from: s, to: addDaysS(s, 6), lab: `${+s.slice(5, 7)}/${+s.slice(8)}`, name: `${ymdDot(s)} ~ ${ymdDot(addDaysS(s, 6)).slice(3)}` }; }
+  if (p === "year") { const y = +anchor.slice(0, 4) + k; return { from: `${y}-01-01`, to: `${y}-12-31`, lab: `${y}`, name: `${y}년` }; }
+  const m = shiftMonth(anchor.slice(0, 7), k); return { from: `${m}-01`, to: dayInMonth(m, 31), lab: `${+m.slice(5)}월`, name: m };
+}
+function stState() {
+  const p = ST_P[ui.stP] ? ui.stP : "month", anchor = ui.stAt || today();
+  let cur = p === "range" ? { from: ui.stFrom || `${today().slice(0, 7)}-01`, to: ui.stTo || today() } : stRange(p, anchor);
+  if (p === "range" && cur.from > cur.to) cur = { from: cur.to, to: cur.from };
+  if (p === "range") cur.name = `${ymdDot(cur.from)} ~ ${ymdDot(cur.to)}`;
+  return { p, anchor, cur, kind: ui.stK === "income" ? "income" : "expense" };
+}
+function renderStats() {
+  const st = stState(), { p, cur, kind } = st, label = kind === "income" ? "수입" : "지출";
+  document.querySelectorAll("#stKind button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.k === kind)));
+  $("stLabel").textContent = cur.name; $("stPer").value = p;
+  $("stPrev").hidden = $("stNext").hidden = p === "range"; $("stRangeRow").hidden = p !== "range";
+  if (p === "range" && document.activeElement !== $("stFrom") && document.activeElement !== $("stTo")) { $("stFrom").value = cur.from; $("stTo").value = cur.to; }
+  const recs = []; S.money.forEach((x, id) => { if ((x.kind || "expense") === kind && isWon(x) && x.date >= cur.from && x.date <= cur.to) recs.push({ ...x, id }); });
+  const byCat = {}; recs.forEach((x) => { const c = x.cat || "기타"; byCat[c] = (byCat[c] || 0) + (Number(x.amount) || 0); });
+  const total = recs.reduce((t, x) => t + (Number(x.amount) || 0), 0), cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const sel = ui.stCat && byCat[ui.stCat] != null ? ui.stCat : null, pct = (v) => total ? Math.round(v / total * 100) : 0;
+  $("stPie").innerHTML = pieHtml(kind, cats.map(([cat, amt]) => ({ cat, amt })), label, { legend: false }) || `<p class="muted small" style="margin:0">${esc(cur.name)} ${label} 기록이 없어요.</p>`;
+  $("stCats").innerHTML = `<button type="button" class="st-cat all${sel ? "" : " on"}" data-act="stCat" data-k=""><span>${label} 전체 <small>${recs.length}</small></span><b class="won">${won(total)}</b></button>` +
+    cats.map(([c, v]) => `<button type="button" class="st-cat${sel === c ? " on" : ""}" data-act="stCat" data-k="${esc(c)}"><i class="st-pct" style="--c:${catVar(kind, c)}">${pct(v)}%</i><span>${catDot(kind, c)}${esc(c)}</span><b class="won">${won(v)}</b></button>`).join("");
+  // 오른쪽: 합계 · 흐름 그래프 (그 칸 포함 앞 12칸, 기간이면 그 안의 달) · 내역
+  const shown = sel ? recs.filter((x) => (x.cat || "기타") === sel) : recs, stot = sel ? byCat[sel] : total;
+  $("stHead").innerHTML = `<h3>${esc(sel || label + " 전체")}</h3><b class="won">${won(stot)}</b>`;
+  $("stChip").innerHTML = `<i class="st-pct" style="--c:${sel ? catVar(kind, sel) : "var(--coral)"}">${sel ? pct(stot) : 100}%</i> ${esc(sel || "전체")} <b class="won">${won(stot)}</b>`;
+  const sum = (from, to) => { let t = 0; S.money.forEach((x) => { if ((x.kind || "expense") === kind && isWon(x) && x.date >= from && x.date <= to && (!sel || (x.cat || "기타") === sel)) t += Number(x.amount) || 0; }); return t; };
+  let pts;
+  if (p === "range") { const ms = []; for (let mm = cur.from.slice(0, 7); mm <= cur.to.slice(0, 7) && ms.length < 24; mm = shiftMonth(mm, 1)) ms.push(mm); pts = ms.map((mm) => { const v = sum(mm + "-01" < cur.from ? cur.from : mm + "-01", dayInMonth(mm, 31) > cur.to ? cur.to : dayInMonth(mm, 31)); return { lab: `${+mm.slice(5)}월`, v, on: false, tip: `${mm} ${won(v)}` }; }); }
+  else pts = Array.from({ length: p === "year" ? 5 : 12 }, (_, i) => i - (p === "year" ? 4 : 11)).map((k) => { const r = stRange(p, st.anchor, k), v = sum(r.from, r.to); return { lab: r.lab, v, on: k === 0, tip: `${r.name} ${won(v)}` }; });
+  setChart($("stChart"), { pts, label: `${label} 흐름` });
+  shown.sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  $("stList").innerHTML = shown.length ? `<div class="tx-row tx-th no-ck"><span>날짜</span><span>자산</span><span>분류</span><span>소분류</span><span class="tx-amt">금액</span><span>내용</span><span>메모</span></div>` + shown.map((x) => txRow(x, false)).join("")
+    : `<p class="muted small" style="margin:8px 0">${esc(cur.name)} ${esc(sel || label)} 기록이 없어요.</p>`;
 }
 // ---------- ▦ 다건입력: 줄마다 구분·날짜·자산·분류(이체는 받는 곳)·소분류·금액·화폐·내용·메모 → [저장]으로 한 번에 ----------
 const BULK_KINDS = ["income", "expense", "transfer", "move"];
@@ -900,7 +956,6 @@ export function initMoney() {
   $("mDrawer").addEventListener("close", drawerClosed);
   $("mDrawer").addEventListener("cancel", (ev) => { ev.preventDefault(); closeDrawer(); });   // Esc
   $("mDrawer").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDrawer(); });
-  if (window.ResizeObserver) { let w = 0; new ResizeObserver(() => { const nw = $("asDetail").clientWidth; if (nw && nw !== w) { w = nw; drawAsChart(); } }).observe($("asDetail")); }
   $("moneyForm").addEventListener("submit", (ev) => {
     ev.preventDefault();
     if (!ready()) return;
@@ -966,6 +1021,8 @@ export function initMoney() {
     if (currencies().includes(v)) { toast("이미 있는 화폐예요."); return; }
     saveCurs(currencies().slice(1).concat([v]), `💱 '${v}'을 화폐에 더했어요.`);
   });
+  $("stPer").addEventListener("change", () => { ui.stP = $("stPer").value; ui.stAt = today(); renderMoney(); });
+  ["stFrom", "stTo"].forEach((k) => $(k).addEventListener("change", () => { ui[k] = $(k).value || null; renderMoney(); }));
   ["histFrom", "histTo"].forEach((k) => $(k).addEventListener("change", () => { ui[k] = $(k).value || null; renderMoney(); }));
   $("planAddForm").addEventListener("submit", (ev) => {
     ev.preventDefault();
@@ -1014,6 +1071,9 @@ export function moneyAction(a, el, id, t) {
   if (a === "asBack") { ui.asOpen = false; renderMoney(); $("asGrid").scrollIntoView({ block: "start" }); return true; }
   if (a === "cardPayNow") { payCardNow(id); return true; }
   if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet("ukjin-as-fold", JSON.stringify(f)); renderMoney(); return true; }
+  if (a === "stKind") { ui.stK = el.dataset.k; ui.stCat = null; renderMoney(); return true; }
+  if (a === "stCat") { ui.stCat = el.dataset.k || null; renderMoney(); return true; }
+  if (a === "stMove") { const st = stState(), d = +el.dataset.d; ui.stAt = st.p === "week" ? addDaysS(st.anchor, 7 * d) : st.p === "year" ? `${+st.anchor.slice(0, 4) + d}${st.anchor.slice(4)}` : `${shiftMonth(st.anchor.slice(0, 7), d)}-01`; renderMoney(); return true; }
   if (a === "txKind") { ui.txKind = el.dataset.k; renderMoney(); return true; }
   if (a === "txAdd") { txAdd(); return true; }
   if (a === "bulkOpen") { bulkOpen(); return true; }
