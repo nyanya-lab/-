@@ -501,6 +501,30 @@ table.t tr.cur td { background: var(--sunk); }
   .tx-k b { font-size: 13px; }
 }
 @media (max-width: 520px) { .tx-k .tx-l { display: none; } .tx-k .tx-short { display: inline; } }
+/* ▦ 다건입력 표 */
+.m-fabs { position: fixed; right: 28px; bottom: 28px; z-index: 30; display: flex; align-items: center; gap: 12px; }
+.m-fabs .fab { position: static; }
+.fab.fab-sub { width: 48px; height: 48px; background: var(--surface); color: var(--coral); border: 2px solid var(--coral); box-shadow: 0 6px 16px rgba(10, 16, 28, 0.15); }
+.fab.fab-sub svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.dlg.bulk-dlg { width: min(1240px, calc(100% - 24px)); max-width: none; }
+.bulk-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table.bulk { border-collapse: collapse; width: 100%; min-width: 1060px; font-size: 13px; }
+.bulk th { background: var(--sunk); color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.bulk td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; }
+.bulk td:last-child { border-right: 0; }
+.bulk tr:last-child td { border-bottom: 0; }
+.bulk .bk-n { width: 30px; text-align: center; color: var(--muted); font-family: var(--f-mono); font-size: 12px; background: var(--sunk); }
+.bulk input, .bulk select { width: 100%; border: 0; border-radius: 0; background: transparent; padding: 8px 6px; font-size: 13px; min-width: 0; box-shadow: none; }
+.bulk input:focus, .bulk select:focus { outline: 2px solid var(--blue); outline-offset: -2px; background: var(--surface); }
+.bulk [data-c="kind"] { width: 72px; } .bulk [data-c="date"] { width: 128px; } .bulk [data-c="acct"], .bulk [data-c="cat"] { width: 128px; }
+.bulk [data-c="sub"] { width: 96px; } .bulk [data-c="amt"] { width: 104px; text-align: right; } .bulk [data-c="cur"] { width: 60px; }
+.bulk tr.k-income [data-c="kind"] { color: var(--ok); } .bulk tr.k-expense [data-c="kind"] { color: var(--blue); } .bulk tr.k-transfer [data-c="kind"] { color: var(--coral); }
+.bulk tr.bad td { background: var(--coral-soft); }
+.bulk .bk-del { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px 8px; font-size: 14px; }
+@media (max-width: 720px) {
+  .m-fabs { right: 16px; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+  .dlg.bulk-dlg { width: 100vw; max-height: 100dvh; height: 100dvh; margin: 0; border-radius: 0; }
+}
 /* ＋ 동그란 버튼 (자산 자세히가 보일 때만) → 서랍 창 */
 .fab { position: fixed; right: 28px; bottom: 28px; z-index: 30; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--coral); color: #FFFFFF; font-size: 30px; line-height: 1; display: grid; place-items: center; cursor: pointer; box-shadow: 0 8px 20px rgba(10, 16, 28, 0.22); }
 .fab:hover { filter: brightness(1.05); }
