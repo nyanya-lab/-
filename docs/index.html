@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261016k">
+<link rel="stylesheet" href="style.css?v=20261016o">
 </head>
 <body>
 
@@ -411,7 +411,7 @@
           <li>가계부 메뉴는 4개예요 (PC는 왼쪽, 폰은 아래): <b>예산</b> (수입·쓸 돈·줄 돈·잔액, 분류별 예산) · <b>지출</b> (돈 기록하기, 실제 지출 원형, 이번 달 내역) · <b>자산</b> (현금·통장·카드·저축 묶음별 잔액, 누르면 그 달 입금·출금·누적잔액, 최근 12달 그래프와 내역, ✏️로 고치기·카드 결제일) · <b>통계</b> (달마다 수입·예산·보낸 돈·지출 표). 마지막에 본 메뉴를 기억해요.</li>
           <li><b>돈 기록하기</b> (지출): 수입 · 지출 · 보낸 돈(여자친구에게) · 이체(내 통장끼리). 어느 통장·카드인지 고르면 자산마다 잔액이 계산돼요. 이번 달 내역 줄을 누르면 고칠 수 있어요.</li>
           <li><b>예산</b>: 분류별로 쓸 돈(예: 식비 300,000)과 <b>💝 여자친구에게 줄 돈</b>을 넣어요. 위 칸에 <b>수입 · 쓸 돈 · 줄 돈 · 잔액</b>(수입 − 쓸 돈 − 줄 돈)이 보여요. 수입은 이번 달 실제 수입, 아직이면 지난달 실제 수입으로 계산해요. 줄 돈은 정한 금액 그대로고, 실제 수입이 들어오면 맨 위에 확인 띠가 한 번 떠요. <b>15일</b>에는 줄 돈이 '보낸 돈'으로 저절로 기록돼요 (그 달에 이미 보낸 만큼은 빼고, 다르면 💝 칸 [고치기]). 분류 이름을 지출 기록과 같게 쓰면 실제로 쓴 돈도 같이 보여요. 다음 달로 자동으로 이어지고, 고치면 그 달만 바뀌어요.</li>
-          <li>💳 <b>카드</b>는 쓴 날 지출로 기록하고 (낸 곳 = 카드), 카드값이 빠지는 날은 통장 → 카드 <b>이체</b>예요. 자산에서 카드를 눌러 <b>결제일 · 빠지는 통장 · 이용기간</b>을 넣어 두면 결제일에 '💳 카드값 이체하기' 할 일이 생겨요. 체크하면 금액(이용기간 사용액)을 확인하고 [이체 기록하기]로 기록해요.</li>
+          <li>💳 <b>카드</b>는 쓴 날 지출로 기록하고 (낸 곳 = 카드), 카드값이 빠지는 날은 통장 → 카드 <b>이체</b>예요. 자산에서 카드를 눌러 <b>결제일 · 빠지는 통장 · 이용기간</b>을 넣어 두면 결제일에 '💳 카드값 이체하기' 할 일이 생겨요. 체크하면 금액(이용기간 사용액)을 확인하고 [이체 기록하기]로 기록해요. 자산 탭에서 카드는 <b>결제일 기준</b>이에요: 목록엔 <b>결제예정</b>(다음 결제일에 빠질 돈) · <b>미결제</b>(그 뒤에 쓰는 중), 카드를 누르면 그 달에 빠지는 카드값의 이용기간 내역이 나와요. 카드 화면의 <b>[💳 결제]</b>를 눌러도 같은 확인 창이 떠요 (자동으로는 기록 안 해요).</li>
           <li>위 <b>⚙ 분류 설정</b>에서 지출·수입·보낸 돈 분류를 더하거나 지울 수 있어요. 🎨 분류 앞 <b>동그라미</b>를 누를 때마다 색이 바뀌어요. 🥧 예산의 원형은 <b>예산</b>, 지출의 원형은 <b>실제로 쓴 돈</b>이에요.</li>
           <li>달력의 <b>🗓️ 이번 달 예산 입력하기</b>(1일) · <b>💰 이번 달 수입 입력하기</b>(15일) 할 일은 누르면 가계부의 입력 칸으로 가요. 입력하면 <code>🗓️ 10월 예산 760,000원</code> · <code>💰 10월 월급 2,600,000원</code>으로 바뀌며 저절로 체크돼요 (시간은 안 붙어요).</li>
           <li>1일부터 이번 달 예산이 아직 없으면 맨 위에 <b>🗓️ 알림</b>이 떠요 ([지난달 그대로 쓸게요]나 예산을 고치면 사라져요). 15일부터 이번 달 수입이 아직 없으면 <b>💰 알림</b>이 떠요.</li>
@@ -730,6 +730,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>지출</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261016k"></script>
+<script type="module" src="app.js?v=20261016o"></script>
 </body>
 </html>

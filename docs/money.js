@@ -150,28 +150,57 @@ export function syncGive() {
     await E.backend.saveSettingsDeep({ autoTasks: { [id]: true } });
   }).catch(() => {}).finally(() => { giveSyncing = false; });
 }
-// 카드값 이체하기 체크 → 금액 확인 창 (이용기간 사용액이 미리 들어가 있고 고칠 수 있음)
+// 💳 카드값 결제 확인 창: 할 일 '카드값 이체하기' 체크, 또는 자산 탭 카드의 [결제]
+// 금액(미리 계산, 고칠 수 있음) · 날짜 · 빠지는 통장을 확인하고 [이체 기록하기]를 눌러야 '통장 → 카드' 이체로 기록 (자동으로 안 넣음)
+// 할 일에서 왔거나 그 결제의 할 일이 아직이면 같은 id(cp-카드-월)로 기록하고 할 일도 체크
 export let cardPayFor = null;
 export function openCardPay(taskId) {
   const x = S.tasks.get(taskId), c = x && x.cardPay; if (!c) return;
-  const card = S.accounts.get(c.card), from = S.accounts.get(c.from), amt = cardSpent(c.card, c.start, c.end);
-  cardPayFor = taskId;
-  $("mvTitle").textContent = `💳 ${cardValue(card && card.name)} 이체`;
-  $("mvText").innerHTML = `<p>${esc(from ? from.name : "통장")} → ${esc(card ? card.name : "카드")}</p>` +
-    `<p class="small muted">이용기간 ${shortDate(c.start)} ~ ${shortDate(c.end)}에 이 카드로 쓴 돈 <b>${won(amt)}</b>. 실제로 빠져나간 금액이 다르면 고쳐 주세요 (할부·연회비 등).</p>` +
-    `<label class="f">빠져나간 금액 (원)<input type="text" class="amt-in" id="cpAmt" inputmode="numeric" autocomplete="off" value="${amt ? commaNum(amt) : ""}"></label>`;
+  showCardPay({ taskId, card: c.card, from: c.from, start: c.start, end: c.end, date: x.date || today(), amt: cardSpent(c.card, c.start, c.end) });
+}
+function showCardPay(o) {
+  const card = S.accounts.get(o.card); if (!card) return;
+  cardPayFor = o;
+  const banks = sortedAccts().filter((a) => a.type !== "card");
+  $("mvTitle").textContent = `💳 ${cardValue(card.name)} 결제`;
+  $("mvText").innerHTML = `<p class="small muted">${o.start ? `이용기간 ${shortDate(o.start)} ~ ${shortDate(o.end)} 사용분이에요. ` : ""}카드 앱의 실제 청구 금액과 다르면 고쳐 주세요 (할부·연회비 등). [이체 기록하기]를 눌러야 기록돼요.</p>` +
+    `<div class="form"><label class="f">금액 (원)<input type="text" class="amt-in" id="cpAmt" inputmode="numeric" autocomplete="off" value="${o.amt ? commaNum(o.amt) : ""}"></label>` +
+    `<div class="row"><label class="f">날짜<input type="date" id="cpDate" value="${esc(o.date || today())}"></label>` +
+    `<label class="f">빠지는 통장<select id="cpFrom">${banks.map((a) => `<option value="${esc(a.id)}"${a.id === o.from ? " selected" : ""}>${ACCT_ICON[a.type] || ""} ${esc(a.name)}</option>`).join("") || '<option value="">통장을 먼저 추가해 주세요</option>'}</select></label></div>` +
+    `<p class="small muted" style="margin:0">→ 받는 곳: 💳 ${esc(card.name)}</p></div>`;
   $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="cardPayDo">이체 기록하기</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>';
   openDlg($("moveDlg"));
 }
 export function doCardPay() {
-  const id = cardPayFor, x = id && S.tasks.get(id), c = x && x.cardPay, amt = amtVal($("cpAmt")); if (!c || !ready()) return;
+  const o = cardPayFor, amt = amtVal($("cpAmt")), from = $("cpFrom").value, date = $("cpDate").value || today(); if (!o || !ready()) return;
   if (!(amt > 0)) { toast("금액을 적어 주세요."); return; }
+  if (!S.accounts.has(from)) { toast("카드값이 빠지는 통장을 골라 주세요."); return; }
   cardPayFor = null; closeDlg($("moveDlg"));
-  const card = S.accounts.get(c.card), t = today();
+  const card = S.accounts.get(o.card), t = today(), id = o.taskId;
+  const doc = { kind: "move", account: from, toAccount: o.card, amount: amt, date, memo: `💳 ${cardValue(card && card.name)}${o.start ? ` (${shortDate(o.start)}~${shortDate(o.end)} 사용분)` : ""}`, createdAt: Date.now() };
   act((async () => {
-    await E.backend.set("money", id, { kind: "move", account: c.from, toAccount: c.card, amount: amt, date: x.date || t, memo: `💳 ${cardValue(card && card.name)} (${shortDate(c.start)}~${shortDate(c.end)} 사용분)`, createdAt: Date.now() });
-    await E.backend.update("tasks", id, { done: true, doneDate: t });
+    if (id) { await E.backend.set("money", id, doc); await E.backend.update("tasks", id, { done: true, doneDate: t }); }
+    else await E.backend.add("money", doc);
   })(), `💳 카드값 ${won(amt)} 이체를 기록했어요.`).catch(() => {});
+}
+// 다음 결제: 이번 달 결제일이 안 지났으면 이번 달, 지났으면 다음 달. 결제예정 = 지금 카드값 − 그 결제 이용기간 뒤에 쓴 돈(미결제)
+export function cardDue(a, owed) {
+  const p = a && a.pay; if (!p || !p.day) return null;
+  const t = today(), m0 = t.slice(0, 7);
+  let m = m0, pl = cardPayPlan(p, m0);
+  if (pl.date < t) { m = shiftMonth(m0, 1); pl = cardPayPlan(p, m); }
+  let open = 0; S.money.forEach((x) => { if ((x.kind === "expense" || !x.kind) && x.account === a.id && x.date > pl.to) open += Number(x.amount) || 0; });
+  return { m, ...pl, open: Math.min(open, Math.max(0, owed)), due: Math.max(0, owed - open) };
+}
+function payCardNow(id) {
+  const a = S.accounts.get(id); if (!a) return;
+  const owed = Math.max(0, -(balances()[id] || 0)), d = cardDue({ ...a, id }, owed), t = today(), m0 = t.slice(0, 7);
+  const banks = sortedAccts().filter((x) => x.type !== "card"), p = a.pay || {};
+  const from = S.accounts.has(p.from) ? p.from : S.accounts.has(lastAcct("move")) && S.accounts.get(lastAcct("move")).type !== "card" ? lastAcct("move") : banks[0] ? banks[0].id : "";
+  // 아직 안 한 '카드값 이체하기' 할 일이 있으면 그걸로 (이번 달 → 다음 결제 달)
+  const taskId = [m0, d ? d.m : m0].map((mm) => `cp-${id}-${mm}`).find((k) => S.tasks.has(k) && !S.tasks.get(k).done && !S.money.has(k)) || null;
+  const tc = taskId && S.tasks.get(taskId).cardPay;
+  showCardPay({ taskId, card: id, from, start: tc ? tc.start : d ? d.from : null, end: tc ? tc.end : d ? d.to : null, date: t, amt: tc ? cardSpent(id, tc.start, tc.end) : d ? d.due : owed });
 }
 
 // ---------- 한 달 예산: settings.budgets[월] = { income, items: {id: {cat, memo, amount, createdAt}} } ----------
@@ -399,8 +428,8 @@ export function acctFlow(id) {
   });
   return out.sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.createdAt || 0) - (b.createdAt || 0));
 }
-// 그 달에 보여 줄 기간 (지금은 달력 한 달)
-export function acctPeriod(a, m) { return { from: `${m}-01`, to: dayInMonth(m, 31) }; }
+// 그 달에 보여 줄 기간: 보통은 달력 한 달. 결제일을 정한 카드는 결제일 기준 = 그 달에 빠지는 카드값의 이용기간 (date = 결제일)
+export function acctPeriod(a, m) { return a && a.type === "card" && a.pay && a.pay.day ? cardPayPlan(a.pay, m) : { from: `${m}-01`, to: dayInMonth(m, 31) }; }
 const ymdDot = (s) => `${s.slice(2, 4)}.${+s.slice(5, 7)}.${+s.slice(8)}`;   // 2026-10-01 → 26.10.1
 function renderAssets(accts, bal) {
   const fold = asFold(), sel = asSelected(), owedOf = (a) => Math.max(0, -(bal[a.id] || 0));
@@ -410,10 +439,15 @@ function renderAssets(accts, bal) {
   $("acctList").innerHTML = accts.length ? AS_GROUPS.map(([t, label]) => {
     const list = accts.filter((a) => (ACCT_TYPES[a.type] ? a.type : "bank") === t); if (!list.length) return "";
     const card = t === "card", shut = !!fold[t], sum = list.reduce((s2, a) => s2 + (card ? owedOf(a) : bal[a.id] || 0), 0);
+    // 💳 카드는 결제일 기준 두 칸: 결제예정(다음 결제일에 빠질 돈) · 미결제(그 뒤 이용기간에 쓰는 중). 결제일을 안 정했으면 갚을 카드값 전체를 결제예정 칸에
+    const dues = card ? list.map((a) => cardDue(a, owedOf(a)) || { due: owedOf(a), open: 0, none: true }) : [];
+    const two = (l1, v1, l2, v2) => `<span class="as-cp"><span><small>${l1}</small><b class="won">${v1}</b></span><span><small>${l2}</small><b class="won">${v2}</b></span></span>`;
     return `<div class="as-group t-${t}"><button type="button" class="as-gh" data-act="asFold" data-k="${t}" aria-expanded="${!shut}">` +
-      `<span>${ACCT_ICON[t]} ${label}<small>${list.length}</small><i class="as-chev" aria-hidden="true"></i></span><b class="won${!card && sum < 0 ? " minus" : ""}">${card ? "갚을 " : ""}${won(sum)}</b></button>` +
-      (shut ? "" : list.map((a) => { const v = bal[a.id] || 0;
-        return `<button type="button" class="as-row${a.id === sel ? " on" : ""}" data-act="asSel" data-id="${esc(a.id)}" aria-pressed="${a.id === sel}"><span class="as-name">${esc(a.name)}</span><b class="won${!card && v < 0 ? " minus" : ""}">${card ? won(owedOf(a)) : won(v)}</b></button>`;
+      `<span>${ACCT_ICON[t]} ${label}<small>${list.length}</small><i class="as-chev" aria-hidden="true"></i></span>` +
+      (card ? two("결제예정", won(dues.reduce((s2, d) => s2 + d.due, 0)), "미결제", won(dues.reduce((s2, d) => s2 + d.open, 0))) : `<b class="won${sum < 0 ? " minus" : ""}">${won(sum)}</b>`) + "</button>" +
+      (shut ? "" : list.map((a, i) => { const v = bal[a.id] || 0, d = dues[i];
+        return `<button type="button" class="as-row${a.id === sel ? " on" : ""}" data-act="asSel" data-id="${esc(a.id)}" aria-pressed="${a.id === sel}"><span class="as-name">${esc(a.name)}</span>` +
+          (card ? `<span class="as-cp"><b class="won">${won(d.due)}</b><b class="won">${d.none ? "-" : won(d.open)}</b></span>` : `<b class="won${v < 0 ? " minus" : ""}">${won(v)}</b>`) + "</button>";
       }).join("")) + "</div>";
   }).join("") : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>';
   $("asGrid").classList.toggle("as-open", !!ui.asOpen && !!sel);
@@ -422,13 +456,16 @@ function renderAssets(accts, bal) {
 function renderAssetDetail(id) {
   const box = $("asDetail"), a = id && S.accounts.get(id);
   if (!a) { box.innerHTML = '<p class="muted small" style="margin:0">자산을 추가하면 여기에 그 달 내역과 잔액이 보여요.</p>'; return; }
-  const m = ui.month, card = a.type === "card", p = acctPeriod(a, m), shown = [];
+  const m = ui.month, card = a.type === "card", p = acctPeriod(a, m), shown = [], payCard = card && !!p.date;
   const flow = acctFlow(id), init = Number(a.initial) || 0;
   let run = init, endBal = run, inn = 0, out = 0;
+  // 결제일 기준 카드: 쓴 돈은 이용기간, 낸 돈(통장 → 카드)은 지난달 결제일 다음 날 ~ 이 달 결제일
+  const prevPay = payCard ? cardPayPlan(a.pay, shiftMonth(m, -1)).date : "";
+  const inP = (x) => payCard && x.d > 0 ? x.date > prevPay && x.date <= p.date : x.date >= p.from && x.date <= p.to;
   flow.forEach((x) => {
     run += x.d; x.bal = run;
     if (x.date <= p.to) endBal = run;
-    if (x.date >= p.from && x.date <= p.to) { shown.push(x); if (x.d > 0) inn += x.d; else out -= x.d; }
+    if (inP(x)) { shown.push(x); if (x.d > 0) inn += x.d; else out -= x.d; }
   });
   // 📈 최근 12달 (보고 있는 달까지): 통장·현금·저축 = 그 달 끝 잔액 꺾은선, 카드 = 그 달 기간에 쓴 돈 막대
   asChart = { card, m, pts: Array.from({ length: 12 }, (_, i) => shiftMonth(m, i - 11)).map((mm) => {
@@ -440,11 +477,15 @@ function renderAssetDetail(id) {
   box.innerHTML =
     `<div class="as-head"><button class="icon-btn as-back" type="button" data-act="asBack">‹ 목록</button>` +
     `<h3><span aria-hidden="true">${ACCT_ICON[a.type] || "🏦"}</span><span class="as-title">${esc(a.name)}</span><button class="icon-btn" type="button" data-act="editAcct" data-id="${esc(id)}" aria-label="${esc(a.name)} 고치기" title="이름·잔액${card ? "·결제일" : ""} 고치기">✏️</button></h3>` +
+    (card ? `<button class="btn small as-pay" type="button" data-act="cardPayNow" data-id="${esc(id)}">💳 결제</button>` : "") +
     `<div class="as-month"><button class="chip" type="button" data-act="month" data-d="-1" aria-label="이전 달">‹</button><b>${monthLabel(m)}</b><button class="chip" type="button" data-act="month" data-d="1" aria-label="다음 달">›</button></div></div>` +
-    `<p class="small muted as-period">기간 ${ymdDot(p.from)} ~ ${ymdDot(p.to)}</p>` +
-    `<div class="as-stats">${tile(card ? "갚은 돈" : "입금", won(inn), "plus")}${tile(card ? "쓴 돈" : "출금", won(out), "minus")}${tile("합계", won(inn - out), inn - out < 0 ? "minus" : "")}` +
-    `${tile(card ? "남은 카드값" : "누적잔액", card ? won(Math.max(0, -endBal)) : won(endBal), !card && endBal < 0 ? "minus" : "")}</div>` +
-    `<div class="as-chart-h small muted">${card ? "달마다 쓴 돈" : "달마다 잔액 (그 달 끝)"} · 최근 12달</div><div class="as-chart" id="asChart"></div>` +
+    `<p class="small muted as-period">${payCard ? `<b>${+m.slice(5)}월 ${+p.date.slice(8)}일 결제</b> · 이용기간 ${ymdDot(p.from)} ~ ${ymdDot(p.to)}`
+      : `기간 ${ymdDot(p.from)} ~ ${ymdDot(p.to)}${card ? ` · <button class="link-btn" type="button" data-act="editAcct" data-id="${esc(id)}">결제일을 정하면</button> 결제일 기준으로 보여요` : ""}`}</p>` +
+    `<div class="as-stats">${payCard
+      ? tile("결제할 돈", won(out), "minus") + tile("낸 돈", won(inn), "plus") + tile("남은 결제액", won(Math.max(0, out - inn)), out > inn ? "minus" : "") + tile("지금 카드값", won(Math.max(0, -run)))
+      : tile(card ? "갚은 돈" : "입금", won(inn), "plus") + tile(card ? "쓴 돈" : "출금", won(out), "minus") + tile("합계", won(inn - out), inn - out < 0 ? "minus" : "") +
+        tile(card ? "남은 카드값" : "누적잔액", card ? won(Math.max(0, -endBal)) : won(endBal), !card && endBal < 0 ? "minus" : "")}</div>` +
+    `<div class="as-chart-h small muted">${payCard ? "달마다 결제할 돈 (결제일 기준)" : card ? "달마다 쓴 돈" : "달마다 잔액 (그 달 끝)"} · 최근 12달</div><div class="as-chart" id="asChart"></div>` +
     `<div class="as-tx">${shown.reverse().map((x) => {
       const kind = x.kind || "expense";
       const what = kind === "move" ? (x.d < 0 ? `→ ${esc(acctName(x.toAccount))}` : `← ${esc(acctName(x.account))}`)
@@ -679,6 +720,7 @@ export function moneyAction(a, el, id, t) {
   }
   if (a === "asSel") { lsSet("ukjin-as-sel", id); ui.asOpen = true; renderMoney(); if (window.matchMedia("(max-width: 1100px)").matches) $("asGrid").scrollIntoView({ block: "start" }); return true; }
   if (a === "asBack") { ui.asOpen = false; renderMoney(); $("asGrid").scrollIntoView({ block: "start" }); return true; }
+  if (a === "cardPayNow") { payCardNow(id); return true; }
   if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet("ukjin-as-fold", JSON.stringify(f)); renderMoney(); return true; }
   if (a === "acctFilter") { ui.acctFilter = el.dataset.k; renderMoney(); return true; }
   if (a === "newAcct") { openAcct(null); return true; }
