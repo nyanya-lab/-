@@ -291,6 +291,9 @@ body { padding-left: 232px; }
 .dlg-day .dlg-sec:last-child { padding-bottom: 18px; }
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 24px 64px; }
+.app-money .wrap { max-width: none; }   /* 가계부는 PC 화면 넓이에 맞게 늘었다 줄었다 */
+/* 가계부 숫자: 고정폭 글꼴(영문 전용)과 '원'이 섞여 깨져 보여서 본문 글꼴 + 같은 폭 숫자로 */
+#moneyPage, #mDrawer, #bulkDlg { --f-mono: var(--f-body); font-variant-numeric: tabular-nums; }
 .note { background: var(--sunk); border: 1px dashed var(--line); border-radius: var(--r); padding: 10px 14px; font-size: 13px; color: var(--muted); margin-bottom: 20px; }
 .note.warn { color: var(--danger); border-color: currentColor; }
 .note.orphan { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--sun-soft); border: 1px solid var(--sun); color: var(--fg); margin: 0; font-size: 14px; }
@@ -498,7 +501,7 @@ table.t tr.cur td { background: var(--sunk); }
 .tx-k[aria-selected="true"] span { color: var(--fg); font-weight: 600; }
 .tx-short { display: none; }
 .tx-k b span { color: inherit; font-size: inherit; }
-.tx-k.k-income b { color: var(--ok); } .tx-k.k-expense b { color: var(--danger); } .tx-k.k-transfer b { color: var(--coral); }
+.tx-k.k-income b { color: var(--ok); } .tx-k.k-expense b { color: var(--danger); } .tx-k.k-transfer b { color: var(--grape); }   /* 💝 준 돈은 보라 (지출 빨강과 안 헷갈리게) */
 .tx-sel { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 10px; border-radius: 10px; background: var(--blue-soft); font-size: 13px; }
 .tx-list { display: grid; }
 .tx-row { display: grid; grid-template-columns: 26px 82px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, .8fr) 118px minmax(0, 1.3fr) minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 6px; border-bottom: 1px solid var(--line); font-size: 14px; cursor: pointer; }
@@ -511,7 +514,10 @@ table.t tr.cur td { background: var(--sunk); }
 .tx-ck { display: grid; place-items: center; cursor: pointer; }
 .tx-ck input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer; }
 .tx-amt { text-align: right; }
-.tx-row.k-transfer .tx-amt { color: var(--coral); }
+.tx-row.k-transfer .tx-amt { color: var(--grape); }
+.tx-th > span { text-align: center; }
+@media (min-width: 921px) { .tx-row:not(.tx-th) :is(.tx-d, .tx-a, .tx-c, .tx-s) { text-align: center; } }
+#moneyPage table.t th, .bulk th { text-align: center; }
 .tx-d { font-size: 13px; color: var(--muted); }
 .tx-a, .tx-s, .tx-n { font-size: 13px; color: var(--muted); }
 @media (max-width: 920px) {
@@ -540,7 +546,7 @@ table.bulk { border-collapse: collapse; width: 100%; min-width: 1060px; font-siz
 .bulk input:focus, .bulk select:focus { outline: 2px solid var(--blue); outline-offset: -2px; background: var(--surface); }
 .bulk [data-c="kind"] { width: 72px; } .bulk [data-c="date"] { width: 128px; } .bulk [data-c="acct"], .bulk [data-c="cat"] { width: 128px; }
 .bulk [data-c="sub"] { width: 96px; } .bulk [data-c="amt"] { width: 104px; text-align: right; } .bulk [data-c="cur"] { width: 60px; }
-.bulk tr.k-income [data-c="kind"] { color: var(--ok); } .bulk tr.k-expense [data-c="kind"] { color: var(--blue); } .bulk tr.k-transfer [data-c="kind"] { color: var(--coral); }
+.bulk tr.k-income [data-c="kind"] { color: var(--ok); } .bulk tr.k-expense [data-c="kind"] { color: var(--blue); } .bulk tr.k-transfer [data-c="kind"] { color: var(--grape); }
 .bulk tr.bad td { background: var(--coral-soft); }
 .bulk .bk-del { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px 8px; font-size: 14px; }
 @media (max-width: 720px) {

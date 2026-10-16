@@ -331,14 +331,13 @@ export function renderMTabs() {
   document.querySelectorAll("#mTabs button").forEach((b) => {
     b.setAttribute("aria-pressed", String(b.dataset.k === tab));
     b.hidden = adm && b.dataset.k === "assets";
-    if (b.dataset.k === "spend") b.textContent = adm ? "🧾 내역" : "🧾 지출";
+    if (b.dataset.k === "spend") b.textContent = "🧾 내역";
   });
   $("mTabs").classList.toggle("seg3", adm);
   document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.dataset.mtab !== tab; });
-  // ⚙ 설정 탭은 달·요약 칸이 필요 없어서 숨김
-  const set = tab === "settings" || tab === "cal" || (tab === "stats" && !adm);   // 통계는 오른쪽 위에 따로 기간을 고름, 달력은 자기 달 넘기기
-  document.querySelector("#moneyPage .month-nav").hidden = set; $("moneyStats").hidden = set;
-  if (set && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
+  // 맨 위 달 넘기기는 예산 탭만 (내역·달력·자산·통계는 자기 칸에 따로), 맨 위 요약 4칸은 관리자 보드만 (내역 탭에 요약 칸이 있어서)
+  document.querySelector("#moneyPage .month-nav").hidden = !adm && tab !== "budget"; $("moneyStats").hidden = !adm;
+  if (tab === "settings" && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
 }
 export function renderMoney() {
   const m = ui.month, r = monthTotals(m), bal = balances(), adm = moneyAdminView();
