@@ -4,10 +4,10 @@
 // (따로 떼어 새 가계부를 만들 땐: 이 파일 + index.html의 위 마크업 + env로 넘기는 공통 함수(저장소·$·toast 등)만 가져가면 됨)
 
 let E = null;   // 보드 쪽 환경 (값이 바뀌는 backend·testMode·realBackend 는 E.이름 으로 읽음)
-let $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rows, shiftMonth, shortDate, statTile, toast, today, ui, won;
+let $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won;
 export function bindMoney(env) {
   E = env;
-  ({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rows, shiftMonth, shortDate, statTile, toast, today, ui, won } = env);
+  ({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won } = env);
 }
 
 export const MONEY_CATS = {
@@ -17,6 +17,10 @@ export const MONEY_CATS = {
 };
 export const ACCT_TYPES = { bank: "통장", card: "카드", cash: "현금", save: "저축" };
 export const KIND_LABEL = { income: "수입", expense: "지출", transfer: "보낸 돈", move: "이체" };
+// 💱 화폐: 기본 원 (cur 없음). settings.currencies에 더한 화폐(달러·엔…)도 고를 수 있고, 원이 아닌 기록은 합계·잔액에서 빼고 금액만 그 화폐로 보여 줌
+export const isWon = (x) => !x || !x.cur || x.cur === "원";
+export const currencies = () => ["원"].concat((S.settings.currencies || []).filter((c) => c && c !== "원"));
+export const amtText = (x) => isWon(x) ? won(x.amount) : `${commaNum(Number(x.amount) || 0)} ${x.cur}`;
 // 분류는 설정에서 바꿀 수 있음 (없으면 기본)
 export const moneyCats = (kind) => ((S.settings.moneyCats && S.settings.moneyCats[kind]) || MONEY_CATS[kind] || []).slice();
 // 🎨 분류 색: --c0~--c7 (파랑·코랄·민트·노랑·보라·분홍·청록·갈색), --c8 회색. 기본은 분류 목록 순서대로, '기타…'는 회색
@@ -118,7 +122,7 @@ export let cardPaySyncing = false;
 export const cardValue = (n) => /카드$/.test(n || "") ? n + "값" : (n || "카드") + " 카드값";   // 현대카드 → 현대카드값, 신한 → 신한 카드값
 export function dayInMonth(m, d) { const last = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate(); return `${m}-${pad(Math.min(d, last))}`; }
 export function cardPayPlan(p, m) { return { date: dayInMonth(m, p.day), from: dayInMonth(shiftMonth(m, p.fm ?? -1), p.fd || 1), to: dayInMonth(shiftMonth(m, p.tm ?? -1), p.td || 31) }; }
-export function cardSpent(id, from, to) { let s = 0; S.money.forEach((x) => { if ((x.kind === "expense" || !x.kind) && x.account === id && x.date >= from && x.date <= to) s += Number(x.amount) || 0; }); return s; }
+export function cardSpent(id, from, to) { let s = 0; S.money.forEach((x) => { if ((x.kind === "expense" || !x.kind) && isWon(x) && x.account === id && x.date >= from && x.date <= to) s += Number(x.amount) || 0; }); return s; }
 export function syncCardPays() {
   if (cardPaySyncing || !E.backend || !S.loaded || E.testMode) return;
   const t = today(), m = t.slice(0, 7), made = S.settings.autoTasks || {}, jobs = [], flags = {};
@@ -189,7 +193,7 @@ export function cardDue(a, owed) {
   const t = today(), m0 = t.slice(0, 7);
   let m = m0, pl = cardPayPlan(p, m0);
   if (pl.date < t) { m = shiftMonth(m0, 1); pl = cardPayPlan(p, m); }
-  let open = 0; S.money.forEach((x) => { if ((x.kind === "expense" || !x.kind) && x.account === a.id && x.date > pl.to) open += Number(x.amount) || 0; });
+  let open = 0; S.money.forEach((x) => { if ((x.kind === "expense" || !x.kind) && isWon(x) && x.account === a.id && x.date > pl.to) open += Number(x.amount) || 0; });
   return { m, ...pl, open: Math.min(open, Math.max(0, owed)), due: Math.max(0, owed - open) };
 }
 function payCardNow(id) {
@@ -285,7 +289,7 @@ export function monthTotals(m) {
   const r = { inc: 0, out: 0, exp: 0, byCat: {}, items: [] };
   S.money.forEach((x, id) => {
     if (!x.date || x.date.slice(0, 7) !== m) return;
-    const a = Number(x.amount) || 0;
+    const a = isWon(x) ? Number(x.amount) || 0 : 0;   // 다른 화폐는 목록엔 보이고 합계엔 안 들어감
     r.items.push({ id, ...x });
     if (x.kind === "income") r.inc += a;
     else if (x.kind === "transfer") r.out += a;
@@ -300,6 +304,7 @@ export function balances() {
   const b = {};
   S.accounts.forEach((a, id) => { b[id] = Number(a.initial) || 0; });
   S.money.forEach((x) => {
+    if (!isWon(x)) return;
     const amt = Number(x.amount) || 0;
     if (x.kind === "income") { if (x.account in b) b[x.account] += amt; }
     else if (x.kind === "move") { if (x.account in b) b[x.account] -= amt; if (x.toAccount in b) b[x.toAccount] += amt; }
@@ -404,8 +409,8 @@ export function renderMoney() {
         const kind = x.kind || "expense", sign = kind === "income" ? "+" : kind === "move" ? "" : "-";
         const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
         return `<tr${adm ? "" : ` class="clickable${ui.mEdit === x.id ? " cur" : ""}" data-act="editMoney" data-id="${esc(x.id)}"`}><td class="mono">${shortDate(x.date)}</td>` +
-          `<td>${esc(kind === "transfer" ? partner() + "에게" : KIND_LABEL[kind])}</td><td>${kind === "move" ? "-" : x.cat ? catDot(kind, x.cat) + esc(x.cat) : ""}</td><td>${where}</td><td>${esc(x.memo || "")}</td>` +
-          `<td class="num won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${sign}${won(x.amount)}</td></tr>`;
+          `<td>${esc(kind === "transfer" ? partner() + "에게" : KIND_LABEL[kind])}</td><td>${kind === "move" ? "-" : x.cat ? catDot(kind, x.cat) + esc(x.cat) : ""}</td><td>${where}</td><td>${esc(x.memo || "")}${memoMarks(x)}</td>` +
+          `<td class="num won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${sign}${amtText(x)}</td></tr>`;
       }).join("") + "</tbody>";
 }
 
@@ -421,6 +426,7 @@ export function asSelected() { const id = lsGet("ukjin-as-sel"); if (S.accounts.
 export function acctFlow(id) {
   const out = [];
   S.money.forEach((x, mid) => {
+    if (!isWon(x)) return;
     const amt = Number(x.amount) || 0; let d = 0;
     if (x.kind === "move") { if (x.account === id) d -= amt; if (x.toAccount === id) d += amt; }
     else if (x.account === id) d = x.kind === "income" ? amt : -amt;
@@ -490,7 +496,7 @@ function renderAssetDetail(id) {
       const kind = x.kind || "expense";
       const what = kind === "move" ? (x.d < 0 ? `→ ${esc(acctName(x.toAccount))}` : `← ${esc(acctName(x.account))}`)
         : `${x.cat ? catDot(kind, x.cat) + esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ` <span class="muted small">(${esc(partner())}에게)</span>` : ""}`;
-      return `<button type="button" class="as-tr" data-act="editMoney" data-id="${esc(x.id)}"><span class="as-d mono">${shortDate(x.date)}</span><span class="as-c">${what}</span><span class="as-m">${esc(x.memo || "")}</span>` +
+      return `<button type="button" class="as-tr" data-act="editMoney" data-id="${esc(x.id)}"><span class="as-d mono">${shortDate(x.date)}</span><span class="as-c">${what}</span><span class="as-m">${esc(x.memo || "")}${memoMarks(x)}</span>` +
         `<span class="as-a"><b class="won ${x.d > 0 ? "plus" : "minus"}">${x.d > 0 ? "+" : "-"}${won(Math.abs(x.d))}</b><small>${balTxt(x.bal)}</small></span></button>`;
     }).join("") || `<p class="muted small" style="margin:8px 0 0">${monthLabel(m)}에 이 자산 기록이 없어요.</p>`}</div>` +
     `<button class="fab" type="button" data-act="asAdd" data-id="${esc(id)}" aria-label="${esc(a.name)}(으)로 기록하기" title="${esc(a.name)}(으)로 기록하기">＋</button>`;
@@ -516,6 +522,44 @@ export function drawAsChart() {
   s += pts.map((p, i) => (n - 1 - i) % every ? "" : `<text x="${f(x(i))}" y="${H - 7}" class="xl${p.m === m ? " on" : ""}">${+p.m.slice(5)}월</text>`).join("");
   el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${card ? "달마다 쓴 돈" : "달마다 잔액"} 최근 12달">${s}</svg>`;
 }
+
+// 내역 줄 내용 뒤 작은 표시: 소분류 · 📝 메모 · 📷 사진 수
+function memoMarks(x) {
+  const n = x.pics && typeof x.pics === "object" ? Object.keys(x.pics).length : 0;
+  return (x.sub ? ` <span class="muted small">· ${esc(x.sub)}</span>` : "") + (x.note ? ` <span class="m-mark" title="${esc(x.note)}">📝</span>` : "") + (n ? ` <span class="m-mark">📷${n > 1 ? n : ""}</span>` : "");
+}
+// 📄 월급 기록이면 월급명세서 사진을 붙이라고 (사진이 있으면 안 보임)
+const isSalary = () => ui.kind === "income" && $("mCat").value === "월급";
+function salaryHint() { $("mSalaryHint").hidden = !isSalary() || mPics.length > 0; }
+// 소분류 추천: 같은 분류로 전에 적은 소분류들
+function subList() {
+  const cat = $("mCat").value, set = new Set();
+  S.money.forEach((x) => { if (x.sub && x.cat === cat) set.add(x.sub); });
+  $("mSubList").innerHTML = [...set].sort().map((v) => `<option value="${esc(v)}">`).join("");
+}
+// 📷 메모 사진: 고르기·찍기, PC는 캡처 후 Ctrl+V. 긴 쪽 1280px + 작은 사진 360px로 줄여서 pics/{사진id}에 (돈 기록 money.pics = {사진id: 날짜})
+const M_PIC_MAX = 4;
+let mPics = [];   // [{ id, old(이미 저장된 것), thumb, full }]
+function setMPics(list) {
+  mPics = list; renderMPics();
+  list.filter((p) => p.old && !p.thumb && E.backend && E.backend.getPic).forEach((p) => E.backend.getPic(p.id, "thumb").then((v) => { if (typeof v === "string" && v.startsWith("data:image/")) { p.thumb = v; renderMPics(); } }, () => {}));
+}
+function renderMPics() {
+  salaryHint();
+  $("mPics").innerHTML = mPics.map((p, i) => `<span class="req-pic"><button type="button" class="m-pic-v" data-act="mPicView" data-i="${i}" aria-label="메모 사진 ${i + 1} 크게 보기">${p.thumb ? `<img src="${p.thumb}" alt="">` : "📷"}</button><button type="button" data-act="mPicDel" data-i="${i}" aria-label="사진 빼기">✕</button></span>`).join("");
+}
+async function addMPics(files) {
+  const imgs = [...files].filter((f) => f && (f.type || "").startsWith("image/"));
+  if (!imgs.length) return false;
+  for (const f of imgs) {
+    if (mPics.length >= M_PIC_MAX) { toast(`메모 사진은 ${M_PIC_MAX}장까지예요.`); break; }
+    try { mPics.push({ id: null, old: false, full: await shrinkPic(f), thumb: await shrinkPic(f, 360, 40000) }); } catch (e) { toast("그림을 못 읽었어요."); }
+    renderMPics();
+  }
+  return true;
+}
+// 지금 기록 칸이 화면에 있는지 (서랍 창이 열렸거나 지출 탭에서 칸 안에 있을 때만 붙여넣기 받음)
+function mFormActive() { const p = $("moneyPanel"); return $("mDrawer").open || (!!p.offsetParent && p.contains(document.activeElement)); }
 
 // 돈 기록 폼: 종류에 맞게 자산·분류 칸 바꾸기
 export function acctOptions(sel, cur, kind) {
@@ -543,6 +587,14 @@ export function renderMoneyForm(fill) {
   if (want && !list.includes(want)) list.push(want);
   mc.innerHTML = list.map((c) => `<option>${esc(c)}</option>`).join("");
   if (want && list.includes(want)) mc.value = want;
+  // 💱 화폐 (끝에 '＋ 화폐 추가') · 소분류 (그 분류에서 전에 쓴 것 추천)
+  const curs = currencies(), cv0 = fill ? fill.cur || "원" : $("mCur").value, cv = cv0 && cv0 !== "__add" ? cv0 : "원";
+  if (!curs.includes(cv)) curs.push(cv);
+  $("mCur").innerHTML = curs.map((c) => `<option>${esc(c)}</option>`).join("") + '<option value="__add">＋ 화폐 추가</option>';
+  $("mCur").value = cv;
+  if (fill) { $("mSub").value = fill.sub || ""; $("mNote").value = fill.note || ""; }
+  subList();
+  salaryHint();
   $("mHint").textContent = k === "income" ? "월급, 수당 같은 들어온 돈이에요."
     : k === "expense" ? "카드로 냈으면 카드를 고르세요. 카드값은 나중에 '이체'로 통장 → 카드로 적으면 돼요."
     : k === "transfer" ? `${partner()}에게 보낸 돈이에요. 남은 돈에서 빠져요.`
@@ -556,12 +608,14 @@ export function editMoney(id) {
   if (!inAssets) try { localStorage.setItem("ukjin-mtab", "spend"); } catch (e) { /* 무시 */ }
   ui.mEdit = id; ui.kind = x.kind || "expense";
   $("mAmount").value = commaNum(x.amount || ""); $("mDate").value = x.date || today(); $("mMemo").value = x.memo || "";
+  setMPics(Object.keys(x.pics && typeof x.pics === "object" ? x.pics : {}).map((pid) => ({ id: pid, old: true, thumb: null })));
   renderMoneyForm(x); renderMoney();
   if (inAssets) { openDrawer(); return; }
   $("moneyPanel").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 export function resetMoneyForm() {
   ui.mEdit = null; $("mAmount").value = ""; $("mMemo").value = ""; $("mDate").value = today();
+  $("mSub").value = ""; $("mNote").value = ""; $("mCur").value = "원"; setMPics([]);
   closeDrawer();
   renderMoney();
 }
@@ -596,7 +650,7 @@ function shownMonth(doc) {
 function asAdd(id) {
   if (!S.accounts.has(id)) return;
   ui.mEdit = null; ui.kind = "expense"; ui.asFor = id;
-  $("mAmount").value = ""; $("mMemo").value = ""; $("mDate").value = today();
+  $("mAmount").value = ""; $("mMemo").value = ""; $("mDate").value = today(); setMPics([]);
   renderMoneyForm({ account: id });
   openDrawer(); $("mAmount").focus();
 }
@@ -678,6 +732,19 @@ export function makeDemoData() {
 
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
 export function initMoney() {
+  $("mCat").addEventListener("change", () => { subList(); salaryHint(); });
+  $("mCur").addEventListener("change", () => {
+    if ($("mCur").value !== "__add") return;
+    const name = (prompt("더할 화폐 이름 (예: 달러, 엔, 유로)") || "").trim().slice(0, 8);
+    if (!name || currencies().includes(name)) { $("mCur").value = name && currencies().includes(name) ? name : "원"; return; }
+    act(E.backend.saveSettings({ currencies: currencies().slice(1).concat([name]) }), `💱 '${name}'을 화폐에 더했어요.`).then(() => { renderMoneyForm(); $("mCur").value = name; }).catch(() => { $("mCur").value = "원"; });
+  });
+  $("mPicFile").addEventListener("change", (ev) => { addMPics(ev.target.files); ev.target.value = ""; });
+  document.addEventListener("paste", (ev) => {
+    if (!mFormActive() || $("proofDlg").open) return;
+    const files = [...(ev.clipboardData && ev.clipboardData.items || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile());
+    if (files.some((f) => f && (f.type || "").startsWith("image/"))) { ev.preventDefault(); addMPics(files); }
+  });
   // 서랍 창이 닫히면 (저장·✕·바깥 누름·Esc) 기록 칸을 지출 탭 제자리로, 고치던 건 취소
   $("mDrawer").addEventListener("close", drawerClosed);
   $("mDrawer").addEventListener("cancel", (ev) => { ev.preventDefault(); closeDrawer(); });   // Esc
@@ -692,10 +759,23 @@ export function initMoney() {
     const account = $("mAcct").value || null, toAccount = k === "move" ? ($("mTo").value || null) : null;
     if (k === "move" && (!account || !toAccount)) { toast("이체는 보내는 곳과 받는 곳을 골라 주세요."); return; }
     if (k === "move" && account === toAccount) { toast("보내는 곳과 받는 곳이 같아요."); return; }
-    const doc = { kind: k, amount, date, cat: k === "move" ? null : $("mCat").value, memo: $("mMemo").value.trim(), account, toAccount };
+    if (isSalary() && !mPics.length && !confirm("📄 월급명세서 사진을 아직 안 붙였어요.\n사진 없이 저장할까요? ([취소]를 누르면 돌아가서 붙일 수 있어요)")) return;
+    const cur = $("mCur").value && $("mCur").value !== "원" && $("mCur").value !== "__add" ? $("mCur").value : null;
+    const doc = { kind: k, amount, date, cat: k === "move" ? null : $("mCat").value, sub: k === "move" ? null : $("mSub").value.trim() || null, cur,
+      memo: $("mMemo").value.trim(), note: $("mNote").value.trim() || null, account, toAccount };
     rememberAcct(k, account); if (k === "move") rememberAcct("moveTo", toAccount);
-    const editing = ui.mEdit && S.money.has(ui.mEdit);
-    act(editing ? E.backend.update("money", ui.mEdit, doc) : E.backend.add("money", { ...doc, createdAt: Date.now() }), editing ? "고쳤어요." : "기록했어요.")
+    const editing = ui.mEdit && S.money.has(ui.mEdit), id0 = editing ? ui.mEdit : null, old = editing ? S.money.get(id0).pics || {} : {};
+    // 📷 사진: 남긴 것 + 새로 붙인 것 → money.pics, 뺀 것은 pics/에서 지움
+    const fresh = mPics.filter((p) => !p.old && p.full).map((p) => ({ ...p, id: rid() })), pics = {};
+    mPics.filter((p) => p.old).forEach((p) => { pics[p.id] = old[p.id] || date; });
+    fresh.forEach((p) => { pics[p.id] = date; });
+    const gone = Object.keys(old).filter((pid) => !(pid in pics));
+    doc.pics = Object.keys(pics).length ? pics : null;
+    act((async () => {
+      const id = editing ? (await E.backend.update("money", id0, doc), id0) : await E.backend.add("money", { ...doc, createdAt: Date.now() });
+      for (const p of fresh) await E.backend.putPic(p.id, { full: p.full, thumb: p.thumb, money: id, kind: "money", title: doc.memo || doc.cat || "", date, at: Date.now() });
+      for (const pid of gone) await E.backend.putPic(pid, null);
+    })(), editing ? "고쳤어요." : "기록했어요.")
       .then(() => { const mm = shownMonth(doc); if (mm !== ui.month) ui.month = mm; resetMoneyForm(); }).catch(() => {});
   });
 
@@ -752,8 +832,10 @@ export function moneyAction(a, el, id, t) {
   if (a === "histRange") { ui.histRange = el.dataset.k; renderMoney(); return true; }
   if (a === "histMonth") { ui.month = el.dataset.m; renderMoney(); const p = $("planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); toast(`${monthLabel(el.dataset.m)} 예산·내역을 보여요.`); return true; }
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return true; }
-  if (a === "kind") { ui.kind = el.dataset.k; if (!ui.mEdit) { $("mAcct").value = $("mDrawer").open && ui.asFor || ""; $("mTo").value = ""; } renderMoneyForm(); return true; }
+  if (a === "kind") { ui.kind = el.dataset.k; if (!ui.mEdit) { $("mAcct").value = $("mDrawer").open && ui.asFor || ""; $("mTo").value = ""; $("mCat").value = ""; } renderMoneyForm(); return true; }
   if (a === "asAdd") { asAdd(id); return true; }
+  if (a === "mPicDel") { mPics.splice(+el.dataset.i, 1); renderMPics(); return true; }
+  if (a === "mPicView") { const p = mPics[+el.dataset.i]; if (!p) return true; if (p.full) { $("picImg").src = p.full; openDlg($("picDlg")); } else if (p.old) viewPic(p.id); return true; }
   if (a === "drawerClose") { closeDrawer(); return true; }
   if (a === "editMoney") { editMoney(id); return true; }
   if (a === "mCancel") { resetMoneyForm(); return true; }

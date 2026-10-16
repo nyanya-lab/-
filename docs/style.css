@@ -578,6 +578,16 @@ tr.clickable:hover td { background: var(--sunk); }
 .nav-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--coral); color: #FFFFFF; font-size: 12px; display: grid; place-items: center; font-family: var(--f-mono); }
 .reqs { display: grid; gap: 12px; }
 .req-pics { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 💰 기록 칸: 금액 + 화폐, 메모 사진 */
+.amt-cur { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.amt-cur select { width: auto; min-width: 64px; }
+.m-pics { display: flex; flex-wrap: wrap; gap: 8px; }
+.m-pics:empty { display: none; }
+.m-pics .m-pic-v { position: static; width: 100%; height: 100%; border-radius: 0; background: none; color: inherit; font-size: 20px; line-height: 1; display: grid; place-items: center; }
+.m-pic-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.m-pic-row .btn { cursor: pointer; }
+.m-mark { font-size: 12px; }
+.m-salary { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--sun-soft); color: var(--fg); font-size: 13px; }
 .req-pics:empty { display: none; }
 .req-pic { position: relative; display: block; width: 96px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--sunk); padding: 0; cursor: pointer; }
 .req-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
