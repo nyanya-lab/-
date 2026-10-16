@@ -423,12 +423,18 @@ function renderAssetDetail(id) {
   const box = $("asDetail"), a = id && S.accounts.get(id);
   if (!a) { box.innerHTML = '<p class="muted small" style="margin:0">자산을 추가하면 여기에 그 달 내역과 잔액이 보여요.</p>'; return; }
   const m = ui.month, card = a.type === "card", p = acctPeriod(a, m), shown = [];
-  let run = Number(a.initial) || 0, endBal = run, inn = 0, out = 0;
-  acctFlow(id).forEach((x) => {
+  const flow = acctFlow(id), init = Number(a.initial) || 0;
+  let run = init, endBal = run, inn = 0, out = 0;
+  flow.forEach((x) => {
     run += x.d; x.bal = run;
     if (x.date <= p.to) endBal = run;
     if (x.date >= p.from && x.date <= p.to) { shown.push(x); if (x.d > 0) inn += x.d; else out -= x.d; }
   });
+  // 📈 최근 12달 (보고 있는 달까지): 통장·현금·저축 = 그 달 끝 잔액 꺾은선, 카드 = 그 달 기간에 쓴 돈 막대
+  asChart = { card, m, pts: Array.from({ length: 12 }, (_, i) => shiftMonth(m, i - 11)).map((mm) => {
+    const q = acctPeriod(a, mm);
+    return { m: mm, v: card ? flow.reduce((t, x) => t + (x.d < 0 && x.date >= q.from && x.date <= q.to ? -x.d : 0), 0) : init + flow.reduce((t, x) => t + (x.date <= q.to ? x.d : 0), 0) };
+  }) };
   const balTxt = (v) => card ? `카드값 ${won(Math.max(0, -v))}` : `잔액 ${won(v)}`;
   const tile = (label, v, cls) => `<div><span>${label}</span><b class="won${cls ? " " + cls : ""}">${v}</b></div>`;
   box.innerHTML =
@@ -438,6 +444,7 @@ function renderAssetDetail(id) {
     `<p class="small muted as-period">기간 ${ymdDot(p.from)} ~ ${ymdDot(p.to)}</p>` +
     `<div class="as-stats">${tile(card ? "갚은 돈" : "입금", won(inn), "plus")}${tile(card ? "쓴 돈" : "출금", won(out), "minus")}${tile("합계", won(inn - out), inn - out < 0 ? "minus" : "")}` +
     `${tile(card ? "남은 카드값" : "누적잔액", card ? won(Math.max(0, -endBal)) : won(endBal), !card && endBal < 0 ? "minus" : "")}</div>` +
+    `<div class="as-chart-h small muted">${card ? "달마다 쓴 돈" : "달마다 잔액 (그 달 끝)"} · 최근 12달</div><div class="as-chart" id="asChart"></div>` +
     `<div class="as-tx">${shown.reverse().map((x) => {
       const kind = x.kind || "expense";
       const what = kind === "move" ? (x.d < 0 ? `→ ${esc(acctName(x.toAccount))}` : `← ${esc(acctName(x.account))}`)
@@ -445,6 +452,27 @@ function renderAssetDetail(id) {
       return `<button type="button" class="as-tr" data-act="editMoney" data-id="${esc(x.id)}"><span class="as-d mono">${shortDate(x.date)}</span><span class="as-c">${what}</span><span class="as-m">${esc(x.memo || "")}</span>` +
         `<span class="as-a"><b class="won ${x.d > 0 ? "plus" : "minus"}">${x.d > 0 ? "+" : "-"}${won(Math.abs(x.d))}</b><small>${balTxt(x.bal)}</small></span></button>`;
     }).join("") || `<p class="muted small" style="margin:8px 0 0">${monthLabel(m)}에 이 자산 기록이 없어요.</p>`}</div>`;
+  drawAsChart();
+}
+// 그래프는 칸 너비 그대로 그림 (글자가 안 줄어들게) → 너비가 바뀌면 다시 그림 (initMoney의 ResizeObserver)
+let asChart = null;
+const axisWon = (v) => { const n = Math.abs(v), s = v < 0 ? "-" : ""; return n >= 1e8 ? s + +(n / 1e8).toFixed(1) + "억" : n >= 1e4 ? s + Math.round(n / 1e4).toLocaleString("ko-KR") + "만" : s + n.toLocaleString("ko-KR"); };
+function niceStep(span) { const raw = span / 4 || 1, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+export function drawAsChart() {
+  const el = $("asChart"); if (!el || !asChart) return;
+  const { card, m, pts } = asChart, W = Math.max(260, el.clientWidth || 600), H = 170, L = 44, R = 8, T = 8, B = 24, pw = W - L - R, ph = H - T - B;
+  const vs = pts.map((p) => p.v);
+  let lo = Math.min(0, ...vs), hi = Math.max(0, ...vs); if (hi === lo) hi = lo + 10000;
+  const st = niceStep(hi - lo); lo = Math.floor(lo / st) * st; hi = Math.ceil(hi / st) * st;
+  const n = pts.length, cw = pw / n, x = (i) => L + cw * (i + 0.5), y = (v) => T + ph - (v - lo) / (hi - lo) * ph, f = (v) => v.toFixed(1);
+  let s = `<rect x="${L}" y="${T}" width="${f(pw)}" height="${ph}" class="bg"/>`;
+  for (let k = 0, steps = Math.round((hi - lo) / st); k <= steps; k++) { const v = lo + k * st; s += `<line x1="${L}" x2="${f(W - R)}" y1="${f(y(v))}" y2="${f(y(v))}"${v === 0 ? ' class="z"' : ""}/><text x="${L - 6}" y="${f(y(v) + 3.5)}" class="yl">${axisWon(v)}</text>`; }
+  s += `<line x1="${f(x(n - 1))}" x2="${f(x(n - 1))}" y1="${T}" y2="${T + ph}" class="cur"/>`;
+  if (card) { const bw = Math.min(26, cw * 0.55); s += pts.map((p, i) => `<rect x="${f(x(i) - bw / 2)}" y="${f(Math.min(y(p.v), y(0)))}" width="${f(bw)}" height="${f(p.v ? Math.max(1.5, Math.abs(y(0) - y(p.v))) : 0)}" rx="3" class="cbar${p.m === m ? " on" : ""}"><title>${monthLabel(p.m)} 쓴 돈 ${won(p.v)}</title></rect>`).join(""); }
+  else s += `<polyline points="${pts.map((p, i) => f(x(i)) + "," + f(y(p.v))).join(" ")}" class="ln"/>` + pts.map((p, i) => `<circle cx="${f(x(i))}" cy="${f(y(p.v))}" r="${p.m === m ? 4.5 : 3}" class="dot"><title>${monthLabel(p.m)} 끝 잔액 ${won(p.v)}</title></circle>`).join("");
+  const every = cw < 30 ? 2 : 1;
+  s += pts.map((p, i) => (n - 1 - i) % every ? "" : `<text x="${f(x(i))}" y="${H - 7}" class="xl${p.m === m ? " on" : ""}">${+p.m.slice(5)}월</text>`).join("");
+  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${card ? "달마다 쓴 돈" : "달마다 잔액"} 최근 12달">${s}</svg>`;
 }
 
 // 돈 기록 폼: 종류에 맞게 자산·분류 칸 바꾸기
@@ -570,6 +598,7 @@ export function makeDemoData() {
 
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
 export function initMoney() {
+  if (window.ResizeObserver) { let w = 0; new ResizeObserver(() => { const nw = $("asDetail").clientWidth; if (nw && nw !== w) { w = nw; drawAsChart(); } }).observe($("asDetail")); }
   $("moneyForm").addEventListener("submit", (ev) => {
     ev.preventDefault();
     if (!ready()) return;

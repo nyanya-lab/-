@@ -444,6 +444,21 @@ table.t tr.cur td { background: var(--sunk); }
 .as-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 10px 0; text-align: center; }
 .as-stats span { display: block; font-size: 12px; color: var(--muted); }
 .as-stats b { font-size: 15px; white-space: nowrap; }
+.as-chart-h { margin-bottom: -8px; }
+.as-chart { min-height: 170px; }
+.as-chart svg { display: block; }
+.as-chart .bg { fill: var(--sunk); opacity: .6; }
+.as-chart line { stroke: var(--line); stroke-width: 1; }
+.as-chart line.z { stroke: var(--muted); opacity: .45; }
+.as-chart line.cur { stroke: var(--muted); stroke-dasharray: 3 3; }
+.as-chart text { font-size: 10.5px; fill: var(--muted); font-family: var(--f-mono); }
+.as-chart .yl { text-anchor: end; }
+.as-chart .xl { text-anchor: middle; }
+.as-chart .xl.on { fill: var(--fg); font-weight: 700; }
+.as-chart .ln { fill: none; stroke: var(--blue); stroke-width: 2; stroke-linejoin: round; }
+.as-chart .dot { fill: var(--blue); stroke: var(--surface); stroke-width: 1.5; }
+.as-chart .cbar { fill: var(--coral); opacity: .55; }
+.as-chart .cbar.on { opacity: 1; }
 .as-tx { display: grid; }
 .as-tr { display: grid; grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 9px 4px; font: inherit; font-size: 14px; color: inherit; text-align: left; cursor: pointer; }
 .as-tr:last-child { border-bottom: 0; }
