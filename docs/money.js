@@ -396,22 +396,7 @@ export function renderMoney() {
 
   renderMoneyForm();
 
-  // 이번 달 내역 (자산별로 걸러 보기)
-  $("acctFilter").innerHTML = accts.length ? [["all", "전체"]].concat(accts.map((a) => [a.id, a.name])).map(([k, l]) =>
-    `<button class="chip" type="button" data-act="acctFilter" data-k="${esc(k)}" aria-pressed="${ui.acctFilter === k}">${esc(l)}</button>`).join("") : "";
-  const items = r.items.filter((x) => adm ? x.kind === "income" || x.kind === "transfer" : ui.acctFilter === "all" || x.account === ui.acctFilter || x.toAccount === ui.acctFilter)
-    .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
-  $("moneyCount").textContent = items.length ? items.length + "건" + (adm ? " · 수입·보낸 돈만" : " · 줄을 누르면 고칠 수 있어요") : "";
-  $("moneyTable").innerHTML = !S.loaded ? '<tbody><tr><td class="muted">불러오는 중…</td></tr></tbody>'
-    : !items.length ? `<tbody><tr><td class="muted">${monthLabel(m)} 기록이 없어요.</td></tr></tbody>`
-    : `<thead><tr><th>날짜</th><th>구분</th><th>분류</th><th>자산</th><th>메모</th><th class="num">금액</th></tr></thead><tbody>` +
-      items.map((x) => {
-        const kind = x.kind || "expense", sign = kind === "income" ? "+" : kind === "move" ? "" : "-";
-        const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
-        return `<tr${adm ? "" : ` class="clickable${ui.mEdit === x.id ? " cur" : ""}" data-act="editMoney" data-id="${esc(x.id)}"`}><td class="mono">${shortDate(x.date)}</td>` +
-          `<td>${esc(kind === "transfer" ? partner() + "에게" : KIND_LABEL[kind])}</td><td>${kind === "move" ? "-" : x.cat ? catDot(kind, x.cat) + esc(x.cat) : ""}</td><td>${where}</td><td>${esc(x.memo || "")}${memoMarks(x)}</td>` +
-          `<td class="num won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${sign}${amtText(x)}</td></tr>`;
-      }).join("") + "</tbody>";
+  renderTx(m, r);
 }
 
 // ---------- 🏦 자산 탭: 왼쪽 목록(현금·통장·카드·저축 묶음, 합계, 접기) + 오른쪽 자세히 ----------
@@ -523,6 +508,43 @@ export function drawAsChart() {
   el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${card ? "달마다 쓴 돈" : "달마다 잔액"} 최근 12달">${s}</svg>`;
 }
 
+// ---------- 🧾 내역 (지출 탭): 요약 칸 = 전체 · 수입 · 지출 · 💝 준 돈 (누르면 그것만), 표 = ☐ 날짜 · 자산 · 분류 · 소분류 · 금액 · 내용 · 메모 ----------
+// 이체(내 자산끼리)는 전체에서만 줄로 보이고 합계엔 안 들어감. 줄을 누르면 서랍 창에서 고치기, ☐로 골라 [선택 삭제]
+const TX_KINDS = [["all", "전체"], ["income", "수입"], ["expense", "지출"], ["transfer", "💝 준 돈"]];
+const txSel = new Set();
+function renderTx(m, r) {
+  const f = TX_KINDS.some(([k]) => k === ui.txKind) ? ui.txKind : "all", cnt = { all: r.items.length, income: 0, expense: 0, transfer: 0 };
+  r.items.forEach((x) => { const k = x.kind || "expense"; if (k in cnt && k !== "all") cnt[k]++; });
+  const sums = { all: r.inc - r.exp - r.out, income: r.inc, expense: r.exp, transfer: r.out };
+  $("txMonth").textContent = monthLabel(m);
+  $("txSum").innerHTML = TX_KINDS.map(([k, l]) => `<button type="button" class="tx-k k-${k}" role="tab" data-act="txKind" data-k="${k}" aria-selected="${f === k}"><span>${l} (${cnt[k]})</span><b class="won"><span class="tx-l">${k === "all" && sums.all < 0 ? "-" : ""}${won(Math.abs(sums[k]))}</span><span class="tx-short">${k === "all" && sums.all < 0 ? "-" : ""}${moneyShort(Math.abs(sums[k]))}</span></b></button>`).join("");
+  const items = r.items.filter((x) => f === "all" || (x.kind || "expense") === f).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  [...txSel].forEach((id) => { if (!items.some((x) => x.id === id)) txSel.delete(id); });
+  $("txSel").hidden = !txSel.size;
+  $("txSel").innerHTML = txSel.size ? `<span><b>${txSel.size}개</b> 골랐어요</span><button class="btn small danger-txt ghost" type="button" data-act="txDel">선택 삭제</button><button class="btn small ghost" type="button" data-act="txSelNone">고르기 취소</button>` : "";
+  const all = items.length && items.every((x) => txSel.has(x.id));
+  $("txList").innerHTML = !S.loaded ? '<p class="muted small">불러오는 중…</p>'
+    : !items.length ? `<p class="muted small" style="margin:8px 0">${monthLabel(m)} ${f === "all" ? "" : TX_KINDS.find(([k]) => k === f)[1] + " "}기록이 없어요. 오른쪽 아래 ＋로 기록해요.</p>`
+    : `<div class="tx-row tx-th"><label class="tx-ck"><input type="checkbox" data-txall ${all ? "checked" : ""} aria-label="모두 고르기"></label><span>날짜</span><span>자산</span><span>분류</span><span>소분류</span><span class="tx-amt">금액</span><span>내용</span><span>메모</span></div>` +
+      items.map((x) => {
+        const kind = x.kind || "expense", n = x.pics && typeof x.pics === "object" ? Object.keys(x.pics).length : 0;
+        const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
+        const cat = kind === "move" ? '<span class="muted">이체</span>' : `${x.cat ? catDot(kind, x.cat) + esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ' <span class="muted small">💝</span>' : ""}`;
+        return `<div class="tx-row k-${kind}${ui.mEdit === x.id ? " cur" : ""}${txSel.has(x.id) ? " sel" : ""}" data-act="editMoney" data-id="${esc(x.id)}" role="button" tabindex="0">` +
+          `<label class="tx-ck" data-noedit><input type="checkbox" data-txck="${esc(x.id)}" ${txSel.has(x.id) ? "checked" : ""} aria-label="고르기"></label>` +
+          `<span class="tx-d mono">${shortDate(x.date)}</span><span class="tx-a">${where}</span><span class="tx-c">${cat}</span><span class="tx-s">${esc(x.sub || "")}</span>` +
+          `<span class="tx-amt won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${kind === "income" ? "+" : kind === "move" ? "" : "-"}${amtText(x)}</span>` +
+          `<span class="tx-m">${esc(x.memo || "")}</span><span class="tx-n">${x.note ? esc(x.note) : ""}${n ? ` <span class="m-mark">📷${n > 1 ? n : ""}</span>` : ""}</span></div>`;
+      }).join("");
+}
+// 지출 탭 ＋: 새 기록 (지출, 마지막에 쓴 자산)
+function txAdd() {
+  ui.mEdit = null; ui.kind = "expense"; ui.asFor = null;
+  $("mAmount").value = ""; $("mMemo").value = ""; $("mSub").value = ""; $("mNote").value = ""; $("mDate").value = today(); $("mAcct").value = ""; $("mCat").value = ""; setMPics([]);
+  renderMoneyForm();
+  openDrawer(); $("mAmount").focus();
+}
+
 // 내역 줄 내용 뒤 작은 표시: 소분류 · 📝 메모 · 📷 사진 수
 function memoMarks(x) {
   const n = x.pics && typeof x.pics === "object" ? Object.keys(x.pics).length : 0;
@@ -604,14 +626,11 @@ export function renderMoneyForm(fill) {
 }
 export function editMoney(id) {
   const x = S.money.get(id); if (!x) return;
-  const inAssets = !$("moneyPage").hidden && !$("asGrid").hidden;   // 자산 탭에서 누른 내역은 탭을 안 옮기고 서랍 창에서 고침
-  if (!inAssets) try { localStorage.setItem("ukjin-mtab", "spend"); } catch (e) { /* 무시 */ }
   ui.mEdit = id; ui.kind = x.kind || "expense";
   $("mAmount").value = commaNum(x.amount || ""); $("mDate").value = x.date || today(); $("mMemo").value = x.memo || "";
   setMPics(Object.keys(x.pics && typeof x.pics === "object" ? x.pics : {}).map((pid) => ({ id: pid, old: true, thumb: null })));
   renderMoneyForm(x); renderMoney();
-  if (inAssets) { openDrawer(); return; }
-  $("moneyPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  openDrawer();   // 어느 탭에서든 서랍 창에서 고침
 }
 export function resetMoneyForm() {
   ui.mEdit = null; $("mAmount").value = ""; $("mMemo").value = ""; $("mDate").value = today();
@@ -733,6 +752,13 @@ export function makeDemoData() {
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
 export function initMoney() {
   $("mCat").addEventListener("change", () => { subList(); salaryHint(); });
+  // ☐ 고르기: 줄을 눌러 고치기와 안 겹치게 체크칸 누름은 여기서만
+  $("txList").addEventListener("click", (ev) => { if (ev.target.closest("[data-noedit], .tx-th")) ev.stopPropagation(); }, true);
+  $("txList").addEventListener("change", (ev) => {
+    const t = ev.target;
+    if (t.dataset.txck) { if (t.checked) txSel.add(t.dataset.txck); else txSel.delete(t.dataset.txck); renderMoney(); }
+    else if ("txall" in t.dataset) { const ids = [...$("txList").querySelectorAll("[data-txck]")].map((c) => c.dataset.txck); if (t.checked) ids.forEach((k) => txSel.add(k)); else txSel.clear(); renderMoney(); }
+  });
   $("mCur").addEventListener("change", () => {
     if ($("mCur").value !== "__add") return;
     const name = (prompt("더할 화폐 이름 (예: 달러, 엔, 유로)") || "").trim().slice(0, 8);
@@ -849,7 +875,17 @@ export function moneyAction(a, el, id, t) {
   if (a === "asBack") { ui.asOpen = false; renderMoney(); $("asGrid").scrollIntoView({ block: "start" }); return true; }
   if (a === "cardPayNow") { payCardNow(id); return true; }
   if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet("ukjin-as-fold", JSON.stringify(f)); renderMoney(); return true; }
-  if (a === "acctFilter") { ui.acctFilter = el.dataset.k; renderMoney(); return true; }
+  if (a === "txKind") { ui.txKind = el.dataset.k; renderMoney(); return true; }
+  if (a === "txAdd") { txAdd(); return true; }
+  if (a === "monthNow") { ui.month = today().slice(0, 7); renderMoney(); return true; }
+  if (a === "txSelNone") { txSel.clear(); renderMoney(); return true; }
+  if (a === "txDel") {
+    if (!ready() || !txSel.size) return true;
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.textContent = `정말 ${txSel.size}개 삭제?`; return true; }
+    const ids = [...txSel]; txSel.clear();
+    act((async () => { for (const k of ids) await E.backend.remove("money", k); })(), `${ids.length}개를 지웠어요. (↶로 되돌릴 수 있어요)`).catch(() => {});
+    return true;
+  }
   if (a === "newAcct") { openAcct(null); return true; }
   if (a === "editAcct") { openAcct(id); return true; }
   if (a === "demoReset") { try { localStorage.removeItem("ukjin-money-demo"); } catch (e) { /* 무시 */ } toast("연습 데이터를 새로 만들어요…"); setTimeout(() => location.reload(), 300); return true; }
