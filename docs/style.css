@@ -1059,3 +1059,7 @@ tr.clickable:hover td { background: var(--sunk); }
   .mini-fire { width: 13px; height: 13px; font-size: 10px; line-height: 13px; }
   .ev.more, .ev.habit { display: none; }
 }
+
+/* 가계부 금액 굵기: 제목·요약에 있는 금액만 굵게, 목록·표·달력 칸 금액은 보통 굵기 */
+#moneyPage .won, #mDrawer .won, #moneyPage :is(.as-row b, .as-cp b, .st-cat b, .pie-legend b, .mc-v .net) { font-weight: 400; }
+#moneyPage :is(.tx-k b, .as-stats b, .as-sec b, .st-head b, .st-chip b, .as-all b, .as-gh > b, .as-gh .as-cp b, .st-cat.all b, .mc-ds b, .plan-tile b, .stat b, #assetTotal .won) { font-weight: 700; }
