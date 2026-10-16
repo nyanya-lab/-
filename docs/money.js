@@ -492,7 +492,8 @@ function renderAssetDetail(id) {
         : `${x.cat ? catDot(kind, x.cat) + esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ` <span class="muted small">(${esc(partner())}에게)</span>` : ""}`;
       return `<button type="button" class="as-tr" data-act="editMoney" data-id="${esc(x.id)}"><span class="as-d mono">${shortDate(x.date)}</span><span class="as-c">${what}</span><span class="as-m">${esc(x.memo || "")}</span>` +
         `<span class="as-a"><b class="won ${x.d > 0 ? "plus" : "minus"}">${x.d > 0 ? "+" : "-"}${won(Math.abs(x.d))}</b><small>${balTxt(x.bal)}</small></span></button>`;
-    }).join("") || `<p class="muted small" style="margin:8px 0 0">${monthLabel(m)}에 이 자산 기록이 없어요.</p>`}</div>`;
+    }).join("") || `<p class="muted small" style="margin:8px 0 0">${monthLabel(m)}에 이 자산 기록이 없어요.</p>`}</div>` +
+    `<button class="fab" type="button" data-act="asAdd" data-id="${esc(id)}" aria-label="${esc(a.name)}(으)로 기록하기" title="${esc(a.name)}(으)로 기록하기">＋</button>`;
   drawAsChart();
 }
 // 그래프는 칸 너비 그대로 그림 (글자가 안 줄어들게) → 너비가 바뀌면 다시 그림 (initMoney의 ResizeObserver)
@@ -551,15 +552,53 @@ export function renderMoneyForm(fill) {
 }
 export function editMoney(id) {
   const x = S.money.get(id); if (!x) return;
-  try { localStorage.setItem("ukjin-mtab", "spend"); } catch (e) { /* 무시 */ }
+  const inAssets = !$("moneyPage").hidden && !$("asGrid").hidden;   // 자산 탭에서 누른 내역은 탭을 안 옮기고 서랍 창에서 고침
+  if (!inAssets) try { localStorage.setItem("ukjin-mtab", "spend"); } catch (e) { /* 무시 */ }
   ui.mEdit = id; ui.kind = x.kind || "expense";
   $("mAmount").value = commaNum(x.amount || ""); $("mDate").value = x.date || today(); $("mMemo").value = x.memo || "";
   renderMoneyForm(x); renderMoney();
+  if (inAssets) { openDrawer(); return; }
   $("moneyPanel").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 export function resetMoneyForm() {
   ui.mEdit = null; $("mAmount").value = ""; $("mMemo").value = ""; $("mDate").value = today();
+  closeDrawer();
   renderMoney();
+}
+// ＋ 서랍 창: 지출 탭의 '돈 기록하기' 칸(#moneyPanel)을 그대로 빌려 와 #mDrawer에 넣음 (PC 오른쪽, 폰 아래에서). 닫히면 제자리로
+let drawerHome = null;
+function openDrawer() {
+  const d = $("mDrawer"), p = $("moneyPanel");
+  if (p.parentNode !== d) { drawerHome = p.parentNode; d.appendChild(p); }
+  openDlg(d);
+}
+// 닫을 때 바로 제자리로 (close 이벤트는 늦게 올 때가 있어서 직접), 고치던 건 취소
+export function closeDrawer() { closeDlg($("mDrawer")); drawerClosed(); }
+function drawerClosed() {
+  if ($("mDrawer").open) return;   // 늦게 온 close 이벤트가 다시 연 창을 건드리지 않게
+  if (drawerHome && $("moneyPanel").parentNode !== drawerHome) drawerHome.appendChild($("moneyPanel"));
+  ui.asFor = null;
+  if (ui.mEdit) resetMoneyForm();
+}
+// 저장한 기록이 보이는 달: 보통은 그 날짜의 달. 자산 탭에서 결제일 정한 카드를 보는 중이면 결제 달
+// (쓴 돈 = 그 날이 이용기간에 든 달, 낸 돈 = 지난 결제일 다음 날 ~ 그 결제일에 든 달)
+function shownMonth(doc) {
+  const m0 = doc.date.slice(0, 7), sel = $("mDrawer").open && asSelected(), a = sel && S.accounts.get(sel);
+  if (!a || a.type !== "card" || !a.pay || !a.pay.day || (doc.account !== sel && doc.toAccount !== sel)) return m0;
+  const pay = doc.toAccount === sel;
+  for (let k = -1; k <= 2; k++) {
+    const m = shiftMonth(m0, k), p = cardPayPlan(a.pay, m);
+    if (pay ? doc.date > cardPayPlan(a.pay, shiftMonth(m, -1)).date && doc.date <= p.date : doc.date >= p.from && doc.date <= p.to) return m;
+  }
+  return m0;
+}
+// 자산 화면 ＋: 그 자산이 골라진 지출 기록 (수입·보낸 돈·이체로 바꿔도 그 자산 그대로)
+function asAdd(id) {
+  if (!S.accounts.has(id)) return;
+  ui.mEdit = null; ui.kind = "expense"; ui.asFor = id;
+  $("mAmount").value = ""; $("mMemo").value = ""; $("mDate").value = today();
+  renderMoneyForm({ account: id });
+  openDrawer(); $("mAmount").focus();
 }
 
 // ---------- 자산 작은 창 ----------
@@ -639,6 +678,10 @@ export function makeDemoData() {
 
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
 export function initMoney() {
+  // 서랍 창이 닫히면 (저장·✕·바깥 누름·Esc) 기록 칸을 지출 탭 제자리로, 고치던 건 취소
+  $("mDrawer").addEventListener("close", drawerClosed);
+  $("mDrawer").addEventListener("cancel", (ev) => { ev.preventDefault(); closeDrawer(); });   // Esc
+  $("mDrawer").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) closeDrawer(); });
   if (window.ResizeObserver) { let w = 0; new ResizeObserver(() => { const nw = $("asDetail").clientWidth; if (nw && nw !== w) { w = nw; drawAsChart(); } }).observe($("asDetail")); }
   $("moneyForm").addEventListener("submit", (ev) => {
     ev.preventDefault();
@@ -653,7 +696,7 @@ export function initMoney() {
     rememberAcct(k, account); if (k === "move") rememberAcct("moveTo", toAccount);
     const editing = ui.mEdit && S.money.has(ui.mEdit);
     act(editing ? E.backend.update("money", ui.mEdit, doc) : E.backend.add("money", { ...doc, createdAt: Date.now() }), editing ? "고쳤어요." : "기록했어요.")
-      .then(() => { if (date.slice(0, 7) !== ui.month) ui.month = date.slice(0, 7); resetMoneyForm(); }).catch(() => {});
+      .then(() => { const mm = shownMonth(doc); if (mm !== ui.month) ui.month = mm; resetMoneyForm(); }).catch(() => {});
   });
 
   $("acctForm").addEventListener("submit", (ev) => {
@@ -709,7 +752,9 @@ export function moneyAction(a, el, id, t) {
   if (a === "histRange") { ui.histRange = el.dataset.k; renderMoney(); return true; }
   if (a === "histMonth") { ui.month = el.dataset.m; renderMoney(); const p = $("planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); toast(`${monthLabel(el.dataset.m)} 예산·내역을 보여요.`); return true; }
   if (a === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); renderMoney(); return true; }
-  if (a === "kind") { ui.kind = el.dataset.k; if (!ui.mEdit) { $("mAcct").value = ""; $("mTo").value = ""; } renderMoneyForm(); return true; }
+  if (a === "kind") { ui.kind = el.dataset.k; if (!ui.mEdit) { $("mAcct").value = $("mDrawer").open && ui.asFor || ""; $("mTo").value = ""; } renderMoneyForm(); return true; }
+  if (a === "asAdd") { asAdd(id); return true; }
+  if (a === "drawerClose") { closeDrawer(); return true; }
   if (a === "editMoney") { editMoney(id); return true; }
   if (a === "mCancel") { resetMoneyForm(); return true; }
   if (a === "mDelete") {
