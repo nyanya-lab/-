@@ -239,6 +239,10 @@ button { cursor: pointer; }
 .lotto-badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--danger); color: #FFFFFF; font-size: 12px; display: grid; place-items: center; }
 .top-lotto { width: 50px; } .top-lotto .ticket { width: 40px; height: 30px; } .top-lotto .lotto-badge { top: 2px; right: 0; }
 .day.has-pts { padding-bottom: 20px; }
+.day-money { position: absolute; left: 5px; bottom: 2px; display: grid; justify-items: start; font-size: 10.5px; line-height: 1.2; font-variant-numeric: tabular-nums; pointer-events: none; }
+.day-money i { font-style: normal; font-weight: 600; } .day-money .dm-in { color: var(--danger); } .day-money .dm-out { color: var(--blue); }
+.day.has-money { padding-bottom: 20px; } .day.has-money2 { padding-bottom: 28px; }
+@media (max-width: 720px) { .day-money { display: none; } .day.has-money, .day.has-money2 { padding-bottom: 0; } .day.has-pts { padding-bottom: 14px; } }   /* 폰 칸은 💰·💸 아이콘으로 */
 .day-pts { position: absolute; right: 4px; bottom: 2px; font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; color: var(--sun); pointer-events: none; }
 .pts-toggle { font-size: 17px; } .pts-toggle.off { opacity: .35; filter: grayscale(1); }
 .pts-lines { display: grid; gap: 4px; font-size: 14px; }
