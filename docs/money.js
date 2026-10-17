@@ -538,13 +538,9 @@ function renderAssetDetail(id) {
       : tile(card ? "갚은 돈" : "입금", won(inn), "plus") + tile(card ? "쓴 돈" : "출금", won(out), "minus") + tile("합계", won(inn - out), inn - out < 0 ? "minus" : "plus") +
         tile(card ? "남은 카드값" : "누적잔액", card ? won(Math.max(0, -endBal)) : won(endBal), !card && endBal < 0 ? "minus" : "")}</div>` +
     `<div class="as-chart-h small muted">${payCard ? "달마다 결제할 돈 (결제일 기준)" : card ? "달마다 쓴 돈" : "달마다 잔액 (그 달 끝)"} · 최근 12달</div><div class="as-chart" id="asChart"></div>` +
-    `<div class="as-tx">${shown.reverse().map((x) => {
-      const kind = x.kind || "expense";
-      const what = kind === "move" ? (x.d < 0 ? `→ ${esc(acctName(x.toAccount))}` : `← ${esc(acctName(x.account))}`)
-        : `${x.cat ? catDot(kind, x.cat) + esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ` <span class="muted small">(${esc(partner())}에게)</span>` : ""}`;
-      return `<button type="button" class="as-tr" data-act="editMoney" data-id="${esc(x.id)}"><span class="as-d mono">${shortDate(x.date)}</span><span class="as-c">${what}</span><span class="as-m">${esc(x.memo || "")}${memoMarks(x)}</span>` +
-        `<span class="as-a"><b class="won ${x.d > 0 ? "plus" : "minus"}">${x.d > 0 ? "+" : "-"}${won(Math.abs(x.d))}</b><small>${balTxt(x.bal)}</small></span></button>`;
-    }).join("") || `<p class="muted small" style="margin:8px 0 0">${monthLabel(m)}에 이 자산 기록이 없어요.</p>`}</div>` +
+    // 내역: 내역 탭과 같은 표 (날짜 · 자산 · 분류 · 소분류 · 금액 · 내용 · 메모), 금액은 이 자산 쪽에서 본 +/−, 밑에 그때 잔액
+    `<div class="tx-list as-tx">${shown.length ? `<div class="tx-row tx-th no-ck"><span>날짜</span><span>자산</span><span>분류</span><span>소분류</span><span class="tx-amt">금액</span><span>내용</span><span>메모</span></div>` +
+      shown.reverse().map((x) => txRow(x, false, { d: x.d, bal: balTxt(x.bal) })).join("") : `<p class="muted small" style="margin:8px 0 0">${monthLabel(m)}에 이 자산 기록이 없어요.</p>`}</div>` +
     `<button class="fab" type="button" data-act="asAdd" data-id="${esc(id)}" aria-label="${esc(a.name)}(으)로 기록하기" title="${esc(a.name)}(으)로 기록하기">＋</button>`;
   setChart($("asChart"), { bars: card, pts: asPts, label: card ? "달마다 쓴 돈" : "달마다 잔액" });
 }
@@ -598,14 +594,15 @@ function renderTx(m, r) {
       items.map((x) => txRow(x, true)).join("");
 }
 // 내역 한 줄 (ck = ☐ 고르기 칸 같이) — 지출 탭 · 통계 탭이 같이 씀
-function txRow(x, ck) {
+function txRow(x, ck, o = {}) {   // o.d = 이 자산 쪽에서 본 +/− (자산 화면), o.bal = 금액 밑 그때 잔액
         const kind = x.kind || "expense", n = x.pics && typeof x.pics === "object" ? Object.keys(x.pics).length : 0;
         const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
         const cat = kind === "move" ? '<span class="muted">이체</span>' : `${x.cat ? catDot(kind, x.cat) + esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ' <span class="muted small">💝</span>' : ""}`;
         return `<div class="tx-row k-${kind}${ck ? "" : " no-ck"}${ui.mEdit === x.id ? " cur" : ""}${ck && txSel.has(x.id) ? " sel" : ""}" data-act="editMoney" data-id="${esc(x.id)}" role="button" tabindex="0">` +
           (ck ? `<label class="tx-ck" data-noedit><input type="checkbox" data-txck="${esc(x.id)}" ${txSel.has(x.id) ? "checked" : ""} aria-label="고르기"></label>` : "") +
           `<span class="tx-d mono">${shortDate(x.date)}</span><span class="tx-a">${where}</span><span class="tx-c">${cat}</span><span class="tx-s">${esc(x.sub || "")}</span>` +
-          `<span class="tx-amt won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${kind === "income" ? "+" : kind === "move" ? "" : "-"}${amtText(x)}</span>` +
+          (o.d != null ? `<span class="tx-amt won ${o.d > 0 ? "plus" : "minus"}">${o.d > 0 ? "+" : "-"}${won(Math.abs(o.d))}${o.bal ? `<small class="tx-bal">${o.bal}</small>` : ""}</span>`
+            : `<span class="tx-amt won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${kind === "income" ? "+" : kind === "move" ? "" : "-"}${amtText(x)}</span>`) +
           `<span class="tx-m">${esc(x.memo || "")}</span><span class="tx-n">${x.note ? esc(x.note) : ""}${n ? ` <span class="m-mark">📷${n > 1 ? n : ""}</span>` : ""}</span></div>`;
 }
 
