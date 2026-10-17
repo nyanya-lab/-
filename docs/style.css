@@ -540,6 +540,7 @@ table.t tr.cur td { background: var(--sunk); }
 .tx-ck input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer; }
 .tx-amt { text-align: right; }
 .tx-row.k-transfer .tx-amt { color: var(--grape); }
+.tx-bal { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); }
 .tx-th > span { text-align: center; }
 @media (min-width: 921px) { .tx-row:not(.tx-th) :is(.tx-d, .tx-a, .tx-c, .tx-s) { text-align: center; } .tx-row > .tx-m { padding-left: 22px; } }   /* 금액과 내용 사이 띄우기 */
 #moneyPage table.t th, .bulk th { text-align: center; }
