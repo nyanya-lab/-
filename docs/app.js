@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261017z";
-import { CHANGES } from "./changes.js?v=20261017z";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261017z";
-import { firebaseConfig } from "./firebase-config.js?v=20261017z";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261018c";
+import { CHANGES } from "./changes.js?v=20261018c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, catDot, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261018c";
+import { firebaseConfig } from "./firebase-config.js?v=20261018c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -630,7 +630,7 @@ function renderCalendar() {
     if (spent[d]) ics.push("💸");
     const cellIc = ics.length ? `<span class="cell-ic" aria-hidden="true">${ics.slice(0, 2).join("")}${openN > 1 && ics.slice(0, 2).some((c) => c === "📌" || c === "❌") ? `<small>${openN}</small>` : ""}</span>` : "";
     html += `<div class="${cls}${pts ? " has-pts" : ""}${mLines ? (income[d] && spent[d] ? " has-money2" : " has-money") : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span></span>${part ? `<small class="part-m" title="${Math.round(mm)}분 · 60분이면 실천한 날"><span class="pm-l">${Math.round(mm)}/60m</span><span class="pm-s">${Math.round(mm)}m</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts">+${pts}</span>` : ""}${mLines ? `<span class="day-money">${mLines}</span>` : ""}</div>`;
+      `<span class="top"><span class="num">${dt.getDate()}</span></span>${part ? `<small class="part-m" title="${Math.round(mm)}분 · 60분이면 실천한 날"><span class="pm-l">${Math.round(mm)}/60m</span><span class="pm-s">${Math.round(mm)}m</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts${pts < 0 ? " neg" : ""}">${sgn(pts)}</span>` : ""}${mLines ? `<span class="day-money">${mLines}</span>` : ""}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
@@ -1070,6 +1070,9 @@ function renderNags() {
   const pp = adm || !lottoOn() ? [] : pendingPraises();
   if (pp.length && !skip("pr" + pp[pp.length - 1].id)) list.unshift(["pr" + pp[pp.length - 1].id, `👏 <b>${esc(partner())}가 칭찬했어요!</b> ⭐ +${pp.reduce((n, p) => n + p.pts, 0)}점 <span class="muted">· ${esc(untilText(praiseState(pp[0]).end))} 받기</span>`,
     `<button class="btn small" type="button" data-act="prGet">받기</button>`]);
+  // 😥 감점 (욱진이 기기, 감점한 날부터 3일 동안 알려 줌)
+  const mins = adm || !lottoOn() ? [] : praises().filter((p) => p.pts < 0 && p.date >= addDays(today(), -(PRAISE_DAYS - 1)));
+  if (mins.length && !skip("mi" + mins[0].id)) list.unshift(["mi" + mins[0].id, `😥 <b>${esc(partner())}가 감점했어요</b> ⭐ ${mins.reduce((n, p) => n + p.pts, 0)}점${mins[0].text ? ` · ${esc(mins[0].text)}` : ""}`, ""]);
   // 🔄 새 버전이 올라왔으면 (checkNewVersion) 맨 위에. [나중에]는 그 버전만 숨김
   if (ui.newVer && !skip("upd" + ui.newVer)) list.unshift(["upd" + ui.newVer, "🔄 <b>새 버전이 나왔어요.</b> 새로고침하면 바뀐 걸 쓸 수 있어요.", `<button class="btn small" type="button" data-act="updReload">새로고침</button>`]);
   if (APP === "money") for (let i = list.length - 1; i >= 0; i--) if (!/^(budget|income|give|gack|card|upd)/.test(list[i][0])) list.splice(i, 1);   // 가계부엔 돈 얘기만
@@ -1091,7 +1094,7 @@ function renderLottoAdmin() {
   $("laTabs").querySelectorAll("button").forEach((b) => { b.innerHTML = LT[b.dataset.k]; b.setAttribute("aria-pressed", b.dataset.k === tab); });
   document.querySelectorAll("[data-la-tab]").forEach((el) => { if (el.id !== "laPresetSec") el.hidden = el.dataset.laTab !== tab; });
   const prs = praises().slice(0, 5);
-  $("praiseList").innerHTML = prs.map((p) => `<div class="item"><span class="cp-tier">👏</span><div class="body"><div class="title">${esc(p.text || "칭찬")}</div><div class="meta"><span class="small muted">${esc(fmtTime(p.at))} · +${p.pts}점 · ${(() => { const s = praiseState(p); return s.st === "got" ? (p.claim ? `✅ ${shortDate(s.day)} 받음` : "✅ 받음") : s.st === "wait" ? `⏳ 기다리는 중 · ${untilText(s.end)}` : "⌛ 안 받아서 사라짐"; })()}</span></div></div>` +
+  $("praiseList").innerHTML = prs.map((p) => `<div class="item"><span class="cp-tier">${p.pts < 0 ? "😥" : "👏"}</span><div class="body"><div class="title">${esc(p.text || (p.pts < 0 ? "감점" : "칭찬"))}</div><div class="meta"><span class="small muted">${esc(fmtTime(p.at))} · ${p.pts < 0 ? `😥 ${p.pts}점 · 바로 빠짐` : `+${p.pts}점 · ${(() => { const s = praiseState(p); return s.st === "got" ? (p.claim ? `✅ ${shortDate(s.day)} 받음` : "✅ 받음") : s.st === "wait" ? `⏳ 기다리는 중 · ${untilText(s.end)}` : "⌛ 안 받아서 사라짐"; })()}`}</span></div></div>` +
     `<div class="actions"><button class="icon-btn" type="button" data-act="praiseDel" data-id="${esc(p.id)}">지우기</button></div></div>`).join("");
   const keepFocus = (box) => box.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);   // 글자 치는 중일 때만 다시 안 그림 (버튼을 눌렀을 땐 바로 반영)
   if (!keepFocus($("laOdds"))) $("laOdds").innerHTML = Object.keys(ODDS_DEF).map((k) => `<label>${ODDS_LABEL[k]}<input type="number" min="0" max="100" step="1" value="${o[k]}" data-odds="${k}"></label>`).join("");
@@ -1134,7 +1137,7 @@ function laArrange(k, list, kind, won) {
 }
 $("lottoPage").addEventListener("input", (ev) => { const k = ev.target.dataset.laQ; if (!k) return; (ui.laQ ||= {})[k] = ev.target.value; renderLottoAdmin(); });
 $("lottoPage").addEventListener("change", (ev) => { const k = ev.target.dataset.laSort; if (!k) return; (ui.laSort ||= {})[k] = ev.target.value; renderLottoAdmin(); });
-// 👏 칭찬 (관리자): settings.lotto.praises{id:{text, at, date, pts}} → 포인트에 더함. 테스트 모드여도 진짜로 저장
+// 👏 칭찬 (관리자): settings.lotto.praises{id:{text, at, date, pts}} → 포인트에 더함 (pts < 0 = 😥 감점, claim 없이 바로). 테스트 모드여도 진짜로 저장
 const PT_PRAISE = 30;
 // 칭찬 받기: 새 칭찬(claim: 1)은 욱진이가 [받기]를 눌러야 점수 (got = 받은 날). 칭찬한 날 포함 3일째 밤까지, 지나면 사라짐
 // claim 없는 예전 칭찬은 칭찬한 날 받은 걸로
@@ -1167,14 +1170,19 @@ function maybePraise() {
 }
 ["newsDlg", "lottoIntroDlg"].forEach((id) => $(id).addEventListener("close", () => setTimeout(maybePraise, 200)));
 function praises() { return Object.entries(lotto().praises || {}).filter(([, v]) => v && v.date).map(([id, v]) => ({ id, ...v, pts: Number(v.pts) || PT_PRAISE })).sort((a, b) => (b.at || 0) - (a.at || 0)); }
+// 점수는 5점 단위. 👏 칭찬 = +점수 (욱진이가 [받기]), 😥 감점 = −점수 (받기 없이 바로, claim 없음)
+const praiseAmt = () => Math.max(5, Math.round((parseInt($("praisePts").value, 10) || PT_PRAISE) / 5) * 5);
+function praiseBtns() { const n = praiseAmt(); $("praiseBtn").textContent = `👏 칭찬 +${n}`; $("minusBtn").textContent = `😥 감점 −${n}`; }
 $("praiseForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   if (!isAdminDevice()) return;
+  const minus = ev.submitter && ev.submitter.dataset.sign === "-1", n = praiseAmt();
   const text = $("praiseText").value.trim(), id = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  const pts = Math.max(10, Math.round((parseInt($("praisePts").value, 10) || PT_PRAISE) / 10) * 10);
-  saveLotto({ praises: { [id]: { text, at: Date.now(), date: today(), pts, claim: 1 } } }, `👏 칭찬했어요! 욱진이가 ${PRAISE_DAYS}일 안에 [받기]를 누르면 +${pts}점`).then(() => { $("praiseText").value = ""; $("praisePts").value = PT_PRAISE; $("praiseBtn").textContent = `👏 칭찬 +${PT_PRAISE}`; });
+  const doc = minus ? { text, at: Date.now(), date: today(), pts: -n } : { text, at: Date.now(), date: today(), pts: n, claim: 1 };
+  saveLotto({ praises: { [id]: doc } }, minus ? `😥 감점했어요. ⭐ −${n}점 (바로 빠져요)` : `👏 칭찬했어요! 욱진이가 ${PRAISE_DAYS}일 안에 [받기]를 누르면 +${n}점`)
+    .then(() => { $("praiseText").value = ""; $("praisePts").value = PT_PRAISE; praiseBtns(); });
 });
-$("praisePts").addEventListener("input", () => { $("praiseBtn").textContent = `👏 칭찬 +${Math.max(10, parseInt($("praisePts").value, 10) || 0)}`; });
+$("praisePts").addEventListener("input", praiseBtns);
 function openLottoAdmin() {
   if (!isAdminDevice()) { toast("관리자만 열 수 있어요."); return; }
   closeSettings(); location.hash = "#lotto";
@@ -1665,6 +1673,7 @@ function stopGame() {
 // ---------- ⭐ 포인트 (기록에서 바로 계산: 지우거나 되돌리면 포인트도 같이 맞춰짐) ----------
 // 실천 1분 1 · 세부목표 달성 50 · 목표 달성 300 · 연속 3주 30 / 6주 100 / 12주 250 / 25주 1000 / 그 뒤 5주마다 300 · 한 주 6일째 +15, 7일째 +30 (10/11 전은 7·15·30·90일) · 돈 기록 1 (월급 30)
 const PT_GOAL = 300, PT_SUB = 50, PT_TICKET = 1000;
+const sgn = (n) => (n > 0 ? "+" : "") + n;   // 포인트 +75 / 감점 -10
 function lottoOn() { return !!(S.settings.lotto && S.settings.lotto.on); }
 function isAdminDevice() { try { return localStorage.getItem("ukjin-admin") === "1"; } catch (e) { return false; } }
 function lottoVisible() { return lottoOn() || isAdminDevice(); }   // 쿠폰 목록 준비 끝나기 전에는 관리자 기기에서만 보임
@@ -1677,7 +1686,7 @@ function pointsLedger() {
     if (!m || !m.date) return; const x = at(m.date);
     if (m.kind === "income" && m.cat === "월급") { x.salary++; x.sum += 30; } else { x.money++; x.sum += 1; }
   });
-  praises().forEach((p) => { const s = praiseState(p); if (s.st !== "got") return; const x = at(s.day); x.sum += p.pts; x.lines.push(["👏", p.text || "칭찬", p.pts]); });
+  praises().forEach((p) => { const s = praiseState(p); if (s.st !== "got") return; const x = at(s.day); x.sum += p.pts; x.lines.push(p.pts < 0 ? ["😥", p.text || "감점", p.pts] : ["👏", p.text || "칭찬", p.pts]); });
   S.wins.forEach((w) => { if (w && w.game && w.game.pts > 0 && w.game.date) { const x = at(w.game.date); x.sum += w.game.pts; x.lines.push(["🎯", "타이밍 게임", w.game.pts]); } });
   S.goals.forEach((g) => {
     if (!g) return;
@@ -1792,13 +1801,13 @@ function renderPointsDlg(L) {
     `<div class="bar"><i style="width:${Math.round(prog / PT_TICKET * 100)}%;background:var(--sun)"></i></div>` +
     `<div class="small muted">다음 복권까지 <b>${PT_TICKET - prog}점</b>${earned - used > 0 ? ` · 긁을 복권 <b>${earned - used}장</b>` : ""}</div>`;
   const ds = Object.keys(L.day).filter((d) => L.day[d].sum).sort().reverse();
-  $("ptList").innerHTML = ds.length ? ds.map((d) => `<div class="pt-day"><span>${esc(shortDate(d))}</span><b>+${L.day[d].sum}</b><span>${L.day[d].lines.map((x) => `${x[0]} ${esc(x[1])} +${x[2]}`).join(" · ")}</span></div>`).join("")
+  $("ptList").innerHTML = ds.length ? ds.map((d) => `<div class="pt-day"><span>${esc(shortDate(d))}</span><b>${sgn(L.day[d].sum)}</b><span>${L.day[d].lines.map((x) => `${x[0]} ${esc(x[1])} ${sgn(x[2])}`).join(" · ")}</span></div>`).join("")
     : '<div class="small muted">아직 받은 포인트가 없어요.</div>';
 }
 function renderDayPts(d) {
   const sec = $("dayPtsSec"), x = lottoVisible() && pointsLedger().day[d];
   sec.hidden = !(x && x.sum);
-  if (x && x.sum) $("dayPts").innerHTML = x.lines.map((l) => `<div><span>${l[0]} ${esc(l[1])}</span><b>+${l[2]}</b></div>`).join("") + `<div><span><b style="color:var(--fg)">합계</b></span><b>+${x.sum}</b></div>`;
+  if (x && x.sum) $("dayPts").innerHTML = x.lines.map((l) => `<div><span>${l[0]} ${esc(l[1])}</span><b>${sgn(l[2])}</b></div>`).join("") + `<div><span><b style="color:var(--fg)">합계</b></span><b>${sgn(x.sum)}</b></div>`;
 }
 
 // ---------- 설명서: 사용 설명서 · 업데이트 내역, 새 버전이면 한 번 알려 주기 ----------
