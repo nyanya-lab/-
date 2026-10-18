@@ -244,6 +244,7 @@ button { cursor: pointer; }
 .day.has-money { padding-bottom: 20px; } .day.has-money2 { padding-bottom: 28px; }
 @media (max-width: 720px) { .day-money { display: none; } .day.has-money, .day.has-money2 { padding-bottom: 0; } .day.has-pts { padding-bottom: 14px; } }   /* 폰 칸은 💰·💸 아이콘으로 */
 .day-pts { position: absolute; right: 4px; bottom: 2px; font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; color: var(--sun); pointer-events: none; }
+.day-pts.neg { color: var(--danger); }   /* 😥 감점으로 그날 합이 − */
 .pts-toggle { font-size: 17px; } .pts-toggle.off { opacity: .35; filter: grayscale(1); }
 .pts-lines { display: grid; gap: 4px; font-size: 14px; }
 .pts-lines div { display: flex; justify-content: space-between; gap: 10px; }
