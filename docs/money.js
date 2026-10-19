@@ -597,7 +597,7 @@ function renderTx(m, r) {
 function txRow(x, ck, o = {}) {   // o.d = 이 자산 쪽에서 본 +/− (자산 화면), o.bal = 금액 밑 그때 잔액
         const kind = x.kind || "expense", n = x.pics && typeof x.pics === "object" ? Object.keys(x.pics).length : 0;
         const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
-        const cat = kind === "move" ? '<span class="muted">이체</span>' : `${x.cat ? catDot(kind, x.cat) + esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ' <span class="muted small">💝</span>' : ""}`;
+        const cat = kind === "move" ? '<span class="muted">이체</span>' : `${x.cat ? esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ' <span class="muted small">💝</span>' : ""}`;   // 표·목록 줄엔 색 동그라미 없이 (색은 원형·그 옆 목록·예산·설정에만)
         return `<div class="tx-row k-${kind}${ck ? "" : " no-ck"}${ui.mEdit === x.id ? " cur" : ""}${ck && txSel.has(x.id) ? " sel" : ""}" data-act="editMoney" data-id="${esc(x.id)}" role="button" tabindex="0">` +
           (ck ? `<label class="tx-ck" data-noedit><input type="checkbox" data-txck="${esc(x.id)}" ${txSel.has(x.id) ? "checked" : ""} aria-label="고르기"></label>` : "") +
           `<span class="tx-d mono">${shortDate(x.date)}</span><span class="tx-a">${where}</span><span class="tx-c">${cat}</span><span class="tx-s">${esc(x.sub || "")}</span>` +
@@ -634,7 +634,7 @@ function renderMCal(m, r) {
   $("mcDay").innerHTML = `<div class="mc-dh"><b>${shortDate(sel)}</b><button class="btn small" type="button" data-act="mcAdd">＋ 내역 추가</button></div>` +
     `<div class="mc-ds"><span>수입<b class="won plus">${won(dv.inc)}</b></span><span>지출<b class="won minus">${won(dv.out)}</b></span></div>` +
     `<div class="mc-list">${its.map((x) => { const k = x.kind || "expense";
-      return `<button type="button" class="mc-it" data-act="editMoney" data-id="${esc(x.id)}"><span class="c">${x.cat ? catDot(k, x.cat) + esc(x.cat) : esc(KIND_LABEL[k])}${x.sub ? ` <span class="muted small">· ${esc(x.sub)}</span>` : ""}${k === "transfer" ? " 💝" : ""}</span>` +
+      return `<button type="button" class="mc-it" data-act="editMoney" data-id="${esc(x.id)}"><span class="c">${x.cat ? esc(x.cat) : esc(KIND_LABEL[k])}${x.sub ? ` <span class="muted small">· ${esc(x.sub)}</span>` : ""}${k === "transfer" ? " 💝" : ""}</span>` +
         `<span class="a won ${k === "income" ? "plus" : k === "transfer" ? "give" : "minus"}">${k === "income" ? "+" : "-"}${amtText(x)}</span><span class="m">${esc([x.memo, acctName(x.account)].filter(Boolean).join(" · "))}${memoMarks({ ...x, sub: null })}</span></button>`; }).join("") ||
       '<p class="muted small" style="margin:0">이 날 기록이 없어요.</p>'}</div>`;
 }
