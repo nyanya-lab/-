@@ -134,6 +134,15 @@ button { cursor: pointer; }
 .nag-b { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .test-bar { position: sticky; top: 0; z-index: 25; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--sun-soft); border: 2px solid var(--sun); border-radius: 12px; padding: 8px 12px; margin-bottom: 12px; font-size: 14px; }
 .test-bar-btns { display: flex; gap: 6px; }
+/* ⏱ 타이머 띠 (재는 중 파랑 · 멈춤 흐리게 · 5시간 넘으면 빨강) */
+.timer-bar { background: var(--blue-soft); border-color: var(--blue); }
+.test-bar:not([hidden]) + .timer-bar { top: 58px; }
+.timer-bar.paused { background: var(--sunk); border-color: var(--line); }
+.timer-bar.warn { background: var(--coral-soft); border-color: var(--danger); }
+.timer-bar .tm-clock { font-family: var(--f-mono); font-weight: 700; font-size: 17px; margin-left: 8px; font-variant-numeric: tabular-nums; }
+.timer-bar .tm-warn { color: var(--danger); }
+.tm-go { color: var(--blue); font-size: 14px; }
+.tm-on { padding: 4px 8px; }
 .cp-ticket { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; background: var(--sun-soft); border-color: var(--sun); }
 .cp-ticket .ticket { width: 96px; height: 72px; }
 .cp-ticket .cp-n { font-size: 20px; font-weight: 700; }
