@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261019a";
-import { CHANGES } from "./changes.js?v=20261019a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261019a";
-import { firebaseConfig } from "./firebase-config.js?v=20261019a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261019b";
+import { CHANGES } from "./changes.js?v=20261019b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261019b";
+import { firebaseConfig } from "./firebase-config.js?v=20261019b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -514,6 +514,7 @@ function taskItem(x, day, upcoming, hideGoal) {
       : `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" data-day="${day}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>`) +
     `<div class="body" data-act="editTask" data-id="${esc(x.id)}" style="cursor:pointer" title="눌러서 편집"><div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
     `<div class="actions">` +
+    (canTime(x) && !done && day <= today() && (!isRep(x) || activeOn(x, day)) ? (timerNow() && timerNow().taskId === x.id ? '<span class="tm-on" title="타이머로 재는 중">⏱</span>' : `<button class="icon-btn tm-go" type="button" data-act="tmStart" data-id="${esc(x.id)}" title="타이머 시작" aria-label="${esc(x.title)} 타이머 시작">▶</button>`) : "") +
     `<button class="icon-btn" type="button" data-act="del" data-col="tasks" data-id="${esc(x.id)}">삭제</button></div></div>`;
 }
 function statTile(label, value, sub, cls, act) {
@@ -674,6 +675,62 @@ function recordTaskTime(x, taskId, day, min, msg) {
     await backend.add("logs", { date: day, minutes: min, text: x.title, goalId: x.goalId || null, taskId, createdAt: Date.now() });
   })(), msg).catch(() => {});
 }
+// ---------- ⏱ 할 일 타이머: settings.timer = { taskId, title, start(재는 중이면 시작 ms, 멈추면 null), acc(모은 ms) } ----------
+// 한 번에 하나. 보드에 저장해서 폰에서 시작하고 PC에서 끝내도 됨. [■ 끝] → 시간 확인(고칠 수 있음) → 그 할 일을 오늘 그 시간으로 체크 (그날 이미 기록한 시간에 더함)
+const TIMER_WARN = 5 * 3600e3;
+const timerNow = () => { const tm = S.settings.timer; return tm && tm.taskId ? tm : null; };
+const timerMs = (tm) => (Number(tm.acc) || 0) + (tm.start ? Math.max(0, Date.now() - tm.start) : 0);
+const fmtClock = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
+const canTime = (x) => x && !x.noPractice && !x.penId && !x.cardPay;   // 돈·벌칙·카드값 할 일은 타이머 없음
+function saveTimer(v, msg) { return act(backend.saveSettings({ timer: v }), msg).catch(() => {}); }
+function timerStart(id) {
+  const x = S.tasks.get(id); if (!canTime(x) || !ready()) return;
+  const tm = timerNow();
+  if (tm && tm.taskId === id) { if (!tm.start) saveTimer({ ...tm, start: Date.now() }, "▶ 다시 재요."); else toast("이미 재고 있어요. 맨 위 띠를 봐요."); return; }
+  if (tm) { toast(`지금 '${tm.title}' 타이머가 돌고 있어요. 먼저 끝내 주세요.`); openTimerEnd(); return; }
+  closeDlg($("taskDlg"));
+  saveTimer({ taskId: id, title: x.title || "할 일", start: Date.now(), acc: 0 }, `⏱ '${x.title}' 시작! 맨 위 띠에서 멈추거나 끝내요.`);
+}
+function renderTimerBar() {
+  const tm = timerNow(), bar = $("timerBar");
+  bar.hidden = !tm || APP === "money"; if (bar.hidden) { bar.dataset.k = ""; return; }
+  const ms = timerMs(tm), warn = ms > TIMER_WARN, k = `${tm.taskId}|${tm.start ? 1 : 0}|${warn ? 1 : 0}|${tm.title}`;
+  if (bar.dataset.k !== k) {   // 1초마다는 시계 글자만 바꿈
+    bar.dataset.k = k; bar.classList.toggle("warn", warn); bar.classList.toggle("paused", !tm.start);
+    bar.innerHTML = `<span>⏱ <b>${esc(tm.title)}</b><span class="tm-clock" id="tmClock"></span>${tm.start ? "" : ' <span class="muted small">멈춤</span>'}${warn ? ' <span class="small tm-warn">· 5시간이 넘었어요. 끄는 걸 잊었나요?</span>' : ""}</span>` +
+      `<span class="test-bar-btns">${tm.start ? '<button class="btn small ghost" type="button" data-act="tmPause">⏸ 멈춤</button>' : '<button class="btn small ghost" type="button" data-act="tmResume">▶ 다시</button>'}<button class="btn small" type="button" data-act="tmEnd">■ 끝</button></span>`;
+  }
+  $("tmClock").textContent = fmtClock(ms);
+}
+setInterval(() => { if (timerNow()) renderTimerBar(); }, 1000);
+function openTimerEnd() {
+  const tm = timerNow(); if (!tm) return;
+  const ms = timerMs(tm), min = Math.max(1, Math.round(ms / 60000));
+  $("mvTitle").textContent = `⏱ '${tm.title}' 끝!`;
+  $("mvText").innerHTML = `<p><b>${fmtClock(ms)}</b> 했어요. 실제로 한 시간과 다르면 고쳐 주세요.</p>` +
+    (ms > TIMER_WARN ? '<p class="small" style="color:var(--danger);margin:0">5시간이 넘었어요. 끄는 걸 잊었으면 실제로 한 시간으로 고쳐 주세요.</p>' : "") +
+    `<div class="hm"><input type="number" id="tmH" min="0" max="99" step="1" inputmode="numeric" value="${Math.floor(min / 60)}" aria-label="시간"><span>시간</span><input type="number" id="tmM" min="0" max="59" step="1" inputmode="numeric" value="${min % 60}" aria-label="분"><span>분</span></div>` +
+    `<p class="small muted" style="margin:0">[기록하고 체크]를 누르면 '${esc(tm.title)}'이(가) 오늘 이 시간으로 체크돼요 (🔥 실천 · ⭐ 포인트).</p>`;
+  $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="tmSave">기록하고 체크</button><button class="btn ghost" type="button" data-act="mvClose">더 할래요</button><button class="btn ghost danger-txt" type="button" data-act="tmDrop">버리기</button>';
+  openDlg($("moveDlg"));
+}
+function timerSave() {
+  const tm = timerNow(); if (!tm || !ready()) return;
+  const min = (parseInt($("tmH").value, 10) || 0) * 60 + (parseInt($("tmM").value, 10) || 0);
+  if (!(min > 0)) { toast("시간을 넣어 주세요."); return; }
+  closeDlg($("moveDlg"));
+  const x = S.tasks.get(tm.taskId), id = tm.taskId, t = today();
+  if (!x) { saveTimer(null, "할 일이 지워져서 타이머만 껐어요."); return; }
+  const was = isDone(x, t), day = !isRep(x) && was && x.doneDate ? x.doneDate : t, prevMin = was ? taskMinutes(id, day) : 0;
+  act((async () => {
+    if (!was) await backend.update("tasks", id, isRep(x) ? { doneDates: { [t]: true } }
+      : x.date && x.date !== t ? { date: t, done: true, doneDate: t, [x.date < t ? "lateFrom" : "earlyFrom"]: x.date } : { done: true, doneDate: t });
+    for (const l of taskLogs(id, day)) await backend.remove("logs", l.id);
+    await backend.add("logs", { date: day, minutes: prevMin + min, text: x.title, goalId: x.goalId || null, taskId: id, createdAt: Date.now() });
+    await backend.saveSettings({ timer: null });
+  })(), `⏱ ${fmtMin(min)} 기록하고 '${x.title}' 체크했어요. 🔥`).catch(() => {});
+}
+
 // 시간 입력: 숨은 칸(id)에 총 분, 보이는 칸은 [시간][분] (data-hm="id")
 // 빠른 버튼 (data-min-for="id"): ＋30분은 더하기, 나머지는 그 시간으로 (한 번 더 누르면 지움)
 const MIN_QUICK = [60, 90, 120];
@@ -1902,6 +1959,7 @@ function delLog(id) {
 const tk = { id: null, rep: "none", days: new Set(), times: 3 };
 function openTask(id) {
   const x = S.tasks.get(id); if (!x) return;
+  $("tkTimer").hidden = !canTime(x);
   tk.id = id; tk.rep = isRep(x) ? x.repeat : "none"; tk.days = new Set(x.days || [parseYmd(x.start || x.date || today()).getDay()]); tk.times = nweekNeed({ times: x.times || 3 });
   $("tkTitle").value = x.title || "";
   $("tkDate").value = (isRep(x) ? x.start : x.date) || today();
@@ -2247,7 +2305,7 @@ async function loadBackups() {
 
 let newsChecked = false;
 function render() {
-  refreshGoalColors(); renderHeader(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
+  refreshGoalColors(); renderHeader(); renderTimerBar(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons();
   // 저절로 고치는 일들(벌칙·돈 할 일·카드값·줄 돈): 관리자 기기가 테스트 모드로 바뀌기 직전엔 진짜 보드에 쓰지 않게 건너뜀
   if (!(APP === "board" && !testMode && isAdminDevice() && !sessionReal())) { sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); }
@@ -2455,6 +2513,16 @@ document.addEventListener("click", (ev) => {
     closeDlg($("logDlg")); delLog(logFor); logFor = null; return;
   }
   if (a === "mvDo") { doMove(el.dataset.k); return; }
+  if (a === "tmStart") { timerStart(id); return; }
+  if (a === "tmStartDlg") { timerStart(tk.id); return; }
+  if (a === "tmPause") { const tm = timerNow(); if (tm && tm.start && ready()) saveTimer({ ...tm, acc: timerMs(tm), start: null }, "⏸ 멈췄어요. [▶ 다시]로 이어서 재요."); return; }
+  if (a === "tmResume") { const tm = timerNow(); if (tm && !tm.start && ready()) saveTimer({ ...tm, start: Date.now() }, "▶ 다시 재요."); return; }
+  if (a === "tmEnd") { openTimerEnd(); return; }
+  if (a === "tmSave") { timerSave(); return; }
+  if (a === "tmDrop") {
+    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.textContent = "정말 버릴까요?"; return; }
+    closeDlg($("moveDlg")); saveTimer(null, "타이머를 기록 없이 껐어요."); return;
+  }
   if (a === "addMin") { const k = el.dataset.for; setMinInput(k, (parseInt($(k).value, 10) || 0) + 30); return; }
   if (a === "setMin") { const k = el.dataset.for, m = +el.dataset.m; setMinInput(k, (parseInt($(k).value, 10) || 0) === m ? "" : m); return; }
   if (a === "gtClose") { gt.open = null; renderGoalDlg(); return; }
