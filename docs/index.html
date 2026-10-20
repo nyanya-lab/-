@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261019b">
+<link rel="stylesheet" href="style.css?v=20261020a">
 </head>
 <body>
 
@@ -41,6 +41,7 @@
       <a href="#calendar"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></a>
       <a href="#goals"><svg viewBox="0 0 24 24"><path d="M5 21V4h11l-1.8 3.8L16 12H5"/></svg><span>목표</span></a>
       <a href="#money" id="navMoney"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg><span>돈 관리</span></a>
+      <a href="#uri"><svg viewBox="0 0 24 24"><circle cx="8.5" cy="8" r="3"/><circle cx="15.5" cy="8" r="3"/><path d="M3 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5M10 19c0-3 2.5-5 5.5-5S21 16 21 19"/></svg><span>우리</span></a>
       <a href="#money" class="only-money m-nav" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></a>
       <a href="#money" class="only-money m-nav" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></a>
       <a href="#money" class="only-money m-nav" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></a>
@@ -138,6 +139,13 @@
     </section>
 
     <!-- 목표 -->
+    <section class="page" data-page="uri" hidden>
+      <div class="page-head">
+        <div><h2>🤝 우리</h2><p>냐냐와 같이 보는 공간이에요. 공통비용을 적으면 냐냐 보드에도 똑같이 보여요.</p></div>
+      </div>
+      <div id="uriRoot"></div>
+    </section>
+
     <section class="page" data-page="goals" hidden>
       <div class="page-head">
         <div><h2>목표</h2><p>시험일을 넣으면 D-day가 떠요. 자격증은 <a href="#certs">자격증 찾기</a>에서 바로 목표로 넣을 수 있어요.</p></div>
@@ -388,7 +396,7 @@
         <input type="search" id="helpQ" class="help-q" placeholder="🔍 설명서 검색 (예: 카드값, 쿠폰, 연속)" aria-label="설명서 검색" autocomplete="off">
         <p class="empty" id="helpNone" hidden></p>
         <div class="help-topics" id="helpTopics" role="tablist" aria-label="설명서 주제">
-          <button type="button" data-act="helpTopic" data-k="start">🚀 시작</button><button type="button" data-act="helpTopic" data-k="cal">📅 달력</button><button type="button" data-act="helpTopic" data-k="todo">✅ 할 일·실천</button><button type="button" data-act="helpTopic" data-k="goal">🎯 목표</button><button type="button" data-act="helpTopic" data-k="money">💰 가계부</button><button type="button" data-act="helpTopic" data-k="lotto" id="helpLottoBtn">🎟️ 복권</button><button type="button" data-act="helpTopic" data-k="etc">🔧 구글·문제 해결</button>
+          <button type="button" data-act="helpTopic" data-k="start">🚀 시작</button><button type="button" data-act="helpTopic" data-k="cal">📅 달력</button><button type="button" data-act="helpTopic" data-k="todo">✅ 할 일·실천</button><button type="button" data-act="helpTopic" data-k="goal">🎯 목표</button><button type="button" data-act="helpTopic" data-k="money">💰 가계부</button><button type="button" data-act="helpTopic" data-k="uri">🤝 우리</button><button type="button" data-act="helpTopic" data-k="lotto" id="helpLottoBtn">🎟️ 복권</button><button type="button" data-act="helpTopic" data-k="etc">🔧 구글·문제 해결</button>
         </div>
         <div data-help="start">
         <h3>처음 열 때</h3>
@@ -474,6 +482,17 @@
           <li>가계부 메뉴 <b>⚙ 설정</b>에서 지출·수입·보낸 돈 <b>분류</b>와 분류마다 <b>소분류</b>(예: 식비 → 점심·저녁·간식), <b>화폐</b>를 더하거나 지울 수 있어요. 기록할 땐 소분류를 골라서 써요 (고르는 칸 맨 끝 '＋ 소분류 추가'로 바로 더해도 돼요). 🎨 분류 앞 <b>동그라미</b>를 누를 때마다 색이 바뀌어요. 🥧 예산의 원형은 <b>예산</b>, 지출의 원형은 <b>실제로 쓴 돈</b>이에요.</li>
           <li>달력의 <b>🗓️ 이번 달 예산 입력하기</b>(1일) · <b>💰 이번 달 수입 입력하기</b>(15일) 할 일은 누르면 가계부의 입력 칸으로 가요. 입력하면 <code>🗓️ 10월 예산 760,000원</code> · <code>💰 10월 월급 2,600,000원</code>으로 바뀌며 저절로 체크돼요 (시간은 안 붙어요).</li>
           <li>1일부터 이번 달 예산이 아직 없으면 맨 위에 <b>🗓️ 알림</b>이 떠요 ([지난달 그대로 쓸게요]나 예산을 고치면 사라져요). 15일부터 이번 달 수입이 아직 없으면 <b>💰 알림</b>이 떠요.</li>
+        </ul>
+        </div>
+        <div data-help="uri" hidden>
+        <h3>🤝 우리 (공통비용)</h3>
+        <ul>
+          <li>메뉴 <b>우리</b>는 냐냐와 같이 쓰는 공간이에요. 여기 적은 건 냐냐 보드에도 똑같이 보여요.</li>
+          <li>처음 한 번은 냐냐와 정한 <b>공통 비밀번호</b>를 넣어요. 이 보드 비밀번호와는 따로예요.</li>
+          <li><b>＋ 공통비용 적기</b>: 날짜 · 내용 · 금액 · 분류 · 낸 사람(냐냐 · 욱진 · 공동 통장)을 고르고 [추가].</li>
+          <li>위 칸에서 이번 달 합계, 각자 낸 돈, <b>반반 정산</b>(누가 누구에게 얼마 주면 반반인지)을 봐요. 공동 통장으로 낸 돈은 정산에서 빼요.</li>
+          <li>내역의 ✎로 고치고 ×로 지워요. 지우면 냐냐 보드에서도 지워져요.</li>
+          <li>공통비용은 💰 가계부와 따로예요. 내 지출은 가계부에도 따로 적어요.</li>
         </ul>
         </div>
         <div data-help="etc" hidden>
@@ -804,6 +823,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261019b"></script>
+<script type="module" src="app.js?v=20261020a"></script>
 </body>
 </html>
