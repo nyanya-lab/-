@@ -187,6 +187,71 @@ export function syncGive() {
     await E.backend.saveSettingsDeep({ autoTasks: { [id]: true } });
   }).catch(() => {}).finally(() => { giveSyncing = false; });
 }
+// 🔁 매월 반복 (냐냐 가계부 repeat.js를 욱진 보드에 맞게 옮김): settings.moneyRepeat/{id} = { kind expense|income, amount, account, cat, sub, memo, day 1~31, from "YYYY-MM", at, made{YYYY-MM: true} }
+// 가계부를 열 때(욱진이 기기, 테스트 모드 아님) 규칙마다 from 달부터 이번 달까지, 그 달 day일(짧은 달은 말일)이 오늘이거나 지났고 made에 없으면
+// money/rp-{id}-{YYYYMM} 기록 + made 표시. 지운 기록은 다시 안 생기고, 기기 여러 대여도 같은 id라 안 겹침. [그만하기] = 규칙만 지움, 생긴 기록은 남음
+export let repeatSyncing = false;
+const repeatRules = () => Object.entries(S.settings.moneyRepeat || {}).filter(([, r]) => r && r.amount && r.from && r.account);
+export function syncRepeat() {
+  if (repeatSyncing || !E.backend || !S.loaded || E.testMode) return;
+  const t = today(), tm = t.slice(0, 7), jobs = [], made = {};
+  repeatRules().forEach(([id, r]) => {
+    for (let m = r.from, n = 0; m <= tm && n < 240; m = shiftMonth(m, 1), n++) {
+      if (r.made && r.made[m]) continue;
+      const date = dayInMonth(m, Math.max(1, r.day | 0)), mid = `rp-${id}-${m.replace("-", "")}`;
+      if (date > t) continue;
+      (made[id] ||= {})[m] = true;
+      if (S.money.has(mid)) continue;   // 다른 기기가 먼저 넣었으면 표시만
+      jobs.push(() => E.backend.set("money", mid, { kind: r.kind === "income" ? "income" : "expense", amount: Number(r.amount), date, account: r.account,
+        cat: r.cat || "기타", sub: r.sub || null, memo: r.memo || "", note: null, repeat: id, createdAt: Date.now() }));
+    }
+  });
+  if (!Object.keys(made).length) return;
+  repeatSyncing = true;
+  const n = jobs.length, patch = {}; Object.entries(made).forEach(([id, ms]) => { patch[id] = { made: ms }; });
+  quietly(async () => { for (const j of jobs) await j(); await E.backend.saveSettingsDeep({ moneyRepeat: patch }); })
+    .then(() => { if (n) toast(`🔁 매월 반복 기록 ${n}건을 넣었어요.`); }).catch(() => {}).finally(() => { repeatSyncing = false; });
+}
+const rpf = { kind: "expense", amount: "", day: "", account: "", cat: "", sub: "", memo: "", from: "" };
+function renderRepeat() {
+  const root = $("repeatPanel"); if (!root) return;
+  if (root.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName)) return;   // 고르는 중엔 다시 안 그림
+  const f = rpf, rules = repeatRules().sort((a, b) => (a[1].day || 0) - (b[1].day || 0));
+  const accts = sortedAccts().filter((a) => !a.hidden && !(f.kind === "income" && a.type === "card"));
+  const cats = moneyCats(f.kind), subs = f.cat ? subsOf(f.kind, f.cat) : [];
+  if (!f.from) f.from = today().slice(0, 7);
+  root.innerHTML = `<div class="panel-head"><div><h3>🔁 매월 반복</h3><span class="muted small">보험료·월세·구독료처럼 매달 같은 날 나가는 돈. 그날이 되면 가계부를 열 때 기록이 저절로 생겨요 (생긴 기록은 내역에서 고치거나 지울 수 있어요).</span></div></div>
+    <div class="rp-list">${rules.length ? rules.map(([id, r]) => `<div class="rp-row">
+        <span><b>매월 ${r.day}일</b> · ${esc(acctName(r.account))} · ${esc(r.cat || "기타")}${r.sub ? " / " + esc(r.sub) : ""}${r.memo ? ` <span class="muted">${esc(r.memo)}</span>` : ""}</span>
+        <b class="won ${r.kind === "income" ? "plus" : "minus"}">${r.kind === "income" ? "+" : "-"}${won(r.amount)}</b>
+        <span class="small muted">${esc(r.from.replace("-", "."))}부터</span>
+        <button class="btn ghost small" type="button" data-act="rpDel" data-id="${esc(id)}">그만하기</button></div>`).join("") : '<p class="muted small" style="margin:0">아직 반복이 없어요.</p>'}</div>
+    <div class="rp-form">
+      <select data-rp="kind" aria-label="수입/지출"><option value="expense"${f.kind === "expense" ? " selected" : ""}>지출</option><option value="income"${f.kind === "income" ? " selected" : ""}>수입</option></select>
+      <input type="text" class="amt-in" inputmode="numeric" data-rp="amount" placeholder="금액" aria-label="금액" value="${esc(f.amount)}">
+      <label class="rp-day">매월 <input type="number" min="1" max="31" data-rp="day" value="${esc(f.day)}" aria-label="며칠"> 일</label>
+      <select data-rp="account" aria-label="자산"><option value="">자산 고르기</option>${accts.map((a) => `<option value="${esc(a.id)}"${a.id === f.account ? " selected" : ""}>${esc(a.name)}</option>`).join("")}</select>
+      <select data-rp="cat" aria-label="분류"><option value="">분류 고르기</option>${cats.map((c) => `<option${c === f.cat ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+      <select data-rp="sub" aria-label="소분류"${subs.length ? "" : " disabled"}><option value="">소분류 없음</option>${subs.map((s) => `<option${s === f.sub ? " selected" : ""}>${esc(s)}</option>`).join("")}</select>
+      <input type="text" data-rp="memo" placeholder="내용 (선택)" aria-label="내용" maxlength="40" value="${esc(f.memo)}">
+      <label class="rp-day">시작 <input type="month" data-rp="from" value="${esc(f.from)}" aria-label="시작 달"></label>
+      <button class="btn" type="button" data-act="rpAdd">＋ 반복 추가</button>
+    </div>`;
+}
+function rpAdd() {
+  if (!ready()) return;
+  const f = rpf, amount = amtVal({ value: f.amount }), day = parseInt(f.day, 10) || 0;
+  if (!amount) { toast("금액을 넣어 주세요."); return; }
+  if (day < 1 || day > 31) { toast("매월 며칠인지 넣어 주세요 (1~31)."); return; }
+  if (!f.account) { toast("자산을 골라 주세요."); return; }
+  if (!f.cat) { toast("분류를 골라 주세요."); return; }
+  if (!/^\d{4}-\d{2}$/.test(f.from)) { toast("시작 달을 골라 주세요."); return; }
+  const rule = { kind: f.kind, amount, day, account: f.account, cat: f.cat, sub: f.sub || null, memo: f.memo.trim(), from: f.from, at: Date.now() };
+  const first = dayInMonth(f.from, day) <= today() ? ` ${f.from.replace("-", "년 ")}월부터 오늘까지 기록도 바로 생겨요.` : "";
+  if (!confirm(`매월 ${day}일 ${won(amount)} ${f.kind === "income" ? "수입" : "지출"}을 반복할까요?${first}`)) return;
+  act(E.backend.saveSettingsDeep({ moneyRepeat: { [rid()]: rule } }), "🔁 반복을 추가했어요.").then(() => { Object.assign(rpf, { amount: "", day: "", memo: "", sub: "" }); renderRepeat(); syncRepeat(); }).catch(() => {});
+}
+
 // 💳 카드값 결제 확인 창: 할 일 '카드값 이체하기' 체크, 또는 자산 탭 카드의 [결제]
 // 금액(미리 계산, 고칠 수 있음) · 날짜 · 빠지는 통장을 확인하고 [이체 기록하기]를 눌러야 '통장 → 카드' 이체로 기록 (자동으로 안 넣음)
 // 할 일에서 왔거나 그 결제의 할 일이 아직이면 같은 id(cp-카드-월)로 기록하고 할 일도 체크
@@ -371,6 +436,7 @@ export function renderMTabs() {
   // 맨 위 달 넘기기는 예산 탭만 (내역·달력·자산·통계는 자기 칸에 따로), 맨 위 요약 4칸은 관리자 보드만 (내역 탭에 요약 칸이 있어서)
   document.querySelector("#moneyPage .month-nav").hidden = !adm && tab !== "budget"; $("moneyStats").hidden = !adm;
   if (tab === "settings" && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
+  if (tab === "settings") renderRepeat();
 }
 export function renderMoney() {
   const m = ui.month, r = monthTotals(m), bal = balances(), adm = moneyAdminView();
@@ -1102,6 +1168,18 @@ export function initMoney() {
     list.push(v); saveCats(k, list);
   });
 
+  // 🔁 매월 반복 칸 입력
+  $("repeatPanel").addEventListener("input", (ev) => {
+    const k = ev.target.dataset.rp; if (!k) return;
+    if (k === "amount") { rpf.amount = commaNum(ev.target.value); ev.target.value = rpf.amount; }
+    else if (k === "day" || k === "memo" || k === "from") rpf[k] = ev.target.value;
+  });
+  $("repeatPanel").addEventListener("change", (ev) => {
+    const k = ev.target.dataset.rp; if (!k || !/^(kind|account|cat|sub)$/.test(k)) return;
+    rpf[k] = ev.target.value;
+    if (k === "kind") { rpf.cat = ""; rpf.sub = ""; } if (k === "cat") rpf.sub = "";
+    ev.target.blur(); renderRepeat();
+  });
   $("curEditor").addEventListener("submit", (ev) => {
     ev.preventDefault();
     const v = (ev.target.querySelector("input").value || "").trim().slice(0, 8); if (!v) return;
@@ -1193,6 +1271,12 @@ export function moneyAction(a, el, id, t) {
     return true;
   }
   if (a === "editCats") { closeDrawer(); setMTab("settings"); return true; }
+  if (a === "rpAdd") { rpAdd(); return true; }
+  if (a === "rpDel") {
+    if (!ready() || !confirm("이 반복을 그만할까요? 이미 생긴 기록은 그대로 남아요.")) return true;
+    act(E.backend.saveSettingsDeep({ moneyRepeat: { [id]: null } }), "🔁 반복을 그만했어요.").then(renderRepeat).catch(() => {});
+    return true;
+  }
   if (a === "subDel") { const k = el.dataset.k, cat = moneyCats(k)[+el.dataset.i]; if (cat == null) return true; const list = subsOf(k, cat), v = list[+el.dataset.j]; list.splice(+el.dataset.j, 1); saveSubs(k, cat, list, `'${v}' 소분류를 뺐어요.`); return true; }
   if (a === "curDel") { const list = currencies().slice(1), v = list[+el.dataset.i - 1]; list.splice(+el.dataset.i - 1, 1); saveCurs(list, `'${v}'을 화폐에서 뺐어요.`); return true; }
   if (a === "catColor") {
