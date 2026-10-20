@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261019b";
-import { CHANGES } from "./changes.js?v=20261019b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261019b";
-import { firebaseConfig } from "./firebase-config.js?v=20261019b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261020a";
+import { CHANGES } from "./changes.js?v=20261020a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261020a";
+import { firebaseConfig } from "./firebase-config.js?v=20261020a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2325,7 +2325,7 @@ function render() {
 }
 
 // ---------- 동작 ----------
-const PAGES = ["calendar", "goals", "money", "certs", "requests", "help", "coupons", "lotto"];
+const PAGES = ["calendar", "goals", "money", "uri", "certs", "requests", "help", "coupons", "lotto"];
 function route() {
   const h = location.hash.slice(1); ui.page = APP === "money" ? "money" : PAGES.includes(h) ? h : "calendar"; if (ui.page === "coupons" && S.loaded && !lottoVisible()) ui.page = "calendar";
   if (ui.page === "lotto" && !isAdminDevice()) ui.page = "calendar";   // 복권 관리는 관리자 기기만
@@ -2333,7 +2333,21 @@ function route() {
   if (ui.page === "requests" && isAdminDevice()) lsSet("ukjin-req-seen", Date.now());
   if (ui.page === "lotto" && couponReqs().some((r) => (r.status || "new") === "new" && r.at > lsGet("ukjin-creq-seen"))) lsSet("ukjin-la-tab", "reqs");   // 새 요청이 있으면 요청 탭부터
   if (ui.page === "lotto" && laTab() === "reqs") markCreqSeen();
+  if (ui.page === "uri") mountUriTab();
   renderHeader(); renderLottoAdmin(); renderCoupons(); renderCouponReqs(); renderRequests(); renderAdminN(); window.scrollTo(0, 0);
+}
+
+// 🤝 우리 탭: 냐냐 보드 저장소의 uri/uri.js(두 보드가 같이 쓰는 코드)를 처음 열 때 불러옴. 저장도 공통 저장소(uri-board)에 따로.
+// ?v=는 10분 단위라 냐냐 보드에서 uri.js를 고치면 늦어도 10분쯤 뒤 여기도 바뀜. 관리자 기기(냐냐)에서 적으면 '냐냐'로 기록
+const URI_JS = "https://nyanya-lab.github.io/nyanya-board/uri/uri.js?v=" + Math.floor(Date.now() / 600000);
+let uriMounted = false;
+function mountUriTab() {
+  if (uriMounted) return;
+  uriMounted = true;
+  import(URI_JS).then((m) => m.mountUri($("uriRoot"), { who: isAdminDevice() ? "nyanya" : "ukjin", toast }), () => {
+    uriMounted = false;
+    $("uriRoot").innerHTML = `<p class="muted">우리 탭을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 열어 주세요.</p>`;
+  });
 }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
