@@ -592,6 +592,14 @@ table.bulk { border-collapse: collapse; width: 100%; min-width: 1060px; font-siz
   .m-fabs { right: 16px; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
   .dlg.bulk-dlg { width: 100vw; max-height: 100dvh; height: 100dvh; margin: 0; border-radius: 0; }
 }
+/* 🔁 매월 반복 */
+.rp-list { display: grid; gap: 6px; }
+.rp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--sunk); font-size: 14px; }
+.rp-form { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-top: 10px; font-size: 14px; }
+.rp-form > select, .rp-form > input { min-width: 0; flex: 1 1 120px; width: auto; }
+.rp-form .rp-day { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.rp-form .rp-day input[type=number] { width: 64px; }
+@media (max-width: 720px) { .rp-row { grid-template-columns: minmax(0, 1fr) auto; } .rp-form > select, .rp-form > input { flex-basis: 45%; } }
 /* 📅 가계부 달력 */
 .mc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
 .mc-sum { grid-template-columns: repeat(3, minmax(0, 1fr)); }
