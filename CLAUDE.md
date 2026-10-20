@@ -21,6 +21,7 @@
 docs/index.html        화면 마크업 + 작은 창(dialog)들
 docs/style.css         색 토큰(밝은 타일 색: 파랑·코랄·민트·노랑·보라), 다크 모드
 docs/app.js            보드 화면 로직 (상태 S, 저장소 backend, render 함수들, 시작할 때 money.js에 bindMoney(env)로 공통 함수 넘김)
+docs/range.js          📅 기간 고르기 창 (냐냐 가계부와 같은 파일을 복사, CSS 안에 있음 rg-). 내역 탭 달 이름·[이번 달] → ui.txRange (txPick·txShift)
 docs/money.js          💰 돈 관리(가계부) 코드: 예산·지출·자산·분류 색·원형·카드값·줄 돈 자동·연습 데이터 (app.js가 import, 바뀌는 값은 E.backend·E.testMode)
 docs/money.html        가계부 짧은 주소 → index.html?app=money (가계부 모드, money.webmanifest)
 docs/firebase-config.js  Firebase 웹 설정 (공개돼도 되는 값)
