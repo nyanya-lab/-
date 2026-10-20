@@ -66,6 +66,7 @@ docs/manifest.webmanifest, *.png  홈 화면 앱 아이콘
 
 ## 🤝 우리 탭 (냐냐 보드와 같이 쓰는 공간)
 
+- 우리 탭 업데이트 내역은 냐냐 보드 `docs/uri/changes.js`(`URI_CHANGES`)에 적음 → `app.js` `mergeChanges`가 열 때 받아서 `CHANGES`에 섞음(5초 안에 못 받으면 빼고). 새 버전 알림은 그걸 받은 뒤에 확인(`uriNewsReady`).
 - 코드는 **냐냐 보드 저장소**(`../nyanya-board/docs/uri/uri.js`)에 있고, 여기선 `app.js`의 `mountUriTab`이 `https://nyanya-lab.github.io/nyanya-board/uri/uri.js?v=(10분 단위)`를 처음 열 때 불러와 `#uriRoot`에 그림. 우리 탭 화면을 고치려면 냐냐 보드 쪽 uri.js를 고치기 (두 보드 다 적용).
 - 저장은 이 보드 Firebase와 **따로**: 공통 저장소 `uri-board`의 `uri/{SHA-256("uri-board:"+공통 비밀번호)}`. 공통 비밀번호는 `localStorage["uri-board-pw"]`.
 - `who` = 관리자 기기면 "nyanya", 아니면 "ukjin" (적은 사람·기본 '낸 사람'). 🧪 테스트 모드여도 우리 탭은 진짜 공통 저장소에 저장됨.

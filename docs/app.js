@@ -1,7 +1,7 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261020a";
-import { CHANGES } from "./changes.js?v=20261020a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261020a";
-import { firebaseConfig } from "./firebase-config.js?v=20261020a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261020b";
+import { CHANGES } from "./changes.js?v=20261020b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks } from "./money.js?v=20261020b";
+import { firebaseConfig } from "./firebase-config.js?v=20261020b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1924,6 +1924,24 @@ function helpSearch(lv) {
   CSS.highlights.set("help-hit", new Highlight(...ranges));
 }
 function markNewsSeen() { try { localStorage.setItem(NEWS_KEY, CHANGES[0].date + "#" + CHANGES[0].items.length); } catch (e) { /* 무시 */ } renderHelp(); }
+// 🤝 우리 탭 업데이트 내역: 냐냐 보드의 uri/changes.js(URI_CHANGES)를 이 목록(CHANGES)에 날짜별로 섞음 (같은 날이면 맨 앞에)
+// → 냐냐 보드에서 우리 탭을 고치고 거기에 한 줄 적으면 여기도 새 버전 알림이 떠요. 못 받아오면(5초) 이 보드 것만 보여 줌
+let uriNewsReady = false;
+function mergeChanges(list) {
+  for (const c of list || []) {
+    if (!c || !c.date || !Array.isArray(c.items) || !c.items.length) continue;
+    const g = CHANGES.find((x) => x.date === c.date);
+    if (g) g.items.unshift(...c.items.map(String)); else CHANGES.push({ date: c.date, items: c.items.map(String) });
+  }
+  CHANGES.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}
+Promise.race([
+  import("https://nyanya-lab.github.io/nyanya-board/uri/changes.js?v=" + Math.floor(Date.now() / 600000)).then((m) => mergeChanges(m.URI_CHANGES)),
+  new Promise((r) => setTimeout(r, 5000))
+]).catch(() => {}).finally(() => {
+  uriNewsReady = true; renderHelp();
+  if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
+});
 function maybeShowNews() {
   if (!hasNews()) return;
   // 처음 여는 기기는 가장 최근 묶음만, 아니면 못 본 것 (최대 3일치, 같은 날은 새로 더한 줄만)
@@ -2320,7 +2338,7 @@ function render() {
   }
   if (APP === "board" && S.loaded && !testMode && !autoTestDone && isAdminDevice() && backend && !sessionReal()) { autoTestDone = true; setTimeout(toggleTestMode, 0); }   // 관리자 기기는 처음부터 테스트 모드
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
-  if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
+  if (S.loaded && uriNewsReady && !newsChecked) { newsChecked = true; maybeShowNews(); }   // 우리 탭 내역까지 받은 뒤에
   if ($("settingsDlg").open) renderGcalBox();
 }
 
