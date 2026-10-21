@@ -1122,3 +1122,6 @@ tr.clickable:hover td { background: var(--sunk); }
 @media (max-width: 720px) {   /* 폰: 원형이 줄어드는 만큼 이름표 글자를 키움 */
   .pie2 .pl-n { font-size: 17px; } .pie2 .pl-p { font-size: 15px; } .pie2 .pc-l { font-size: 26px; } .pie2 .pc-v { font-size: 17px; }
 }
+/* 가계부 모드: '💰 가계부' 제목·설명 줄 숨김 (예산 탭 달 넘기기는 오른쪽에 남김, 관리자 보드 '예산' 제목은 그대로) */
+.app-money #moneyPage .page-head > div:first-child { display: none; }
+.app-money #moneyPage .page-head { justify-content: flex-end; }
