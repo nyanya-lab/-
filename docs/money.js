@@ -189,11 +189,11 @@ export function syncGive() {
     await E.backend.saveSettingsDeep({ autoTasks: { [id]: true } });
   }).catch(() => {}).finally(() => { giveSyncing = false; });
 }
-// 🔁 매월 반복 (냐냐 가계부 repeat.js를 욱진 보드에 맞게 옮김): settings.moneyRepeat/{id} = { kind expense|income, amount, account, cat, sub, memo, day 1~31, from "YYYY-MM", at, made{YYYY-MM: true} }
+// 🔁 매월 반복 (냐냐 가계부 repeat.js를 욱진 보드에 맞게 옮김): settings.moneyRepeat/{id} = { kind expense|income|move(이체), amount(마이너스 = 환불처럼, 이체는 플러스만), account, toAccount(이체만), cat, sub, memo, day 1~31, from "YYYY-MM", at, made{YYYY-MM: true} }
 // 가계부를 열 때(욱진이 기기, 테스트 모드 아님) 규칙마다 from 달부터 이번 달까지, 그 달 day일(짧은 달은 말일)이 오늘이거나 지났고 made에 없으면
 // money/rp-{id}-{YYYYMM} 기록 + made 표시. 지운 기록은 다시 안 생기고, 기기 여러 대여도 같은 id라 안 겹침. [그만하기] = 규칙만 지움, 생긴 기록은 남음
 export let repeatSyncing = false;
-const repeatRules = () => Object.entries(S.settings.moneyRepeat || {}).filter(([, r]) => r && r.amount && r.from && r.account);
+const repeatRules = () => Object.entries(S.settings.moneyRepeat || {}).filter(([, r]) => r && r.amount && r.from && r.account && (r.kind !== "move" || r.toAccount));
 export function syncRepeat() {
   if (repeatSyncing || !E.backend || !S.loaded || E.testMode) return;
   const t = today(), tm = t.slice(0, 7), jobs = [], made = {};
@@ -204,8 +204,9 @@ export function syncRepeat() {
       if (date > t) continue;
       (made[id] ||= {})[m] = true;
       if (S.money.has(mid)) continue;   // 다른 기기가 먼저 넣었으면 표시만
-      jobs.push(() => E.backend.set("money", mid, { kind: r.kind === "income" ? "income" : "expense", amount: Number(r.amount), date, account: r.account,
-        cat: r.cat || "기타", sub: r.sub || null, memo: r.memo || "", note: null, repeat: id, createdAt: Date.now() }));
+      jobs.push(() => E.backend.set("money", mid, r.kind === "move"
+        ? { kind: "move", amount: Number(r.amount), date, account: r.account, toAccount: r.toAccount, cat: null, sub: null, memo: r.memo || "", note: null, repeat: id, createdAt: Date.now() }
+        : { kind: r.kind === "income" ? "income" : "expense", amount: Number(r.amount), date, account: r.account, cat: r.cat || "기타", sub: r.sub || null, memo: r.memo || "", note: null, repeat: id, createdAt: Date.now() }));
     }
   });
   if (!Object.keys(made).length) return;
@@ -214,27 +215,28 @@ export function syncRepeat() {
   quietly(async () => { for (const j of jobs) await j(); await E.backend.saveSettingsDeep({ moneyRepeat: patch }); })
     .then(() => { if (n) toast(`🔁 매월 반복 기록 ${n}건을 넣었어요.`); }).catch(() => {}).finally(() => { repeatSyncing = false; });
 }
-const rpf = { kind: "expense", amount: "", day: "", account: "", cat: "", sub: "", memo: "", from: "" };
+const rpf = { kind: "expense", amount: "", day: "", account: "", toAccount: "", cat: "", sub: "", memo: "", from: "" };
 function renderRepeat() {
   const root = $("repeatPanel"); if (!root) return;
   if (root.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName)) return;   // 고르는 중엔 다시 안 그림
   const f = rpf, rules = repeatRules().sort((a, b) => (a[1].day || 0) - (b[1].day || 0));
-  const accts = sortedAccts().filter((a) => !a.hidden && !(f.kind === "income" && a.type === "card"));
-  const cats = moneyCats(f.kind), subs = f.cat ? subsOf(f.kind, f.cat) : [];
+  const move = f.kind === "move", accts = sortedAccts().filter((a) => !a.hidden && !(f.kind === "income" && a.type === "card"));
+  const cats = move ? [] : moneyCats(f.kind), subs = f.cat && !move ? subsOf(f.kind, f.cat) : [];
   if (!f.from) f.from = today().slice(0, 7);
   root.innerHTML = `<div class="panel-head"><div><h3>🔁 매월 반복</h3><span class="muted small">보험료·월세·구독료처럼 매달 같은 날 나가는 돈. 그날이 되면 가계부를 열 때 기록이 저절로 생겨요 (생긴 기록은 내역에서 고치거나 지울 수 있어요).</span></div></div>
     <div class="rp-list">${rules.length ? rules.map(([id, r]) => `<div class="rp-row">
-        <span><b>매월 ${r.day}일</b> · ${esc(acctName(r.account))} · ${esc(r.cat || "기타")}${r.sub ? " / " + esc(r.sub) : ""}${r.memo ? ` <span class="muted">${esc(r.memo)}</span>` : ""}</span>
-        <b class="won ${r.kind === "income" ? "plus" : "minus"}">${r.kind === "income" ? "+" : "-"}${won(r.amount)}</b>
+        <span><b>매월 ${r.day}일</b> · ${r.kind === "move" ? `${esc(acctName(r.account))} → ${esc(acctName(r.toAccount))} <span class="muted">이체</span>` : `${esc(acctName(r.account))} · ${esc(r.cat || "기타")}${r.sub ? " / " + esc(r.sub) : ""}`}${r.memo ? ` <span class="muted">${esc(r.memo)}</span>` : ""}</span>
+        ${r.kind === "move" ? `<b class="won">${won(r.amount)}</b>` : (() => { const up = (r.kind === "income") !== (r.amount < 0); return `<b class="won ${up ? "plus" : "minus"}">${up ? "+" : "-"}${won(Math.abs(r.amount))}</b>`; })()}
         <span class="small muted">${esc(r.from.replace("-", "."))}부터</span>
         <button class="btn ghost small" type="button" data-act="rpDel" data-id="${esc(id)}">그만하기</button></div>`).join("") : '<p class="muted small" style="margin:0">아직 반복이 없어요.</p>'}</div>
     <div class="rp-form">
-      <select data-rp="kind" aria-label="수입/지출"><option value="expense"${f.kind === "expense" ? " selected" : ""}>지출</option><option value="income"${f.kind === "income" ? " selected" : ""}>수입</option></select>
-      <input type="text" class="amt-in" inputmode="numeric" data-rp="amount" placeholder="금액" aria-label="금액" value="${esc(f.amount)}">
+      <select data-rp="kind" aria-label="수입/지출/이체"><option value="expense"${f.kind === "expense" ? " selected" : ""}>지출</option><option value="income"${f.kind === "income" ? " selected" : ""}>수입</option><option value="move"${move ? " selected" : ""}>이체</option></select>
+      <input type="text" class="amt-in" data-neg inputmode="numeric" data-rp="amount" placeholder="금액 (앞에 - = 마이너스)" aria-label="금액" value="${esc(f.amount)}">
       <label class="rp-day">매월 <input type="number" min="1" max="31" data-rp="day" value="${esc(f.day)}" aria-label="며칠"> 일</label>
-      <select data-rp="account" aria-label="자산"><option value="">자산 고르기</option>${accts.map((a) => `<option value="${esc(a.id)}"${a.id === f.account ? " selected" : ""}>${esc(a.name)}</option>`).join("")}</select>
-      <select data-rp="cat" aria-label="분류"><option value="">분류 고르기</option>${cats.map((c) => `<option${c === f.cat ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
-      <select data-rp="sub" aria-label="소분류"${subs.length ? "" : " disabled"}><option value="">소분류 없음</option>${subs.map((s) => `<option${s === f.sub ? " selected" : ""}>${esc(s)}</option>`).join("")}</select>
+      <select data-rp="account" aria-label="${move ? "보내는 곳" : "자산"}"><option value="">${move ? "보내는 곳" : "자산 고르기"}</option>${accts.map((a) => `<option value="${esc(a.id)}"${a.id === f.account ? " selected" : ""}>${esc(a.name)}</option>`).join("")}</select>
+      ${move ? `<select data-rp="toAccount" aria-label="받는 곳"><option value="">받는 곳</option>${accts.filter((a) => a.id !== f.account).map((a) => `<option value="${esc(a.id)}"${a.id === f.toAccount ? " selected" : ""}>${esc(a.name)}</option>`).join("")}</select>`
+        : `<select data-rp="cat" aria-label="분류"><option value="">분류 고르기</option>${cats.map((c) => `<option${c === f.cat ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+      <select data-rp="sub" aria-label="소분류"${subs.length ? "" : " disabled"}><option value="">소분류 없음</option>${subs.map((s) => `<option${s === f.sub ? " selected" : ""}>${esc(s)}</option>`).join("")}</select>`}
       <input type="text" data-rp="memo" placeholder="내용 (선택)" aria-label="내용" maxlength="40" value="${esc(f.memo)}">
       <label class="rp-day">시작 <input type="month" data-rp="from" value="${esc(f.from)}" aria-label="시작 달"></label>
       <button class="btn" type="button" data-act="rpAdd">＋ 반복 추가</button>
@@ -242,16 +244,19 @@ function renderRepeat() {
 }
 function rpAdd() {
   if (!ready()) return;
-  const f = rpf, amount = amtVal({ value: f.amount }), day = parseInt(f.day, 10) || 0;
+  const f = rpf, amount = amtVal({ value: f.amount }), day = parseInt(f.day, 10) || 0, move = f.kind === "move";
   if (!amount) { toast("금액을 넣어 주세요."); return; }
   if (day < 1 || day > 31) { toast("매월 며칠인지 넣어 주세요 (1~31)."); return; }
-  if (!f.account) { toast("자산을 골라 주세요."); return; }
-  if (!f.cat) { toast("분류를 골라 주세요."); return; }
+  if (!f.account) { toast(move ? "보내는 곳을 골라 주세요." : "자산을 골라 주세요."); return; }
+  if (move && !f.toAccount) { toast("받는 곳을 골라 주세요."); return; }
+  if (move && amount < 0) { toast("이체는 플러스 금액만 돼요. 보내는 곳·받는 곳을 바꿔 주세요."); return; }
+  if (!move && !f.cat) { toast("분류를 골라 주세요."); return; }
   if (!/^\d{4}-\d{2}$/.test(f.from)) { toast("시작 달을 골라 주세요."); return; }
-  const rule = { kind: f.kind, amount, day, account: f.account, cat: f.cat, sub: f.sub || null, memo: f.memo.trim(), from: f.from, at: Date.now() };
+  const rule = move ? { kind: "move", amount, day, account: f.account, toAccount: f.toAccount, memo: f.memo.trim(), from: f.from, at: Date.now() }
+    : { kind: f.kind, amount, day, account: f.account, cat: f.cat, sub: f.sub || null, memo: f.memo.trim(), from: f.from, at: Date.now() };
   const first = dayInMonth(f.from, day) <= today() ? ` ${f.from.replace("-", "년 ")}월부터 오늘까지 기록도 바로 생겨요.` : "";
-  if (!confirm(`매월 ${day}일 ${won(amount)} ${f.kind === "income" ? "수입" : "지출"}을 반복할까요?${first}`)) return;
-  act(E.backend.saveSettingsDeep({ moneyRepeat: { [rid()]: rule } }), "🔁 반복을 추가했어요.").then(() => { Object.assign(rpf, { amount: "", day: "", memo: "", sub: "" }); renderRepeat(); syncRepeat(); }).catch(() => {});
+  if (!confirm(`매월 ${day}일 ${won(amount)} ${move ? "이체" : f.kind === "income" ? "수입" : "지출"}을 반복할까요?${first}`)) return;
+  act(E.backend.saveSettingsDeep({ moneyRepeat: { [rid()]: rule } }), "🔁 반복을 추가했어요.").then(() => { Object.assign(rpf, { amount: "", day: "", memo: "", sub: "", toAccount: "" }); renderRepeat(); syncRepeat(); }).catch(() => {});
 }
 
 // 💳 카드값 결제 확인 창: 할 일 '카드값 이체하기' 체크, 또는 자산 탭 카드의 [결제]
@@ -437,6 +442,9 @@ export function renderMTabs() {
   document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.dataset.mtab !== tab; });
   // 맨 위 달 넘기기는 예산 탭만 (내역·달력·자산·통계는 자기 칸에 따로), 맨 위 요약 4칸은 관리자 보드만 (내역 탭에 요약 칸이 있어서)
   document.querySelector("#moneyPage .month-nav").hidden = !adm && tab !== "budget"; $("moneyStats").hidden = !adm;
+  // 가계부 모드: 탭마다 위에 있던 '💰 가계부' 제목·설명 줄은 숨기고, 예산 탭이면 달 넘기기만 오른쪽에 (관리자 보드의 '예산' 제목은 그대로)
+  const appMoney = document.documentElement.classList.contains("app-money");
+  document.querySelector("#moneyPage .page-head").hidden = appMoney && !adm && tab !== "budget";
   if (tab === "settings" && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
   if (tab === "settings") renderRepeat();
 }
@@ -463,17 +471,20 @@ export function renderMoney() {
   renderPlan(m, r);
 
   // 지출 예산·분류 (한 달 예산을 짰으면 그 합계, 아니면 예전 '한 달 지출 예산')
+  // 내역에서 기간을 골랐으면(ui.txRange) 그 기간 지출 원형만 (예산 막대·예산 칸은 한 달 기준이라 숨김)
+  const rng = ui.txRange, rs = rng ? monthTotals(null, rng) : r;
   const planTotal = planOf(m).total;
-  const budget = planTotal || Number(S.settings.budget) || 0;
-  $("budgetForm").hidden = !!planTotal; $("budgetFromPlan").hidden = !planTotal;
-  const bar = $("budgetBar");
-  bar.classList.toggle("over", budget > 0 && r.exp > budget);
-  bar.firstElementChild.style.width = (budget ? Math.min(100, Math.round(r.exp / budget * 100)) : 0) + "%";
-  $("budgetLeft").innerHTML = budget
-    ? `예산 ${won(budget)} 중 <span class="won">${won(r.exp)}</span> 씀 · ` + (r.exp > budget ? `<span class="won minus">${won(r.exp - budget)} 초과</span>` : `<span class="won plus">${won(budget - r.exp)} 남음</span>`)
+  const budget = rng ? 0 : planTotal || Number(S.settings.budget) || 0;
+  $("budgetForm").hidden = !!planTotal || !!rng; $("budgetFromPlan").hidden = !planTotal || !!rng;
+  const bar = $("budgetBar"); bar.hidden = !!rng;
+  bar.classList.toggle("over", budget > 0 && rs.exp > budget);
+  bar.firstElementChild.style.width = (budget ? Math.min(100, Math.round(rs.exp / budget * 100)) : 0) + "%";
+  $("budgetLeft").innerHTML = rng ? `${esc(rangeLabel(rng.from, rng.to))} 지출 <span class="won">${won(rs.exp)}</span>`
+    : budget
+    ? `예산 ${won(budget)} 중 <span class="won">${won(rs.exp)}</span> 씀 · ` + (rs.exp > budget ? `<span class="won minus">${won(rs.exp - budget)} 초과</span>` : `<span class="won plus">${won(budget - rs.exp)} 남음</span>`)
     : "예산을 넣으면 남은 금액이 보여요";
-  if (document.activeElement !== $("budgetIn")) $("budgetIn").value = commaNum(budget || "");
-  $("catBars").innerHTML = pieHtml("expense", Object.entries(r.byCat).map(([cat, amt]) => ({ cat, amt })), "지출") || '<div class="muted small">이번 달 지출 기록이 아직 없어요.</div>';
+  if (document.activeElement !== $("budgetIn")) $("budgetIn").value = commaNum(planTotal || Number(S.settings.budget) || "");
+  $("catBars").innerHTML = pieHtml("expense", Object.entries(rs.byCat).map(([cat, amt]) => ({ cat, amt })), "지출") || `<div class="muted small">${rng ? "이 기간" : "이번 달"} 지출 기록이 아직 없어요.</div>`;
 
   // 최근 내역 조회: 6개월 · 1년 · 기간 (오늘 기준, 새 달이 위). 줄을 누르면 그 달로 (위 예산·내역이 그 달 것으로)
   const tm = today().slice(0, 7), hr = ui.histRange || "6";
@@ -671,7 +682,8 @@ function txRow(x, ck, o = {}) {   // o.d = 이 자산 쪽에서 본 +/− (자�
           (ck ? `<label class="tx-ck" data-noedit><input type="checkbox" data-txck="${esc(x.id)}" ${txSel.has(x.id) ? "checked" : ""} aria-label="고르기"></label>` : "") +
           `<span class="tx-d mono">${shortDate(x.date)}</span><span class="tx-a">${where}</span><span class="tx-c">${cat}</span><span class="tx-s">${esc(x.sub || "")}</span>` +
           (o.d != null ? `<span class="tx-amt won ${o.d > 0 ? "plus" : "minus"}">${o.d > 0 ? "+" : "-"}${won(Math.abs(o.d))}${o.bal ? `<small class="tx-bal">${o.bal}</small>` : ""}</span>`
-            : `<span class="tx-amt won ${kind === "income" ? "plus" : kind === "move" ? "" : "minus"}">${kind === "income" ? "+" : kind === "move" ? "" : "-"}${amtText(x)}</span>`) +
+            : (() => { const neg = Number(x.amount) < 0, up = (kind === "income") !== neg, ax = { ...x, amount: Math.abs(Number(x.amount) || 0) };   // 마이너스 기록(환불처럼)은 부호를 뒤집어서 한 번만
+                return `<span class="tx-amt won ${kind === "move" ? "" : up ? "plus" : "minus"}">${kind === "move" ? "" : up ? "+" : "-"}${amtText(ax)}</span>`; })()) +
           `<span class="tx-m">${esc(x.memo || "")}</span><span class="tx-n">${x.note ? esc(x.note) : ""}${n ? ` <span class="m-mark">📷${n > 1 ? n : ""}</span>` : ""}</span></div>`;
 }
 
@@ -1174,13 +1186,13 @@ export function initMoney() {
   // 🔁 매월 반복 칸 입력
   $("repeatPanel").addEventListener("input", (ev) => {
     const k = ev.target.dataset.rp; if (!k) return;
-    if (k === "amount") { rpf.amount = commaNum(ev.target.value); ev.target.value = rpf.amount; }
+    if (k === "amount") { rpf.amount = commaNum(ev.target.value, true); ev.target.value = rpf.amount; }   // 앞에 - = 마이너스(환불처럼)
     else if (k === "day" || k === "memo" || k === "from") rpf[k] = ev.target.value;
   });
   $("repeatPanel").addEventListener("change", (ev) => {
-    const k = ev.target.dataset.rp; if (!k || !/^(kind|account|cat|sub)$/.test(k)) return;
+    const k = ev.target.dataset.rp; if (!k || !/^(kind|account|toAccount|cat|sub)$/.test(k)) return;
     rpf[k] = ev.target.value;
-    if (k === "kind") { rpf.cat = ""; rpf.sub = ""; } if (k === "cat") rpf.sub = "";
+    if (k === "kind") { rpf.cat = ""; rpf.sub = ""; rpf.toAccount = ""; } if (k === "cat") rpf.sub = ""; if (k === "account" && rpf.toAccount === rpf.account) rpf.toAccount = "";
     ev.target.blur(); renderRepeat();
   });
   $("curEditor").addEventListener("submit", (ev) => {
