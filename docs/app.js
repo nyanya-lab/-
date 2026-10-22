@@ -1,7 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261021d";
-import { CHANGES } from "./changes.js?v=20261021d";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat } from "./money.js?v=20261021d";
-import { firebaseConfig } from "./firebase-config.js?v=20261021d";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022a";
+import { CHANGES } from "./changes.js?v=20261022a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances } from "./money.js?v=20261022a";
+import { mountAcctSet } from "./acctset.js?v=20261022a";
+import { mountBalance } from "./balance.js?v=20261022a";
+import { firebaseConfig } from "./firebase-config.js?v=20261022a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -149,7 +151,8 @@ document.addEventListener("input", (ev) => {
   let i = 0, n = 0; while (i < v.length && n < before) { if (/[\d-]/.test(v[i])) n++; i++; }   // 커서는 쓰던 숫자 바로 뒤에
   try { el.setSelectionRange(i, i); } catch (e) { /* 무시 */ }
 });
-function won(n) { return Math.round(Number(n) || 0).toLocaleString("ko-KR") + "원"; }
+function won(n) { return Math.abs(Math.round(Number(n) || 0)).toLocaleString("ko-KR") + "원"; }   // 금액은 +/- 기호 없이 (색으로 구분, 냐냐 가계부와 같게). 직접 -로 적은 금액은 money.js amtText가 - 붙임
+const wonS = (n) => (Math.round(Number(n) || 0) < 0 ? "-" : "") + won(n);   // 부호가 꼭 필요한 곳 (계산식 결과·잔액 맞추기)
 function monthLabel(m) { return m.replace("-", "."); }
 function shiftMonth(m, d) { const p = m.split("-"); const dt = new Date(+p[0], +p[1] - 1 + d, 1); return dt.getFullYear() + "-" + pad(dt.getMonth() + 1); }
 function me() { return S.settings.name || DEFAULTS.name; }
@@ -206,9 +209,19 @@ function localBackend(KEY = "ukjin-board-v1", seed = null) {
     async saveHistory(list) { data.history = list; persist(); },
     async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; persist(); load(); },
     async saveSettingsDeep(patch) { data.settings = deepMerge(clone(data.settings || {}), patch); persist(); load(); },
+    async rootUpdate(patch) { applyPaths(data, patch); persist(); load(); },
     async putPic(id, obj) { data.pics[id] = obj; persist(); },
     async getPic(id, part) { return (data.pics[id] || {})[part] || null; }
   };
+}
+
+// rootUpdate용: { "money/id/cat": "식비", "settings/moneyCats/expense": [...], "x/y": null(지우기) } 를 메모리 데이터에 반영
+function applyPaths(data, patch) {
+  for (const [k, v] of Object.entries(patch)) {
+    const ps = k.split("/"), last = ps.pop(); let o = data;
+    for (const q of ps) { if (!o[q] || typeof o[q] !== "object") o[q] = {}; o = o[q]; }
+    if (v === null || v === undefined) delete o[last]; else o[last] = clone(v);
+  }
 }
 
 // 비밀번호 → 방 이름(해시). watch-log처럼 비밀번호를 모르면 데이터 위치도 모름.
@@ -279,6 +292,7 @@ async function firebaseStart() {
       saveHistory: tracked((list) => rt.set(path(room, "history"), list)),   // 되돌리기 기록 (모든 기기가 같이 씀)
       saveSettings: tracked((patch) => rt.update(path(room, "settings"), patch)), // 바뀐 칸만
       saveSettingsDeep: tracked((patch) => rt.update(path(room, "settings"), flattenPaths(patch))), // 깊은 칸 하나만 (예: 예산 항목)
+      rootUpdate: tracked((patch) => rt.update(path(room), patch)),   // 여러 칸을 한 번에 (분류 이름 바꾸기 = 목록·기록·예산·반복, 잔액 맞추기)
       // 서버 백업 (watch-log 방식): 1시간짜리 prev, 하루짜리 daily. 실수로 지운 걸 어느 기기에서든 되돌릴 수 있게
       async backups() { return (await rt.get(path(room, "_backup"))).val() || {}; },
       restore: tracked(async (kind) => {
@@ -966,8 +980,8 @@ function searchRows(q) {
   });
   S.money.forEach((m, id) => {
     if (!m || !m.date || !(has(m.memo) || has(m.cat)) || !moneyShown(m)) return;
-    const sign = m.kind === "income" ? "+" : m.kind === "move" ? "" : "-";
-    out.push({ date: m.date, icon: "💰", time: sign + amtText(m), title: [m.kind === "transfer" ? partner() + "에게" : m.cat, m.memo].filter(Boolean).join(" · "), act: "searchMoney", id });
+    const neg = Number(m.amount) < 0, sign = m.kind === "move" ? "" : (m.kind === "income") !== neg ? "+" : "-";   // 마이너스(환불)는 부호를 뒤집어서 한 번만
+    out.push({ date: m.date, icon: "💰", time: sign + amtText({ ...m, amount: Math.abs(Number(m.amount) || 0) }), title: [m.kind === "transfer" ? partner() + "에게" : m.cat, m.memo].filter(Boolean).join(" · "), act: "searchMoney", id });
   });
   return out.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 }
@@ -1043,6 +1057,7 @@ function testBackend(snapshot) {
     async saveSettings(patch) { data.settings = { ...(data.settings || {}), ...patch }; load(); },
     async saveSettingsDeep(patch) { data.settings = deepMerge(clone(data.settings || {}), patch); load(); },
     async saveHistory(list) { data.history = list; },
+    async rootUpdate(patch) { applyPaths(data, patch); load(); },
     async putPic(id, obj) { pics[id] = obj; },
     async getPic(id, part) { if (pics[id]) return pics[id][part] || null; return realBackend && realBackend.getPic ? realBackend.getPic(id, part) : null; }
   };
@@ -1116,8 +1131,8 @@ function renderNags() {
   if (!adm && r.inc > 0 && Number((S.settings.giveAck || {})[m]) !== r.inc && !skip("gack")) {
     const left = r.inc - pl.total - (pl.give || 0);
     list.push(["gack", pl.give == null
-      ? `💝 ${mon} 실제 수입 <b>${won(r.inc)}</b> − 예산 ${won(pl.total)} = <b>${won(r.inc - pl.total)}</b>. ${esc(partner())}에게 줄 돈을 아직 안 정했어요.`
-      : `💝 ${mon} 실제 수입 <b>${won(r.inc)}</b> − 예산 ${won(pl.total)} − 줄 돈 ${won(pl.give)} = 잔액 <b class="${left < 0 ? "won minus" : ""}">${won(left)}</b>${left < 0 ? " · 수입이 모자라요!" : ""}`,
+      ? `💝 ${mon} 실제 수입 <b>${won(r.inc)}</b> − 예산 ${won(pl.total)} = <b>${wonS(r.inc - pl.total)}</b>. ${esc(partner())}에게 줄 돈을 아직 안 정했어요.`
+      : `💝 ${mon} 실제 수입 <b>${won(r.inc)}</b> − 예산 ${won(pl.total)} − 줄 돈 ${won(pl.give)} = 잔액 <b class="${left < 0 ? "won minus" : ""}">${wonS(left)}</b>${left < 0 ? " · 수입이 모자라요!" : ""}`,
       (pl.give == null ? "" : `<button class="btn small" type="button" data-act="giveAck" data-inc="${r.inc}">그대로 둘게요</button>`) +
       `<button class="btn ${pl.give == null ? "" : "ghost "}small" type="button" data-act="nagGo" data-k="give">${pl.give == null ? "줄 돈 정하기" : "줄 돈 바꾸기"}</button>`]);
   }
@@ -2340,6 +2355,7 @@ function render() {
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && uriNewsReady && !newsChecked) { newsChecked = true; maybeShowNews(); }   // 우리 탭 내역까지 받은 뒤에
   if ($("settingsDlg").open) renderGcalBox();
+  if (APP === "money" || ui.page === "money") { if (acctSet) acctSet.render(); if (balPanel) balPanel.render(); fitPanels(); }   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
 }
 
 // ---------- 동작 ----------
@@ -2985,8 +3001,32 @@ setTimeout(checkNewVersion, 5000);
 document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (ev) => { ev.preventDefault(); hardReload(); }));
 
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
-bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won, get backend() { return backend; }, get testMode() { return testMode; } });
+bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
+  catRank: true,   // 분류 색: 원형마다 금액 큰 8개가 서로 다른 색, 9번째부터 '그 밖' (냐냐 가계부와 같게)
+  get backend() { return backend; }, get testMode() { return testMode; } });
 initMoney();
+// 🏦 자산 관리(이름·계좌번호·메모·🙈 숨기기) · 🧮 실제 잔액 맞추기 — 가계부 설정 '자산' 작은 탭 (냐냐 가계부 acctset.js·balance.js 복사)
+var acctSet = mountAcctSet($("acctSetPanel"), { S, backend: () => backend, toast, act, esc, rows });
+var balPanel = mountBalance($("balPanel"), { S, backend: () => backend, toast, act, esc, won: wonS, rows, balances });
+// ⚙ 가계부 설정 탭 안 작은 탭: 분류 · 자산 · 반복 · 화폐 (이 기기에 기억)
+function setSubTab(k) {
+  const ks = ["cat", "acct", "repeat", "cur"]; if (!ks.includes(k)) k = "cat";
+  lsSet("ukjin-stab", k);
+  document.querySelectorAll("#moneyPage [data-st]").forEach((el) => el.classList.toggle("st-off", el.dataset.st !== k));
+  document.querySelectorAll("#setTabs [data-st-k]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.stK === k)));
+}
+$("setTabs").addEventListener("click", (ev) => { const b = ev.target.closest("[data-st-k]"); if (b) setSubTab(b.dataset.stK); });
+setSubTab(lsGet("ukjin-stab") || "cat");
+// 📌 PC: 내역 · 통계 · 자산 칸 높이를 화면 아래 끝까지 → 위(요약·그래프·표 머리줄)는 그대로, 목록만 스크롤 (style.css, 가계부 모드만)
+function fitPanels() {
+  document.querySelectorAll(".app-money #moneyPage .tx-panel, .app-money #moneyPage .st-grid, .app-money #asGrid").forEach((el) => {
+    if (innerWidth <= 720 || !el.offsetParent) { el.style.height = ""; return; }
+    const top = el.getBoundingClientRect().top + scrollY;
+    el.style.height = Math.max(360, Math.round(innerHeight - top - 16)) + "px";
+  });
+}
+window.addEventListener("resize", fitPanels);
+document.addEventListener("click", () => setTimeout(fitPanels, 0));   // 탭을 바꾸면
 
 // ---------- 시작 ----------
 route();
