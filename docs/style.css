@@ -1125,3 +1125,88 @@ tr.clickable:hover td { background: var(--sunk); }
 /* 가계부 모드: '💰 가계부' 제목·설명 줄 숨김 (예산 탭 달 넘기기는 오른쪽에 남김, 관리자 보드 '예산' 제목은 그대로) */
 .app-money #moneyPage .page-head > div:first-child { display: none; }
 .app-money #moneyPage .page-head { justify-content: flex-end; }
+
+/* ===== 2026-10-22 냐냐 가계부 고침 한꺼번에 가져옴 (냐냐 보드 docs/money/nyanya.css에서, BC카드 업로드만 빼고) ===== */
+/* 🎨 분류 색 8가지 (그래프 색 가이드의 검증된 팔레트: 파랑·주황·청록·노랑·분홍·초록·보라·빨강) + 회색(그 밖). 원형마다 금액 큰 8개가 서로 다른 색 (money.js setCatView) */
+:root { --c0: #3f8ef0; --c1: #ff7b47; --c2: #1fc28a; --c3: #e8a400; --c4: #f07aaa; --c5: #2ea64e; --c6: #7466ee; --c7: #ef5656; --c8: #b8b7b0; }
+:root[data-theme="dark"] { --c0: #3987e5; --c1: #d95926; --c2: #199e70; --c3: #c98500; --c4: #d55181; --c5: #008300; --c6: #9085e9; --c7: #e66767; --c8: #77766f; }
+/* 통계 분류 목록 · 설정 분류 편집의 색 동그라미 숨기기 */
+.st-cat .cdot, .cat-row .cdot-btn { display: none; }
+/* 🧾 내역 아래 '지출' 칸의 분류 원형 빼기 (예산 막대·합계는 그대로) */
+#catBars { display: none; }
+/* 기록 창: 날짜 위 한 줄, 금액 아래 한 줄 통째로 */
+.m-amt-full .amt-cur { grid-template-columns: minmax(0, 1fr) 76px; }
+.m-amt-full .amt-cur select { min-width: 0; width: 100%; }
+/* 🏦 자산 계좌번호·메모 (목록·자산별 보기) */
+.as-name .as-num { margin-left: 6px; color: var(--muted); font-family: var(--f-mono); font-size: 11.5px; font-weight: 400; }
+.as-info { margin: -4px 0 0; color: var(--muted); }
+.as-info .as-memo { color: var(--fg); }
+/* ⚙ 가계부 설정 '자산 관리' (acctset.js) */
+.ak-list { display: grid; gap: 6px; }
+.ak-row { display: grid; grid-template-columns: 24px minmax(90px, 1fr) minmax(120px, 1.1fr) minmax(120px, 1.6fr) auto; gap: 6px; align-items: center; padding: 6px 8px; border-radius: 10px; background: var(--sunk); font-size: 14px; }
+.ak-row input[type=text] { min-width: 0; padding: 6px 8px; font-size: 14px; }
+.ak-row.hid { opacity: .55; }
+.ak-row .ak-hide { display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
+.ak-gh { margin: 8px 0 2px; font-size: 13px; color: var(--muted); }
+@media (max-width: 720px) {
+  .ak-row { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "i n h" "i u u" "i m m"; gap: 4px 6px; }
+  .ak-row > span { grid-area: i; align-self: start; padding-top: 6px; } .ak-row [data-ak="name"] { grid-area: n; } .ak-row .ak-hide { grid-area: h; }
+  .ak-row .ak-num { grid-area: u; } .ak-row .ak-memo { grid-area: m; }
+}
+/* 🧮 실제 잔액 맞추기 (balance.js) */
+.bal-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 6px; }
+.bal-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; grid-template-rows: auto auto; gap: 2px 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--sunk); }
+.bal-row .bal-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bal-row .bal-now { grid-column: 1; grid-row: 2; }
+.bal-row .bal-in { grid-column: 2; grid-row: 1 / 3; min-width: 0; }
+@media (max-width: 720px) { .bal-list { grid-template-columns: 1fr; } .bal-row { grid-template-columns: minmax(0, 1fr) 120px; } }
+/* ⚙ 설정 탭 안 작은 탭 (분류·자산·반복·화폐) */
+.st-tabs { grid-template-columns: repeat(4, 1fr); }
+.st-tabs button { white-space: nowrap; }
+#moneyPage .st-off { display: none !important; }
+.cat-odd { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sub-nm { color: inherit; text-decoration: none; }
+/* ▦ 다건입력: 창을 옆으로 넓게 + 채우기 손잡이 (엑셀처럼). 칸 너비는 머리줄에서, 입력칸은 칸을 꽉 채움 */
+@media (min-width: 721px) { .dlg.bulk-dlg { width: calc(100vw - 24px); max-width: 1800px; } }
+table.bulk { min-width: 1200px; table-layout: fixed; }
+.bulk-dlg .bulk [data-c] { width: 100%; }
+.bulk th:nth-child(1) { width: 34px; } .bulk th:nth-child(2) { width: 80px; } .bulk th:nth-child(3) { width: 140px; }
+.bulk th:nth-child(4), .bulk th:nth-child(5) { width: 180px; } .bulk th:nth-child(6) { width: 130px; }
+.bulk th:nth-child(7) { width: 120px; } .bulk th:nth-child(8) { width: 64px; } .bulk th:nth-child(11) { width: 40px; }
+.bk-fill { position: absolute; width: 9px; height: 9px; background: var(--coral); border: 2px solid var(--surface); border-radius: 2px; cursor: ns-resize; z-index: 3; touch-action: none; }
+.bulk td.bk-fill-on { background: color-mix(in srgb, var(--coral) 14%, transparent); outline: 1px dashed var(--coral); outline-offset: -2px; }
+.bk-fill::after { content: ""; position: absolute; inset: -9px; }   /* 손가락으로도 잡기 쉽게 */
+/* 📅 가계부 달력: 칸 안 합계(수입 − 지출) 줄 = 검은 글씨 + 바탕색 (플러스 옅은 빨강 · 마이너스 옅은 파랑) */
+#moneyPage .mc-v i { padding: 0 4px; box-sizing: border-box; }
+#moneyPage .mc-v i.net { color: var(--fg); border-radius: 4px; }
+#moneyPage .mc-v i.net.plus { background: color-mix(in srgb, var(--danger) 16%, transparent); }
+#moneyPage .mc-v i.net.minus { background: color-mix(in srgb, var(--blue) 16%, transparent); }
+/* 🏦 자산 탭: 💳 결제는 오른쪽 아래 ＋ 왼쪽에 작게 · PC(가계부 모드)에선 왼쪽 목록 · 오른쪽 자세히를 따로 스크롤 */
+.as-fabs { position: fixed; right: 28px; bottom: 28px; z-index: 30; display: flex; align-items: center; gap: 10px; }
+.as-fabs .fab { position: static; }
+.as-fabs .as-pay { width: 44px; height: 44px; font-size: 12.5px; font-weight: 700; padding: 0; }
+@media (max-width: 720px) { .as-fabs { right: 16px; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); } }
+/* 📊 통계: 💙 공통비용을 누르면 공통 분류별로 펼침 (공통 열면 씀) */
+.st-cc { display: grid; background: color-mix(in srgb, var(--blue) 5%, var(--surface)); }
+.st-cat.st-sub { padding-left: 34px; background: transparent; font-size: 13.5px; }
+.st-cat.st-sub.on { background: var(--blue-soft); }
+#moneyPage .st-side, #moneyPage .st-cats { align-content: start; }
+/* 가계부 모드만: 위 여백 줄이기 · 얇은 스크롤바 · PC에서 내역·통계·자산 상세는 위(요약·그래프·표 머리줄) 고정, 목록만 스크롤 (높이는 app.js fitPanels) */
+.app-money .wrap { padding-top: 16px; }
+.app-money ::-webkit-scrollbar { width: 6px; height: 6px; }
+.app-money ::-webkit-scrollbar-track { background: transparent; }
+.app-money ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 30%, transparent); border-radius: 6px; }
+.app-money ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 55%, transparent); }
+.app-money ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.app-money ::-webkit-scrollbar-corner { background: transparent; }
+@media (min-width: 721px) {
+  .app-money #asGrid { height: calc(100dvh - 112px); }
+  .app-money #asGrid > .panel { max-height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .app-money #moneyPage .tx-panel, .app-money #moneyPage .st-main, .app-money #asDetail { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .app-money #moneyPage .tx-panel > *, .app-money #moneyPage .st-main > *, .app-money #asDetail > * { flex: none; }
+  .app-money #txList, .app-money #stList, .app-money #asDetail .as-tx { flex: 1 1 auto !important; min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start; }
+  .app-money #moneyPage .st-grid { align-items: stretch; }
+  .app-money #moneyPage .st-grid > .panel { min-height: 0; max-height: 100%; }
+  .app-money #moneyPage .st-grid > .st-side { overflow-y: auto; overscroll-behavior: contain; }
+  .app-money #txList > .tx-th, .app-money #stList > .tx-th, .app-money #asDetail .as-tx > .tx-th { position: sticky; top: 0; z-index: 2; background: var(--surface); }
+}

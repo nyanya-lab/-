@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261021d">
+<link rel="stylesheet" href="style.css?v=20261022a">
 </head>
 <body>
 
@@ -224,16 +224,15 @@
               <button type="button" data-act="kind" data-k="move">이체</button>
             </div>
             <form class="form" id="moneyForm" autocomplete="off">
-              <div class="row">
-                <div class="f"><label for="mAmount">금액</label><div class="amt-cur"><input type="text" class="amt-in" id="mAmount" inputmode="numeric" autocomplete="off" placeholder="0" required><select id="mCur" aria-label="화폐"></select></div></div>
-                <label class="f">날짜<input type="date" id="mDate"></label>
-              </div>
+              <!-- 날짜를 위 한 줄, 금액은 아래 한 줄 통째로 (금액 칸 넓게, 냐냐 가계부와 같게) -->
+              <label class="f">날짜<input type="date" id="mDate"></label>
+              <div class="f m-amt-full"><label for="mAmount">금액</label><div class="amt-cur"><input type="text" class="amt-in" id="mAmount" inputmode="numeric" autocomplete="off" placeholder="0" required><select id="mCur" aria-label="화폐"></select></div></div>
               <div class="row">
                 <label class="f"><span id="mAcctLabel">낸 곳</span><select id="mAcct"></select></label>
                 <label class="f" id="mToWrap" hidden>받는 곳<select id="mTo"></select></label>
               </div>
               <div class="row" id="mCatWrap">
-                <label class="f"><span>분류 <button class="link-btn" type="button" data-act="editCats">편집</button></span><select id="mCat"></select></label>
+                <label class="f"><span><span class="cat-lbl">분류</span> <button class="link-btn" type="button" data-act="editCats">편집</button></span><select id="mCat"></select></label>
                 <label class="f">소분류<select id="mSub"></select></label>
               </div>
               <label class="f">내용<input type="text" id="mMemo" maxlength="80" placeholder="예: 10월 월급, 이마트 장보기, 카드값"></label>
@@ -284,13 +283,16 @@
         <div class="panel mc-side" id="mcDay"></div>
       </div>
       <button class="fab" type="button" data-mtab="cal" data-act="mcAdd" aria-label="이 날 기록하기" title="이 날 기록하기">＋</button>
-      <!-- ⚙ 가계부 설정: 분류 · 소분류 · 화폐 -->
-      <div class="panel m-set no-admin" data-mtab="settings">
-        <div class="panel-head"><div><h3>⚙ 가계부 설정</h3><span class="muted small">분류마다 소분류를 정해 두면 기록할 때 골라서 써요. 🎨 동그라미를 누르면 분류 색이 바뀌어요.</span></div></div>
+      <!-- ⚙ 가계부 설정: 작은 탭 분류 · 자산 · 반복 · 화폐 (app.js setSubTab) -->
+      <div class="seg st-tabs" data-mtab="settings" id="setTabs" role="tablist" aria-label="설정 나누기"><button type="button" data-st-k="cat">분류</button><button type="button" data-st-k="acct">자산</button><button type="button" data-st-k="repeat">반복</button><button type="button" data-st-k="cur">화폐</button></div>
+      <div class="panel m-set no-admin" data-mtab="settings" data-st="cat">
+        <div class="panel-head"><div><h3>⚙ 가계부 설정</h3><span class="muted small">분류마다 소분류를 정해 두면 기록할 때 골라서 써요.</span></div></div>
         <div id="catEditor"></div>
       </div>
-      <div class="panel m-set rp-panel no-admin" data-mtab="settings" id="repeatPanel"></div>
-      <div class="panel m-set no-admin" data-mtab="settings">
+      <div class="panel m-set ak-panel no-admin" data-mtab="settings" data-st="acct" id="acctSetPanel"></div>
+      <div class="panel m-set bal-panel no-admin" data-mtab="settings" data-st="acct" id="balPanel"></div>
+      <div class="panel m-set rp-panel no-admin" data-mtab="settings" data-st="repeat" id="repeatPanel"></div>
+      <div class="panel m-set no-admin" data-mtab="settings" data-st="cur">
         <div class="panel-head"><div><h3>💱 화폐</h3><span class="muted small">기본은 원이에요. 원이 아닌 기록은 목록엔 보이고 합계·잔액엔 안 들어가요.</span></div></div>
         <div id="curEditor"></div>
       </div>
@@ -307,6 +309,7 @@
         <div class="panel st-side"><div class="st-pie" id="stPie"></div><div class="st-cats" id="stCats"></div></div>
         <div class="panel st-main">
           <div class="st-head" id="stHead"></div>
+          <div class="st-cc" id="stCcSub" hidden></div>
           <div class="st-chip" id="stChip"></div>
           <div class="as-chart" id="stChart"></div>
           <div class="tx-list" id="stList"></div>
@@ -474,13 +477,14 @@
         <h3>💰 가계부</h3>
         <ul>
           <li>메뉴의 <b>💰 가계부</b>를 누르면 가계부 화면이 따로 열려요 (보드와 같은 데이터). 폰에서 가계부 화면을 '홈 화면에 추가'하면 <b>가계부</b> 앱 아이콘이 따로 생겨요. 왼쪽 메뉴 '실천 보드로'를 누르면 보드로 돌아와요.</li>
-          <li>가계부 메뉴는 5개예요 (PC는 왼쪽, 폰은 아래) + <b>⚙ 가계부 설정</b>(분류·소분류·🔁 매월 반복·화폐): <b>예산</b> (수입·쓸 돈·줄 돈·잔액, 분류별 예산) · <b>달력</b> (날마다 +수입 · −지출 · 합계, 날짜를 누르면 그 날 내역과 [＋ 내역 추가]) · <b>내역</b> (그 달 내역 — 달 이름·[이번 달]을 누르면 기간 고르기: 오늘·이번 주·지난 달·올해·전체 등, 달력에서 시작일~끝날. 위 칸 <b>전체 · 수입 · 지출 · 💝 준 돈</b>을 누르면 그것만, ☐로 골라 [선택 삭제], 아래엔 실제 지출 원형) · <b>자산</b> (처음엔 <b>자산 전체</b>: 자산·부채·합계·12달 흐름·구성 원형 / 현금·통장·카드·저축 묶음별 잔액, 누르면 그 달 입금·출금·누적잔액, 최근 12달 그래프와 내역, ✏️로 고치기·카드 결제일, 오른쪽 아래 <b>＋</b>로 그 자산 기록하기·내역 줄 눌러 고치기) · <b>통계</b> (수입/지출 · 오른쪽 위 주간·월간·연간·기간, 분류별 원형·목록 → 누르면 그 분류의 흐름 그래프와 내역, 아래 달마다 표). 마지막에 본 메뉴를 기억해요.</li>
+          <li>가계부 메뉴는 5개예요 (PC는 왼쪽, 폰은 아래) + <b>⚙ 가계부 설정</b>(작은 탭: 분류 · 자산 · 🔁 반복 · 화폐): <b>예산</b> (수입·쓸 돈·줄 돈·잔액, 분류별 예산) · <b>달력</b> (날마다 +수입 · −지출 · 합계, 날짜를 누르면 그 날 내역과 [＋ 내역 추가]) · <b>내역</b> (그 달 내역 — 달 이름·[이번 달]을 누르면 기간 고르기: 오늘·이번 주·지난 달·올해·전체 등, 달력에서 시작일~끝날. 위 칸 <b>전체 · 수입 · 지출 · 💝 준 돈</b>을 누르면 그것만, ☐로 골라 [선택 삭제]. 금액은 +/- 없이 색으로: 초록 = 들어온 돈, 빨강 = 나간 돈, -가 붙은 건 직접 -로 적은 금액(환불 등)) · <b>자산</b> (처음엔 <b>자산 전체</b>: 자산·부채·합계·12달 흐름·구성 원형 / 현금·통장·카드·저축 묶음별 잔액, 누르면 그 달 입금·출금·누적잔액, 최근 12달 그래프와 내역, ✏️로 고치기·카드 결제일, 오른쪽 아래 <b>＋</b>로 그 자산 기록하기 · 카드는 ＋ 왼쪽 <b>[결제]</b> · 내역 줄 눌러 고치기. PC에선 목록과 자세히가 따로 스크롤) · <b>통계</b> (수입/지출 · 오른쪽 위 주간·월간·연간·기간, 분류별 원형·목록 → 누르면 그 분류의 흐름 그래프와 내역, 아래 달마다 표). 마지막에 본 메뉴를 기억해요.</li>
           <li><b>돈 기록하기</b>: 내역·달력·자산 화면 오른쪽 아래 <b>＋</b>를 누르면 기록 창이 떠요 (PC는 오른쪽, 폰은 아래). 수입 · 지출 · 보낸 돈(여자친구에게) · 이체(내 통장끼리). 어느 통장·카드인지 고르면 자산마다 잔액이 계산돼요. 내역 줄을 누르면 같은 창에서 고쳐요.</li>
-          <li>▦ <b>다건입력</b>: 내역 화면 ＋ 옆 표 버튼. 엑셀처럼 여러 줄을 적고 <b>[저장]</b>하면 한 번에 기록돼요. 금액이 빈 줄은 건너뛰고, Enter = 아래 칸, 엑셀에서 여러 칸을 복사해서 붙여넣어도 돼요. 이체는 분류 칸에서 받는 곳을 골라요. (사진은 한 줄씩 ＋ 창에서)</li>
-          <li>칸: 금액 · <b>화폐</b>(기본 원, '＋ 화폐 추가'로 달러 등. 원이 아닌 건 합계에 안 들어가요) · 날짜 · 자산 · 분류 · <b>소분류</b>(선택, 전에 쓴 걸 추천) · <b>내용</b> · <b>메모</b>. 메모엔 📷 사진을 4장까지 붙여요 (PC는 캡처 후 Ctrl+V). 📄 <b>월급</b>을 기록할 땐 월급명세서 사진을 붙여 주세요.</li>
+          <li>▦ <b>다건입력</b>: 내역 화면 ＋ 옆 표 버튼. 엑셀처럼 여러 줄을 적고 <b>[저장]</b>하면 한 번에 기록돼요. 금액이 빈 줄은 건너뛰고, Enter = 아래 칸, 엑셀에서 여러 칸을 복사해서 붙여넣어도 돼요 (날짜·고르는 칸에서도 Ctrl+V). 칸을 누르면 오른쪽 아래 생기는 <b>작은 네모를 끌면</b> 아래 줄에 같은 값이 복사돼요. 자산·분류는 꼭 골라야 저장돼요. 이체는 분류 칸에서 받는 곳을 골라요. (사진은 한 줄씩 ＋ 창에서)</li>
+          <li>칸: 날짜 · 금액 · <b>화폐</b>(기본 원, '＋ 화폐 추가'로 달러 등. 원이 아닌 건 합계에 안 들어가요) · 자산(현금·통장·카드·저축 묶음으로 보여요) · 분류 · <b>소분류</b>(선택, 전에 쓴 걸 추천) · <b>내용</b> · <b>메모</b>. 메모엔 📷 사진을 4장까지 붙여요 (PC는 캡처 후 Ctrl+V). 📄 <b>월급</b>을 기록할 땐 월급명세서 사진을 붙여 주세요.</li>
           <li><b>예산</b>: 분류별로 쓸 돈(예: 식비 300,000)과 <b>💝 여자친구에게 줄 돈</b>을 넣어요. 위 칸에 <b>수입 · 쓸 돈 · 줄 돈 · 잔액</b>(수입 − 쓸 돈 − 줄 돈)이 보여요. 수입은 이번 달 실제 수입, 아직이면 지난달 실제 수입으로 계산해요. 줄 돈은 정한 금액 그대로고, 실제 수입이 들어오면 맨 위에 확인 띠가 한 번 떠요. <b>15일</b>에는 줄 돈이 '보낸 돈'으로 저절로 기록돼요 (그 달에 이미 보낸 만큼은 빼고, 다르면 💝 칸 [고치기]). 분류 이름을 지출 기록과 같게 쓰면 실제로 쓴 돈도 같이 보여요. 다음 달로 자동으로 이어지고, 고치면 그 달만 바뀌어요.</li>
-          <li>💳 <b>카드</b>는 쓴 날 지출로 기록하고 (낸 곳 = 카드), 카드값이 빠지는 날은 통장 → 카드 <b>이체</b>예요. 자산에서 카드를 눌러 <b>결제일 · 빠지는 통장 · 이용기간</b>을 넣어 두면 결제일에 '💳 카드값 이체하기' 할 일이 생겨요. 체크하면 금액(이용기간 사용액)을 확인하고 [이체 기록하기]로 기록해요. 자산 탭에서 카드는 <b>결제일 기준</b>이에요: 목록엔 <b>결제예정</b>(다음 결제일에 빠질 돈) · <b>미결제</b>(그 뒤에 쓰는 중), 카드를 누르면 그 달에 빠지는 카드값의 이용기간 내역이 나와요. 카드 화면의 <b>[💳 결제]</b>를 눌러도 같은 확인 창이 떠요 (자동으로는 기록 안 해요).</li>
-          <li>가계부 메뉴 <b>⚙ 설정</b>에서 지출·수입·보낸 돈 <b>분류</b>와 분류마다 <b>소분류</b>(예: 식비 → 점심·저녁·간식), <b>화폐</b>를 더하거나 지울 수 있어요. 기록할 땐 소분류를 골라서 써요 (고르는 칸 맨 끝 '＋ 소분류 추가'로 바로 더해도 돼요). 🎨 분류 앞 <b>동그라미</b>를 누를 때마다 색이 바뀌어요. 🥧 예산의 원형은 <b>예산</b>, 지출의 원형은 <b>실제로 쓴 돈</b>이에요.</li>
+          <li>💳 <b>카드</b>는 쓴 날 지출로 기록하고 (낸 곳 = 카드), 카드값이 빠지는 날은 통장 → 카드 <b>이체</b>예요. 자산에서 카드를 눌러 <b>결제일 · 빠지는 통장 · 이용기간</b>을 넣어 두면 결제일에 '💳 카드값 이체하기' 할 일이 생겨요. 체크하면 금액(이용기간 사용액)을 확인하고 [이체 기록하기]로 기록해요. 자산 탭에서 카드는 <b>결제일 기준</b>이에요: 목록엔 <b>결제예정</b>(이용기간이 끝나서 이번에 빠질 돈 = 보통 저번 달 사용분, 결제일을 안 정했으면 지난달 1일~말일) · <b>미결제</b>(그 뒤에 쓰는 중), 카드를 누르면 그 달에 빠지는 카드값의 이용기간 내역이 나와요. 카드 화면의 <b>[💳 결제]</b>를 눌러도 같은 확인 창이 떠요 (자동으로는 기록 안 해요).</li>
+          <li>가계부 메뉴 <b>⚙ 설정</b>에서 지출·수입·보낸 돈 <b>분류</b>와 분류마다 <b>소분류</b>(예: 식비 → 점심·저녁·간식), <b>화폐</b>를 더하거나 지울 수 있어요. 기록할 땐 소분류를 골라서 써요 (고르는 칸 맨 끝 '＋ 소분류 추가'로 바로 더해도 돼요). 분류 옆 ✏️·소분류 이름을 누르면 <b>이름을 바꿔요</b> — 이미 적은 기록·예산·매월 반복도 같이 바뀌고, 있는 이름을 쓰면 합쳐져요. 🎨 원형 색은 금액 큰 8개가 서로 다른 색이에요 (9번째부터 회색 '그 밖'). 🥧 예산의 원형은 <b>예산</b>, 통계의 원형은 <b>실제로 쓴 돈</b>이에요.</li>
+          <li>⚙ 설정 <b>자산</b> 탭: 자산마다 <b>이름 · 계좌번호 · 메모</b>를 적고, 안 쓰는 자산은 🙈로 숨겨요 (예전 기록은 그대로). 아래 <b>🧮 실제 잔액 맞추기</b>에 통장 앱의 지금 잔액(카드는 갚을 카드값)을 넣고 [맞추기]를 누르면 그 금액이 되게 시작 잔액만 고쳐요.</li>
           <li>달력의 <b>🗓️ 이번 달 예산 입력하기</b>(1일) · <b>💰 이번 달 수입 입력하기</b>(15일) 할 일은 누르면 가계부의 입력 칸으로 가요. 입력하면 <code>🗓️ 10월 예산 760,000원</code> · <code>💰 10월 월급 2,600,000원</code>으로 바뀌며 저절로 체크돼요 (시간은 안 붙어요).</li>
           <li>1일부터 이번 달 예산이 아직 없으면 맨 위에 <b>🗓️ 알림</b>이 떠요 ([지난달 그대로 쓸게요]나 예산을 고치면 사라져요). 15일부터 이번 달 수입이 아직 없으면 <b>💰 알림</b>이 떠요.</li>
         </ul>
@@ -777,7 +781,7 @@
 <dialog class="dlg bulk-dlg" id="bulkDlg" aria-labelledby="bkTitle">
   <div class="dlg-head"><h3 id="bkTitle">▦ 다건입력</h3><button class="icon-round" type="button" data-act="bulkClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="dlg-sec">
-    <p class="small muted" style="margin:0">줄마다 적고 <b>[저장]</b>을 누르면 한 번에 기록돼요. 금액이 빈 줄은 건너뛰어요. Enter = 아래 칸 · 엑셀에서 여러 칸을 복사해서 붙여넣어도 돼요. 이체는 분류 칸에서 <b>받는 곳</b>을 골라요.</p>
+    <p class="small muted" style="margin:0">줄마다 적고 <b>[저장]</b>을 누르면 한 번에 기록돼요. 금액이 빈 줄은 건너뛰어요. Enter = 아래 칸 · 칸을 누르면 오른쪽 아래 생기는 <b>작은 네모를 끌면</b> 아래 줄에 복사돼요 · 엑셀에서 여러 칸을 복사해서 붙여넣어도 돼요. 이체는 분류 칸에서 <b>받는 곳</b>을 골라요.</p>
     <div class="bulk-wrap"><table class="bulk">
       <thead><tr><th class="bk-n">#</th><th>구분</th><th>날짜</th><th>자산</th><th>분류 <span class="muted">(이체: 받는 곳)</span></th><th>소분류</th><th>금액</th><th>화폐</th><th>내용</th><th>메모</th><th></th></tr></thead>
       <tbody id="bulkBody"></tbody>
@@ -824,6 +828,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261021d"></script>
+<script type="module" src="app.js?v=20261022a"></script>
 </body>
 </html>
