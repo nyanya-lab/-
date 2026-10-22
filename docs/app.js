@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022c";
-import { CHANGES } from "./changes.js?v=20261022c";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022c";
-import { mountAcctSet } from "./acctset.js?v=20261022c";
-import { mountBalance } from "./balance.js?v=20261022c";
-import { firebaseConfig } from "./firebase-config.js?v=20261022c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022d";
+import { CHANGES } from "./changes.js?v=20261022d";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022d";
+import { mountAcctSet } from "./acctset.js?v=20261022d";
+import { mountBalance } from "./balance.js?v=20261022d";
+import { firebaseConfig } from "./firebase-config.js?v=20261022d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2388,17 +2388,14 @@ function uriLook() {
       return pieHtml(null, xs, label, { color: (x) => `var(--c${top.indexOf(x) < 0 ? 8 : top.indexOf(x)})`, legend: false }); }
   };
 }
-let uriMounted = false, uriBoardApi = null;
+// 🤝 보드 우리 탭 = 나중에 '우리 목표' 같은 걸 쓸 자리 (냐냐 요청 2026-10-22: 지출은 여기 말고 가계부 ❤️ 공통 탭에서만) → 지금은 안내만, uri.js 안 불러옴
+let uriMounted = false;
 function mountUriTab() {
   if (uriMounted) return;
   uriMounted = true;
-  import(URI_JS).then((m) => {
-    uriBoardApi = m.mountUri($("uriRoot"), { who: isAdminDevice() ? "nyanya" : "ukjin", toast, ...uriLook(), ...(uriSaves() ? { savePassword: uriSavePw } : {}) });
-    if (uriSaves() && S.settings.uriPw) uriBoardApi.usePassword(S.settings.uriPw);
-  }, () => {
-    uriMounted = false;
-    $("uriRoot").innerHTML = `<p class="muted">우리 탭을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 열어 주세요.</p>`;
-  });
+  $("uriRoot").innerHTML = `<div class="panel"><h3>🤝 곧 생겨요</h3><p class="muted">냐냐와 같이 정하는 <b>우리 목표</b> 같은 걸 여기에 만들 거예요.</p>` +
+    `<p class="muted small">공통비용은 💰 가계부의 <b>❤️ 공통</b> 탭에서 봐요 (지출을 적을 때 ❤️ 공통비용 체크).</p><a class="btn" href="money.html" id="uriToCommon">💰 가계부 ❤️ 공통 열기</a></div>`;
+  $("uriToCommon").addEventListener("click", () => { try { localStorage.setItem("ukjin-mtab", "common"); } catch (e) { /* 무시 */ } });
 }
 // ❤️ 공통 (가계부 모드 '❤️ 공통' 탭, 냐냐 가계부와 같은 방식): 지출에 ❤️ 공통비용 체크 → common: true(공통 분류 ccat·csub)
 //   → uri.js setMirror로 공통 저장소 costs/ukjin-{가계부 id}에 저절로 복사 (고치면 고쳐지고, ❤️ 빼거나 지우면 지워짐, 원화만).
