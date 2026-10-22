@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022g";
-import { CHANGES } from "./changes.js?v=20261022g";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022g";
-import { mountAcctSet } from "./acctset.js?v=20261022g";
-import { mountBalance } from "./balance.js?v=20261022g";
-import { firebaseConfig } from "./firebase-config.js?v=20261022g";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022h";
+import { CHANGES } from "./changes.js?v=20261022h";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022h";
+import { mountAcctSet } from "./acctset.js?v=20261022h";
+import { mountBalance } from "./balance.js?v=20261022h";
+import { firebaseConfig } from "./firebase-config.js?v=20261022h";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -647,7 +647,7 @@ function renderCalendar() {
     if (spent[d]) ics.push("💸");
     const cellIc = ics.length ? `<span class="cell-ic" aria-hidden="true">${ics.slice(0, 2).join("")}${openN > 1 && ics.slice(0, 2).some((c) => c === "📌" || c === "❌") ? `<small>${openN}</small>` : ""}</span>` : "";
     html += `<div class="${cls}${pts ? " has-pts" : ""}${mLines ? (income[d] && spent[d] ? " has-money2" : " has-money") : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span></span>${mm > 0 ? `<small class="part-m${lv ? " ok" : ""}" title="이날 실천 ${fmtHM(Math.round(mm))}${lv ? " · 실천한 날" : " · 60분이면 실천한 날"}"><span class="pm-l">${fmtHM(Math.round(mm))}</span><span class="pm-s">${fmtDot(Math.round(mm))}</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts${pts < 0 ? " neg" : ""}">${sgn(pts)}</span>` : ""}${mLines ? `<span class="day-money">${mLines}</span>` : ""}</div>`;
+      `<span class="top"><span class="num">${dt.getDate()}</span></span>${mm > 0 || missed ? `<small class="part-m ${lv ? "ok" : mm > 0 ? "low" : "zero"}" title="이날 실천 ${fmtHM(Math.round(mm))}${lv ? " · 실천한 날" : " · 60분이면 실천한 날"}"><span class="pm-l">${fmtHM(Math.round(mm))}</span><span class="pm-s">${fmtDot(Math.round(mm))}</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts${pts < 0 ? " neg" : ""}">${sgn(pts)}</span>` : ""}${mLines ? `<span class="day-money">${mLines}</span>` : ""}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
