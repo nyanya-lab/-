@@ -879,7 +879,6 @@ tr.clickable:hover td { background: var(--sunk); }
 }
 .day.sun { border-left: 0; }   /* 줄 첫 칸 (사이에 주 띠가 끼어서 nth-child 대신) */
 /* 🟨 60분 안 된 날 · 주 결과 띠 */
-.day.part { background: color-mix(in srgb, var(--sun) 12%, var(--surface)); }
 .part-m { position: absolute; top: 10px; right: 6px; font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; color: var(--muted); pointer-events: none; }
 .part-m .pm-s { display: none; }
 .wk-bar { grid-column: 1 / -1; height: 22px; padding: 0 8px; background: var(--sunk); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; overflow: hidden; font-size: 11px; font-weight: 700; color: var(--fg); white-space: nowrap; }
@@ -902,14 +901,8 @@ tr.clickable:hover td { background: var(--sunk); }
 .day .top { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .day .num { font-family: var(--f-mono); font-size: 13px; font-weight: 600; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; }
 .day.today .num { background: var(--blue); color: #FFFFFF; }
-/* 실천한 날: 칸 전체를 초록으로 (오래 할수록 진하게) */
-.day.p1 { background: color-mix(in srgb, var(--mint) 9%, var(--surface)); }
-.day.p2 { background: color-mix(in srgb, var(--mint) 17%, var(--surface)); }
-.day.p3 { background: color-mix(in srgb, var(--mint) 27%, var(--surface)); }
-.day.p4 { background: color-mix(in srgb, var(--mint) 38%, var(--surface)); }
-.day[class*=" p"]:hover { filter: brightness(0.97); }
-.day.miss { background: color-mix(in srgb, var(--coral) 9%, var(--surface)); }
-.day.miss .num { color: var(--coral); }
+/* 실천한 날·안 한 날 칸 색칠은 없앰 (2026-10-22 냐냐: 주 도장판이 있어서). 칸 오른쪽 위 = 그날 실천한 시간 합계 (60분 넘으면 진하게) */
+.part-m.ok { color: var(--fg); font-weight: 700; }
 .ev.log { background: var(--sun-soft); border-left-color: var(--sun); }
 .ev { font-size: 11.5px; line-height: 1.35; padding: 2px 6px; border-radius: 5px; background: var(--cat-soft, var(--sunk)); color: var(--fg); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-left: 3px solid var(--cat, var(--line)); }
 .ev.done { text-decoration: line-through; color: var(--muted); }
