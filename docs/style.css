@@ -902,7 +902,9 @@ tr.clickable:hover td { background: var(--sunk); }
 .day .num { font-family: var(--f-mono); font-size: 13px; font-weight: 600; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; }
 .day.today .num { background: var(--blue); color: #FFFFFF; }
 /* 실천한 날·안 한 날 칸 색칠은 없앰 (2026-10-22 냐냐: 주 도장판이 있어서). 칸 오른쪽 위 = 그날 실천한 시간 합계 (60분 넘으면 진하게) */
-.part-m.ok { color: var(--fg); font-weight: 700; }
+.part-m.ok { color: var(--ok); font-weight: 700; }   /* 60분 이상 = 초록 */
+.part-m.low { color: var(--sun); font-weight: 700; }   /* 1~59분 = 노랑 */
+.part-m.zero { color: var(--danger); font-weight: 700; }   /* 지난 날 0분 = 빨강 */
 .ev.log { background: var(--sun-soft); border-left-color: var(--sun); }
 .ev { font-size: 11.5px; line-height: 1.35; padding: 2px 6px; border-radius: 5px; background: var(--cat-soft, var(--sunk)); color: var(--fg); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-left: 3px solid var(--cat, var(--line)); }
 .ev.done { text-decoration: line-through; color: var(--muted); }

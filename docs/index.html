@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261022g">
+<link rel="stylesheet" href="style.css?v=20261022h">
 </head>
 <body>
 
@@ -116,14 +116,14 @@
           <div class="cal-legend">
             <span><i style="background:var(--coral)"></i>시험·목표일</span>
             <span><i style="background:var(--blue)"></i>할 일 (네모 눌러 체크 · 글자 눌러 편집)</span>
-            <span>칸 오른쪽 위 = 그날 실천한 시간 (하루 <b>60분</b> 이상이면 진하게 = 실천한 날) · 한 주에 5일이면 성공 (주 줄 위 도장판)</span>
+            <span>칸 오른쪽 위 = 그날 실천한 시간: <b style="color:var(--ok)">60분 이상</b>(실천한 날) · <b style="color:var(--sun)">60분 안 됨</b> · <b style="color:var(--danger)">0m</b>(지난 날 안 함) · 한 주에 5일이면 성공 (주 줄 위 도장판)</span>
             <span><i style="background:var(--mint)"></i>✅ 체크만 (시간 없음)</span><span><i style="background:var(--sun)"></i>🔥 실천 (시간 기록)</span>
             <span><i style="background:var(--sunk);border:1px solid var(--muted)"></i>❌ 지난 날 못 한 할 일</span>
             <span><i style="background:var(--mint-soft);border:1px solid var(--mint)"></i>월급·수입</span>
             <span><i style="background:var(--surface);border:1px solid var(--muted)"></i>구글 캘린더 일정</span>
           </div>
         </div>
-        <p class="cal-legend-phone small muted">🎯 시험일 · 🔥 실천 · ✅ 체크만 · ❌ 못 한 일 · 📌 할 일 · 📅 구글 · 💰 수입 · 날짜 밑 숫자(1.05h = 1시간 5분) = 그날 실천 시간 (60분 이상이면 진하게 = 실천한 날) · 한 주에 5일이면 성공</p>
+        <p class="cal-legend-phone small muted">🎯 시험일 · 🔥 실천 · ✅ 체크만 · ❌ 못 한 일 · 📌 할 일 · 📅 구글 · 💰 수입 · 날짜 밑 숫자(1.05h = 1시간 5분) = 그날 실천 시간 (초록 60분 이상 = 실천한 날 · 노랑 60분 안 됨 · 빨강 0m) · 한 주에 5일이면 성공</p>
         <div class="panel day-panel" id="dayPanel"></div>
         <div class="panel">
           <div class="panel-head"><h3>목표</h3><button class="btn ghost small" type="button" data-act="homeGoalOpen">＋ 목표</button></div>
@@ -427,7 +427,7 @@
           <li>달력 위 <b>‹ ›</b>로 달을 넘기고 <b>[오늘]</b>로 돌아와요. <b>🔍 검색</b>에 글자를 치면 할 일·실천·목표·돈 기록을 날짜별로 찾아 줘요 (누르면 바로 열려요).</li>
           <li><b>↶ 되돌리기 · ↷ 다시 하기</b>: 최근 30개까지, 폰·PC 어디서 한 것이든 같이 기억해요. 누르면 무엇을 되돌리는지 확인 창이 떠요. 그 뒤에 바뀐 게 있으면 알려 줘요.</li>
           <li>칸 안 <b>네모</b>를 누르면 체크(🔥로 바뀜), <b>🔥</b>를 누르면 체크가 풀려 다시 네모로, <b>글자</b>를 누르면 편집 창(🔥 시간과 같이 끝낸 일은 <b>실천한 시간 고치기</b> 창이 먼저 — 거기 [📌 할 일 편집]으로 할 일도 고쳐요), 칸의 <b>빈 곳</b>을 누르면 그 날 창([할 일]/[실천한 일])이 열려요.</li>
-          <li>색: 📘 파랑 = 할 일 · 🔥 노랑 = 실천 (시간과 같이 끝낸 할 일 · 실천한 일 기록) · ✅ 민트 = 시간 없이 체크만 한 할 일 (접수 같은 일, 실천 시간으로 안 쳐요. 끝낸 예산 · 수입 · 카드값 할 일은 ✅ 대신 🗓️ · 💰 · 💳) · ❌ 회색 = 지난 날 못 한 일 · 빨강 = 시험일(D-DAY) · 하루 <b>60분 이상</b> = 실천한 날 (칸 색칠은 없고, 칸 오른쪽 위에 그날 실천한 시간 합계 — 60분 넘으면 진하게, 안 되면 흐리게). 한 주에 실천한 날이 몇 번인지는 주 줄 위 도장판에서 봐요. 10/11 전은 50분 기준.</li>
+          <li>색: 📘 파랑 = 할 일 · 🔥 노랑 = 실천 (시간과 같이 끝낸 할 일 · 실천한 일 기록) · ✅ 민트 = 시간 없이 체크만 한 할 일 (접수 같은 일, 실천 시간으로 안 쳐요. 끝낸 예산 · 수입 · 카드값 할 일은 ✅ 대신 🗓️ · 💰 · 💳) · ❌ 회색 = 지난 날 못 한 일 · 빨강 = 시험일(D-DAY) · 하루 <b>60분 이상</b> = 실천한 날 (칸 색칠은 없고, 칸 오른쪽 위에 그날 실천한 시간 합계 — 60분 이상 초록, 안 되면 노랑, 지난 날 0분이면 빨강 0m). 한 주에 실천한 날이 몇 번인지는 주 줄 위 도장판에서 봐요. 10/11 전은 50분 기준.</li>
           <li>달력 줄 위 <b>도장판</b> = 그 주 결과: <b>■ 5칸</b>은 실천한 날만큼 초록으로 채워져요. 5칸을 다 채우면 클리어 (띠가 초록). 뒤의 <b>☆ 2칸</b>은 보너스 칸이라 6일째 ★ (+15점), 7일째 ★ 🏆 (+30점) — 7일 다 하면 보너스 +45. 못 채운 주는 빨갛게, 오른쪽 🔥 = 연속 ○주 (그 주에 받은 연속 보너스는 +30처럼). 못 채운 주는 ❄️. 이번 주는 <b>🔥 ○주 도전</b> (이어 온 연속이 없으면 흐린 🔥 1주 도전) → 5일을 채우면 🔥 ○주.</li>
           <li>날짜가 지난 할 일(반복하는 일의 지난 날도)을 체크하면 물어봐요: <b>[오늘 했어요]</b> 원래 날짜는 ❌로 남고 오늘 🔥 / <b>[그날 했어요]</b> 그 날 한 걸로.</li>
           <li>앞으로 할 일을 미리 하면 <b>[오늘로 당기기]</b>. 체크를 풀면 원래 날짜로 돌아가요.</li>
@@ -829,6 +829,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="common" hidden><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>공통</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261022g"></script>
+<script type="module" src="app.js?v=20261022h"></script>
 </body>
 </html>
