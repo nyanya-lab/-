@@ -1210,3 +1210,9 @@ table.bulk { min-width: 1200px; table-layout: fixed; }
   .app-money #moneyPage .st-grid > .st-side { overflow-y: auto; overscroll-behavior: contain; }
   .app-money #txList > .tx-th, .app-money #stList > .tx-th, .app-money #asDetail .as-tx > .tx-th { position: sticky; top: 0; z-index: 2; background: var(--surface); }
 }
+/* ❤️ 공통비용 체크 (기록 칸, 지출만) · 공통 탭 (냐냐 보드 uri.js가 그림) */
+.m-common { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--coral-soft); cursor: pointer; font-size: 14px; }
+.m-common input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--coral); flex: none; }
+.m-common-mark { font-size: 12px; }
+.m-common-view { display: block; min-width: 0; }
+@media (max-width: 720px) { .app-money.m-common-on .m-bottom { grid-template-columns: repeat(7, minmax(0, 1fr)); } .app-money.m-common-on .m-bottom button { font-size: 10.5px; } }

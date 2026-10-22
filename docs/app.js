@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022a";
-import { CHANGES } from "./changes.js?v=20261022a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances } from "./money.js?v=20261022a";
-import { mountAcctSet } from "./acctset.js?v=20261022a";
-import { mountBalance } from "./balance.js?v=20261022a";
-import { firebaseConfig } from "./firebase-config.js?v=20261022a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022b";
+import { CHANGES } from "./changes.js?v=20261022b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022b";
+import { mountAcctSet } from "./acctset.js?v=20261022b";
+import { mountBalance } from "./balance.js?v=20261022b";
+import { firebaseConfig } from "./firebase-config.js?v=20261022b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1941,6 +1941,7 @@ function helpSearch(lv) {
 function markNewsSeen() { try { localStorage.setItem(NEWS_KEY, CHANGES[0].date + "#" + CHANGES[0].items.length); } catch (e) { /* 무시 */ } renderHelp(); }
 // 🤝 우리 탭 업데이트 내역: 냐냐 보드의 uri/changes.js(URI_CHANGES)를 이 목록(CHANGES)에 날짜별로 섞음 (같은 날이면 맨 앞에)
 // → 냐냐 보드에서 우리 탭을 고치고 거기에 한 줄 적으면 여기도 새 버전 알림이 떠요. 못 받아오면(5초) 이 보드 것만 보여 줌
+const URI_BASE = (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && (() => { try { return localStorage.getItem("ukjin-uri-dev"); } catch (e) { return null; } })()) || "https://nyanya-lab.github.io/nyanya-board/uri/";   // 로컬 확인 때만 다른 곳의 uri.js로 바꿀 수 있음
 let uriNewsReady = false;
 function mergeChanges(list) {
   for (const c of list || []) {
@@ -1951,10 +1952,10 @@ function mergeChanges(list) {
   CHANGES.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 Promise.race([
-  import("https://nyanya-lab.github.io/nyanya-board/uri/changes.js?v=" + Math.floor(Date.now() / 600000)).then((m) => mergeChanges(m.URI_CHANGES)),
+  import(URI_BASE + "changes.js?v=" + Math.floor(Date.now() / 600000)).then((m) => { mergeChanges(m.URI_CHANGES); uriHold = m.URI_HOLD === true; render(); }),
   new Promise((r) => setTimeout(r, 5000))
 ]).catch(() => {}).finally(() => {
-  uriNewsReady = true; renderHelp();
+  uriNewsReady = true; if (uriHold === null) uriHold = false; renderHelp(); render();
   if (S.loaded && !newsChecked) { newsChecked = true; maybeShowNews(); }
 });
 function maybeShowNews() {
@@ -2355,7 +2356,8 @@ function render() {
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && uriNewsReady && !newsChecked) { newsChecked = true; maybeShowNews(); }   // 우리 탭 내역까지 받은 뒤에
   if ($("settingsDlg").open) renderGcalBox();
-  if (APP === "money" || ui.page === "money") { if (acctSet) acctSet.render(); if (balPanel) balPanel.render(); fitPanels(); }   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
+  if (APP === "money" || ui.page === "money") { if (acctSet) acctSet.render(); if (balPanel) balPanel.render(); fitPanels(); }
+  if (APP === "money") renderCommon();   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
 }
 
 // ---------- 동작 ----------
@@ -2373,15 +2375,55 @@ function route() {
 
 // 🤝 우리 탭: 냐냐 보드 저장소의 uri/uri.js(두 보드가 같이 쓰는 코드)를 처음 열 때 불러옴. 저장도 공통 저장소(uri-board)에 따로.
 // ?v=는 10분 단위라 냐냐 보드에서 uri.js를 고치면 늦어도 10분쯤 뒤 여기도 바뀜. 관리자 기기(냐냐)에서 적으면 '냐냐'로 기록
-const URI_JS = "https://nyanya-lab.github.io/nyanya-board/uri/uri.js?v=" + Math.floor(Date.now() / 600000);
-let uriMounted = false;
+const URI_JS = URI_BASE + "uri.js?v=" + Math.floor(Date.now() / 600000);
+// 🔑 공통 비밀번호는 보드 설정 settings.uriPw에 기억 (냐냐 보드와 같은 방식) → 다른 기기에선 보드만 열면 공통도 열림. 욱진이 기기만 (관리자·테스트 모드는 안 씀)
+const uriSaves = () => !isAdminDevice() && !testMode && !DEMO;
+const uriSavePw = (pw) => { if (backend && uriSaves()) act(backend.saveSettings({ uriPw: pw || null })).catch(() => {}); };
+let uriMounted = false, uriBoardApi = null;
 function mountUriTab() {
   if (uriMounted) return;
   uriMounted = true;
-  import(URI_JS).then((m) => m.mountUri($("uriRoot"), { who: isAdminDevice() ? "nyanya" : "ukjin", toast }), () => {
+  import(URI_JS).then((m) => {
+    uriBoardApi = m.mountUri($("uriRoot"), { who: isAdminDevice() ? "nyanya" : "ukjin", toast, ...(uriSaves() ? { savePassword: uriSavePw } : {}) });
+    if (uriSaves() && S.settings.uriPw) uriBoardApi.usePassword(S.settings.uriPw);
+  }, () => {
     uriMounted = false;
     $("uriRoot").innerHTML = `<p class="muted">우리 탭을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 열어 주세요.</p>`;
   });
+}
+// ❤️ 공통 (가계부 모드 '❤️ 공통' 탭, 냐냐 가계부와 같은 방식): 지출에 ❤️ 공통비용 체크 → common: true(공통 분류 ccat·csub)
+//   → uri.js setMirror로 공통 저장소 costs/ukjin-{가계부 id}에 저절로 복사 (고치면 고쳐지고, ❤️ 빼거나 지우면 지워짐, 원화만).
+//   냐냐 보드 uri/changes.js의 URI_HOLD가 true면(공개 전) ❤️ 칸·공통 탭 숨김. 관리자 기기(연습 가계부)·테스트 모드에선 복사 안 함
+let uriHold = null, uriApi = null, uriPwUsed = null;
+const commonOpen = () => APP === "money" && !DEMO && uriHold === false;
+function mountUriMoney() {
+  if (uriApi || !commonOpen()) return;
+  uriApi = { loading: true };
+  import(URI_JS).then((m) => {
+    uriApi = m.mountUri($("uriMoneyRoot"), {
+      who: "ukjin", toast, mirror: true, savePassword: uriSavePw,
+      onCats: () => { if (S.loaded) { renderMoneyForm(); if (!$("catEditor").contains(document.activeElement)) renderCatEditor(); } },   // 🏷 공통 분류가 바뀌면 기록 창 분류 칸도
+      // 📊 공통 지출 = 가계부 통계 탭과 같은 기간 계산·흐름 그래프, 자산·메모는 내가 ❤️로 적은 가계부 기록에서
+      stats: { range: (pp, anchor, k) => stRange(pp, anchor, k), chart: (el, d) => setChart(el, d),
+        rec: (id) => { const mm = /^ukjin-(.+)$/.exec(id || ""), x = mm && S.money.get(mm[1]); return x ? { acct: acctName(x.account), note: x.note || "" } : null; } },
+      pie: (list, label) => { const top = list.slice(0, 8), rest = list.slice(8), xs = rest.length ? top.concat([{ cat: "그 밖", amt: rest.reduce((t, x) => t + x.amt, 0), other: true }]) : top;
+        return pieHtml(null, xs, label, { color: (x) => `var(--c${top.indexOf(x) < 0 ? 8 : top.indexOf(x)})`, legend: false }); }
+    });
+    uriPwUsed = null; render();
+  }, () => { uriApi = null; $("uriMoneyRoot").innerHTML = `<p class="muted">공통 탭을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.</p>`; });
+}
+function renderCommon() {
+  const on = commonOpen();
+  document.querySelectorAll('.m-nav[data-k="common"], #mBottom [data-k="common"]').forEach((b) => { b.hidden = !on; });
+  document.documentElement.classList.toggle("m-common-on", on);
+  if (!on) return;
+  mountUriMoney();
+  if (!uriApi || uriApi.loading || !S.loaded) return;
+  if (uriSaves() && S.settings.uriPw && S.settings.uriPw !== uriPwUsed) { uriPwUsed = S.settings.uriPw; uriApi.usePassword(S.settings.uriPw); }
+  if (testMode || isAdminDevice()) return;
+  const docs = {};
+  S.money.forEach((x, id) => { if (x && x.common && (x.kind === "expense" || !x.kind) && isWon(x)) docs[id] = { date: x.date, amount: x.amount, cat: x.ccat || x.cat, sub: x.ccat ? x.csub || null : null, memo: x.memo, settled: false }; });
+  uriApi.setMirror(docs);
 }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
 
@@ -3002,6 +3044,8 @@ document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (
 
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
 bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
+  commonOpen: () => commonOpen(),   // ❤️ 공통이 열렸는지 (공개 전·연습 가계부면 ❤️ 칸·공통 탭 숨김)
+  commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null),   // 🏷 ❤️ 체크하면 분류 칸 = 공통 분류 (공통 저장소, 고치는 건 냐냐만)
   catRank: true,   // 분류 색: 원형마다 금액 큰 8개가 서로 다른 색, 9번째부터 '그 밖' (냐냐 가계부와 같게)
   get backend() { return backend; }, get testMode() { return testMode; } });
 initMoney();
@@ -3011,12 +3055,12 @@ var balPanel = mountBalance($("balPanel"), { S, backend: () => backend, toast, a
 // ⚙ 가계부 설정 탭 안 작은 탭: 분류 · 자산 · 반복 · 화폐 (이 기기에 기억)
 function setSubTab(k) {
   const ks = ["cat", "acct", "repeat", "cur"]; if (!ks.includes(k)) k = "cat";
-  lsSet("ukjin-stab", k);
+  try { localStorage.setItem("ukjin-stab", k); } catch (e) { /* 무시 */ }
   document.querySelectorAll("#moneyPage [data-st]").forEach((el) => el.classList.toggle("st-off", el.dataset.st !== k));
   document.querySelectorAll("#setTabs [data-st-k]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.stK === k)));
 }
 $("setTabs").addEventListener("click", (ev) => { const b = ev.target.closest("[data-st-k]"); if (b) setSubTab(b.dataset.stK); });
-setSubTab(lsGet("ukjin-stab") || "cat");
+try { setSubTab(localStorage.getItem("ukjin-stab") || "cat"); } catch (e) { setSubTab("cat"); }
 // 📌 PC: 내역 · 통계 · 자산 칸 높이를 화면 아래 끝까지 → 위(요약·그래프·표 머리줄)는 그대로, 목록만 스크롤 (style.css, 가계부 모드만)
 function fitPanels() {
   document.querySelectorAll(".app-money #moneyPage .tx-panel, .app-money #moneyPage .st-grid, .app-money #asGrid").forEach((el) => {
