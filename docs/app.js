@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022b";
-import { CHANGES } from "./changes.js?v=20261022b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022b";
-import { mountAcctSet } from "./acctset.js?v=20261022b";
-import { mountBalance } from "./balance.js?v=20261022b";
-import { firebaseConfig } from "./firebase-config.js?v=20261022b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022c";
+import { CHANGES } from "./changes.js?v=20261022c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022c";
+import { mountAcctSet } from "./acctset.js?v=20261022c";
+import { mountBalance } from "./balance.js?v=20261022c";
+import { firebaseConfig } from "./firebase-config.js?v=20261022c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2379,12 +2379,21 @@ const URI_JS = URI_BASE + "uri.js?v=" + Math.floor(Date.now() / 600000);
 // 🔑 공통 비밀번호는 보드 설정 settings.uriPw에 기억 (냐냐 보드와 같은 방식) → 다른 기기에선 보드만 열면 공통도 열림. 욱진이 기기만 (관리자·테스트 모드는 안 씀)
 const uriSaves = () => !isAdminDevice() && !testMode && !DEMO;
 const uriSavePw = (pw) => { if (backend && uriSaves()) act(backend.saveSettings({ uriPw: pw || null })).catch(() => {}); };
+// 공통 탭 모양 (보드 🤝 우리 탭 · 가계부 ❤️ 공통 탭 같이): 📊 공통 지출 = 가계부 통계 탭과 같은 기간 계산·흐름 그래프·원형, 자산·메모는 내가 ❤️로 적은 가계부 기록에서
+function uriLook() {
+  return {
+    stats: { range: (pp, anchor, k) => stRange(pp, anchor, k), chart: (el, d) => setChart(el, d),
+      rec: (id) => { const mm = /^ukjin-(.+)$/.exec(id || ""), x = mm && S.money.get(mm[1]); return x ? { acct: acctName(x.account), note: x.note || "" } : null; } },
+    pie: (list, label) => { const top = list.slice(0, 8), rest = list.slice(8), xs = rest.length ? top.concat([{ cat: "그 밖", amt: rest.reduce((t, x) => t + x.amt, 0), other: true }]) : top;
+      return pieHtml(null, xs, label, { color: (x) => `var(--c${top.indexOf(x) < 0 ? 8 : top.indexOf(x)})`, legend: false }); }
+  };
+}
 let uriMounted = false, uriBoardApi = null;
 function mountUriTab() {
   if (uriMounted) return;
   uriMounted = true;
   import(URI_JS).then((m) => {
-    uriBoardApi = m.mountUri($("uriRoot"), { who: isAdminDevice() ? "nyanya" : "ukjin", toast, ...(uriSaves() ? { savePassword: uriSavePw } : {}) });
+    uriBoardApi = m.mountUri($("uriRoot"), { who: isAdminDevice() ? "nyanya" : "ukjin", toast, ...uriLook(), ...(uriSaves() ? { savePassword: uriSavePw } : {}) });
     if (uriSaves() && S.settings.uriPw) uriBoardApi.usePassword(S.settings.uriPw);
   }, () => {
     uriMounted = false;
@@ -2401,13 +2410,8 @@ function mountUriMoney() {
   uriApi = { loading: true };
   import(URI_JS).then((m) => {
     uriApi = m.mountUri($("uriMoneyRoot"), {
-      who: "ukjin", toast, mirror: true, savePassword: uriSavePw,
+      who: "ukjin", toast, mirror: true, savePassword: uriSavePw, ...uriLook(),
       onCats: () => { if (S.loaded) { renderMoneyForm(); if (!$("catEditor").contains(document.activeElement)) renderCatEditor(); } },   // 🏷 공통 분류가 바뀌면 기록 창 분류 칸도
-      // 📊 공통 지출 = 가계부 통계 탭과 같은 기간 계산·흐름 그래프, 자산·메모는 내가 ❤️로 적은 가계부 기록에서
-      stats: { range: (pp, anchor, k) => stRange(pp, anchor, k), chart: (el, d) => setChart(el, d),
-        rec: (id) => { const mm = /^ukjin-(.+)$/.exec(id || ""), x = mm && S.money.get(mm[1]); return x ? { acct: acctName(x.account), note: x.note || "" } : null; } },
-      pie: (list, label) => { const top = list.slice(0, 8), rest = list.slice(8), xs = rest.length ? top.concat([{ cat: "그 밖", amt: rest.reduce((t, x) => t + x.amt, 0), other: true }]) : top;
-        return pieHtml(null, xs, label, { color: (x) => `var(--c${top.indexOf(x) < 0 ? 8 : top.indexOf(x)})`, legend: false }); }
     });
     uriPwUsed = null; render();
   }, () => { uriApi = null; $("uriMoneyRoot").innerHTML = `<p class="muted">공통 탭을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.</p>`; });
