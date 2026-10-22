@@ -488,7 +488,7 @@ export const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷
 export function moneyAdminView() { return isAdminDevice() && !DEMO; }
 export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
-export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "settings", "common"].includes(v) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
+export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "settings", "common"].includes(v) || (v === "common" && !(E.commonOpen && E.commonOpen())) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
 export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } if (k === "assets") { ui.asSel = null; ui.asOpen = false; } renderMoney(); }
 export function renderMTabs() {
   const adm = moneyAdminView(), tab = adm ? "stats" : mTab();   // 관리자 보드 '예산'은 통계만 (실제 수입 · 보낸 돈 · 나머지)
@@ -1085,7 +1085,7 @@ export function renderMoneyForm(fill) {
   $("mSub").innerHTML = ccOn() ? ccSubOptions(mc.value, sv && sv !== "__add" ? sv : "") : subOptions(k, mc.value, sv && sv !== "__add" ? sv : "");
   salaryHint();
   // ❤️ 공통비용 (냐냐 보드만 칸이 있음): 지출만. 체크하면 공통 저장소로 복사돼서 욱진이 가계부에도 보임
-  const cw = $("mCommonWrap"); if (cw) cw.hidden = k !== "expense";
+  const cw = $("mCommonWrap"); if (cw) cw.hidden = k !== "expense" || !(E.commonOpen && E.commonOpen());   // 욱진 보드: 공통이 열렸을 때만 (E.commonOpen)
   // 💸 이체할 때 '공통비용 정산' 체크 (냐냐 쪽에서 더함, E.settleCommon): 체크하고 저장하면 이 금액만큼 선입선출 정산. 이미 정산한 이체는 ✅만
   const sw = $("mSettleWrap");
   if (sw) {
@@ -1397,6 +1397,7 @@ export function initMoney() {
     doc.pics = Object.keys(pics).length ? pics : null;
     act((async () => {
       const id = editing ? (await E.backend.update("money", id0, doc), id0) : await E.backend.add("money", { ...doc, createdAt: Date.now() });
+      if (doc.ccat && !moneyCats("expense").includes(doc.cat)) await E.backend.saveSettings({ moneyCats: { income: moneyCats("income"), expense: moneyCats("expense").concat(doc.cat), transfer: moneyCats("transfer") } });   // ❤️ 처음 적으면 내 지출 분류에 '💙 공통비용'도 더함
       for (const p of fresh) await E.backend.putPic(p.id, { full: p.full, thumb: p.thumb, money: id, kind: "money", title: doc.memo || doc.cat || "", date, at: Date.now() });
       for (const pid of gone) await E.backend.putPic(pid, null);
       if (wantSettle) await E.settleCommon(amount, id, { date, memo: doc.memo || doc.note || "이체", money: id });

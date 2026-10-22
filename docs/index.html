@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261022a">
+<link rel="stylesheet" href="style.css?v=20261022b">
 </head>
 <body>
 
@@ -47,6 +47,7 @@
       <a href="#money" class="only-money m-nav" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></a>
       <a href="#money" class="only-money m-nav" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></a>
       <a href="#money" class="only-money m-nav" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></a>
+      <a href="#money" class="only-money m-nav" data-act="mTab" data-k="common" hidden><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>공통</span></a>
       <a href="#money" class="only-money m-nav" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>가계부 설정</span></a>
       <a href="money.html" id="navMoneyApp" class="only-admin-board" hidden><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg><span>가계부 (연습)</span></a>
       <a href="#certs"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><span>자격증 찾기</span></a>
@@ -231,6 +232,7 @@
                 <label class="f"><span id="mAcctLabel">낸 곳</span><select id="mAcct"></select></label>
                 <label class="f" id="mToWrap" hidden>받는 곳<select id="mTo"></select></label>
               </div>
+              <label class="m-common" id="mCommonWrap" hidden><input type="checkbox" id="mCommon"><span>❤️ <b>공통비용</b> <span class="small muted">냐냐와 나눠 내는 돈 → 냐냐 가계부 ❤️ 공통에도 보여요</span></span></label>
               <div class="row" id="mCatWrap">
                 <label class="f"><span><span class="cat-lbl">분류</span> <button class="link-btn" type="button" data-act="editCats">편집</button></span><select id="mCat"></select></label>
                 <label class="f">소분류<select id="mSub"></select></label>
@@ -321,6 +323,8 @@
         <div class="row hist-custom" id="histCustom" hidden><label class="f">부터<input type="month" id="histFrom"></label><label class="f">까지<input type="month" id="histTo"></label></div>
         <div class="table-scroll"><table class="t" id="monthTable"></table></div>
       </div>
+      <!-- ❤️ 공통: 둘이 ❤️로 표시한 지출 + 정산 (코드는 냐냐 보드 uri/uri.js, 공통 저장소 uri-board — app.js mountUriMoney) -->
+      <div class="m-common-view" data-mtab="common"><div id="uriMoneyRoot"></div></div>
     </section>
 
     <!-- 기능 요청 -->
@@ -493,11 +497,11 @@
         <h3>🤝 우리 (공통비용)</h3>
         <ul>
           <li>메뉴 <b>우리</b>는 냐냐와 같이 쓰는 공간이에요. 여기 적은 건 냐냐 보드에도 똑같이 보여요.</li>
-          <li>처음 한 번은 냐냐와 정한 <b>공통 비밀번호</b>를 넣어요. 이 보드 비밀번호와는 따로예요.</li>
+          <li>처음 한 번은 냐냐와 정한 <b>공통 비밀번호</b>를 넣어요. 이 보드 비밀번호와는 따로예요. 한 번 넣으면 이 보드에 기억돼서 다른 기기에선 다시 안 넣어도 돼요.</li>
           <li><b>＋ 공통비용 적기</b>: 날짜 · 내용 · 금액 · 분류 · 낸 사람(냐냐 · 욱진 · 공동 통장)을 고르고 [추가].</li>
           <li>위 칸에서 이번 달 합계, 각자 낸 돈, <b>반반 정산</b>(누가 누구에게 얼마 주면 반반인지)을 봐요. 공동 통장으로 낸 돈은 정산에서 빼요.</li>
           <li>내역의 ✎로 고치고 ×로 지워요. 지우면 냐냐 보드에서도 지워져요.</li>
-          <li>공통비용은 💰 가계부와 따로예요. 내 지출은 가계부에도 따로 적어요.</li>
+          <li>❤️ <b>가계부에서 바로</b>: 💰 가계부에서 지출을 적을 때 <b>❤️ 공통비용</b>을 체크하면 분류 칸이 공통 분류(식비·문화생활·여행…)로 바뀌고, 그 기록이 공통비용에 저절로 들어가요. 고치거나 지우면 공통 쪽도 같이 바뀌어요. 가계부 메뉴 <b>❤️ 공통</b> 탭에서 둘이 낸 공통비용과 정산을 봐요.</li>
         </ul>
         </div>
         <div data-help="etc" hidden>
@@ -826,8 +830,8 @@
 </dialog>
 
 
-<nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
+<nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="common" hidden><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>공통</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261022a"></script>
+<script type="module" src="app.js?v=20261022b"></script>
 </body>
 </html>
