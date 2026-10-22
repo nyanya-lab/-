@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022e";
-import { CHANGES } from "./changes.js?v=20261022e";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022e";
-import { mountAcctSet } from "./acctset.js?v=20261022e";
-import { mountBalance } from "./balance.js?v=20261022e";
-import { firebaseConfig } from "./firebase-config.js?v=20261022e";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022f";
+import { CHANGES } from "./changes.js?v=20261022f";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022f";
+import { mountAcctSet } from "./acctset.js?v=20261022f";
+import { mountBalance } from "./balance.js?v=20261022f";
+import { firebaseConfig } from "./firebase-config.js?v=20261022f";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -627,8 +627,8 @@ function renderCalendar() {
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
     if (more > 0) shown.push(`<div class="ev more">+${more}개 더</div>`);
     const mm = prac[d] || 0, lv = !practiced(prac, d) ? 0 : mm >= 180 ? 4 : mm >= 120 ? 3 : mm >= 90 ? 2 : 1;   // 60분부터 초록 (10/11 전은 50분)
-    const missed = !mm && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 하나도 없음 → 연한 빨강
-    const part = !lv && mm > 0 && d >= WEEK_RULE_FROM && d <= t;   // 조금 했는데 60분 안 됨 → 연한 노랑 + 40/60m
+    const missed = !mm && d < t && startedAt && d >= startedAt;   // 지난 날인데 실천이 하나도 없음 (칸 색칠은 없앰 2026-10-22, class만 남김)
+    const part = !lv && mm > 0 && d >= WEEK_RULE_FROM && d <= t;   // 조금 했는데 60분 안 됨 (칸 오른쪽 위 시간이 흐리게)
     const cls = ["day", lv ? "p" + lv : part ? "part" : missed ? "miss" : "", d.slice(0, 7) !== m ? "out" : "", d === t ? "today" : "", d === ui.selDay ? "sel" : "", dt.getDay() === 0 ? "sun" : "", dt.getDay() === 6 ? "sat" : ""].filter(Boolean).join(" ");
     // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
     const pts = ptsDay && ptsDay[d] && ptsDay[d].sum;
@@ -647,7 +647,7 @@ function renderCalendar() {
     if (spent[d]) ics.push("💸");
     const cellIc = ics.length ? `<span class="cell-ic" aria-hidden="true">${ics.slice(0, 2).join("")}${openN > 1 && ics.slice(0, 2).some((c) => c === "📌" || c === "❌") ? `<small>${openN}</small>` : ""}</span>` : "";
     html += `<div class="${cls}${pts ? " has-pts" : ""}${mLines ? (income[d] && spent[d] ? " has-money2" : " has-money") : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span></span>${part ? `<small class="part-m" title="${Math.round(mm)}분 · 60분이면 실천한 날"><span class="pm-l">${Math.round(mm)}/60m</span><span class="pm-s">${Math.round(mm)}m</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts${pts < 0 ? " neg" : ""}">${sgn(pts)}</span>` : ""}${mLines ? `<span class="day-money">${mLines}</span>` : ""}</div>`;
+      `<span class="top"><span class="num">${dt.getDate()}</span></span>${mm > 0 ? `<small class="part-m${lv ? " ok" : ""}" title="이날 실천 ${fmtHM(Math.round(mm))}${lv ? " · 실천한 날" : " · 60분이면 실천한 날"}"><span class="pm-l">${fmtHM(Math.round(mm))}</span><span class="pm-s">${fmtShort(Math.round(mm))}</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts${pts < 0 ? " neg" : ""}">${sgn(pts)}</span>` : ""}${mLines ? `<span class="day-money">${mLines}</span>` : ""}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
