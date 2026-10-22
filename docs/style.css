@@ -1216,3 +1216,6 @@ table.bulk { min-width: 1200px; table-layout: fixed; }
 .m-common-mark { font-size: 12px; }
 .m-common-view { display: block; min-width: 0; }
 @media (max-width: 720px) { .app-money.m-common-on .m-bottom { grid-template-columns: repeat(7, minmax(0, 1fr)); } .app-money.m-common-on .m-bottom button { font-size: 10.5px; } }
+/* ⏱ 타이머 끝: 자정을 넘겼을 때 기록할 날 고르기 */
+.tm-day { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.tm-day input { margin: 0; accent-color: var(--blue); }

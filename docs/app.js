@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022d";
-import { CHANGES } from "./changes.js?v=20261022d";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022d";
-import { mountAcctSet } from "./acctset.js?v=20261022d";
-import { mountBalance } from "./balance.js?v=20261022d";
-import { firebaseConfig } from "./firebase-config.js?v=20261022d";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022e";
+import { CHANGES } from "./changes.js?v=20261022e";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022e";
+import { mountAcctSet } from "./acctset.js?v=20261022e";
+import { mountBalance } from "./balance.js?v=20261022e";
+import { firebaseConfig } from "./firebase-config.js?v=20261022e";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -526,7 +526,9 @@ function taskItem(x, day, upcoming, hideGoal) {
     (isRep(x) && (!activeOn(x, day) || day > today())
       ? `<button class="check" type="button" disabled title="${activeOn(x, day) ? "그 날이 되면 체크할 수 있어요" : "이 날은 쉬는 날"}" aria-label="아직 체크할 수 없음" style="opacity:.35">${CHECK}</button>`
       : `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" data-day="${day}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>`) +
-    `<div class="body" data-act="editTask" data-id="${esc(x.id)}" style="cursor:pointer" title="눌러서 편집"><div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
+    (tm ? `<div class="body" data-act="editTaskLog" data-id="${esc(x.id)}" data-day="${isRep(x) ? day : x.doneDate}" style="cursor:pointer" title="눌러서 실천한 시간 고치기">`   // 🔥 시간과 같이 끝낸 일 = 실천 시간 고치기 창 먼저
+      : `<div class="body" data-act="editTask" data-id="${esc(x.id)}" style="cursor:pointer" title="눌러서 편집">`) +
+    `<div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
     `<div class="actions">` +
     (canTime(x) && !done && day <= today() && (!isRep(x) || activeOn(x, day)) ? (timerNow() && timerNow().taskId === x.id ? '<span class="tm-on" title="타이머로 재는 중">⏱</span>' : `<button class="icon-btn tm-go" type="button" data-act="tmStart" data-id="${esc(x.id)}" title="타이머 시작" aria-label="${esc(x.title)} 타이머 시작">▶</button>`) : "") +
     `<button class="icon-btn" type="button" data-act="del" data-col="tasks" data-id="${esc(x.id)}">삭제</button></div></div>`;
@@ -572,7 +574,7 @@ function calTask(x, d, repeat) {
   const later = repeat && d > today();   // 반복하는 일의 앞으로의 날은 그 날이 되면 체크
   const missed = !done && d < today();     // 지난 날 못 한 일 ❌
   const mi = done && !prac ? moneyIcon(x) : "", title = mi && x.title.startsWith(mi) ? x.title.slice(mi.length).trim() : x.title;   // 끝낸 돈 할 일은 ✅ 대신 제 아이콘
-  return `<div class="ev task ${color}${done ? " done" + (prac ? " prac" : "") : missed ? " miss" : ""}" data-act="editTask" data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · 눌러서 편집">` +
+  return `<div class="ev task ${color}${done ? " done" + (prac ? " prac" : "") : missed ? " miss" : ""}" ${prac ? `data-act="editTaskLog" data-day="${repeat ? d : x.doneDate}"` : 'data-act="editTask"'} data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · ${prac ? "눌러서 실천한 시간 고치기" : "눌러서 편집"}">` +   // 🔥 실천한 일은 시간 고치기 창 먼저
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
       : done   // 시간과 같이 끝낸 일은 🔥, 시간 없이 체크한 일은 ✅. 누르면 체크가 풀려서 다시 네모로
@@ -703,7 +705,7 @@ function timerStart(id) {
   if (tm && tm.taskId === id) { if (!tm.start) saveTimer({ ...tm, start: Date.now() }, "▶ 다시 재요."); else toast("이미 재고 있어요. 맨 위 띠를 봐요."); return; }
   if (tm) { toast(`지금 '${tm.title}' 타이머가 돌고 있어요. 먼저 끝내 주세요.`); openTimerEnd(); return; }
   closeDlg($("taskDlg"));
-  saveTimer({ taskId: id, title: x.title || "할 일", start: Date.now(), acc: 0 }, `⏱ '${x.title}' 시작! 맨 위 띠에서 멈추거나 끝내요.`);
+  saveTimer({ taskId: id, title: x.title || "할 일", start: Date.now(), acc: 0, day: today() }, `⏱ '${x.title}' 시작! 맨 위 띠에서 멈추거나 끝내요.`);   // day = 시작한 날 (밤에 시작해 자정을 넘기면 끝낼 때 고름)
 }
 function renderTimerBar() {
   const tm = timerNow(), bar = $("timerBar");
@@ -717,14 +719,22 @@ function renderTimerBar() {
   $("tmClock").textContent = fmtClock(ms);
 }
 setInterval(() => { if (timerNow()) renderTimerBar(); }, 1000);
+// 🗓️ 타이머가 자정을 넘겼으면 기록할 날을 고름: 시작한 날 ~ 오늘 (기본 = 시작한 날)
+function timerDays(tm) {
+  const t = today(), from = tm.day || (tm.start && !(Number(tm.acc) > 0) ? ymd(new Date(tm.start)) : t), out = [];
+  for (let d = from < t ? from : t, n = 0; d <= t && n < 7; d = addDays(d, 1), n++) out.push(d);
+  if (out[out.length - 1] !== t) out.push(t);
+  return out;
+}
 function openTimerEnd() {
   const tm = timerNow(); if (!tm) return;
-  const ms = timerMs(tm), min = Math.max(1, Math.round(ms / 60000));
+  const ms = timerMs(tm), min = Math.max(1, Math.round(ms / 60000)), days = timerDays(tm), t = today();
   $("mvTitle").textContent = `⏱ '${tm.title}' 끝!`;
   $("mvText").innerHTML = `<p><b>${fmtClock(ms)}</b> 했어요. 실제로 한 시간과 다르면 고쳐 주세요.</p>` +
     (ms > TIMER_WARN ? '<p class="small" style="color:var(--danger);margin:0">5시간이 넘었어요. 끄는 걸 잊었으면 실제로 한 시간으로 고쳐 주세요.</p>' : "") +
     `<div class="hm"><input type="number" id="tmH" min="0" max="99" step="1" inputmode="numeric" value="${Math.floor(min / 60)}" aria-label="시간"><span>시간</span><input type="number" id="tmM" min="0" max="59" step="1" inputmode="numeric" value="${min % 60}" aria-label="분"><span>분</span></div>` +
-    `<p class="small muted" style="margin:0">[기록하고 체크]를 누르면 '${esc(tm.title)}'이(가) 오늘 이 시간으로 체크돼요 (🔥 실천 · ⭐ 포인트).</p>`;
+    (days.length > 1 ? `<p class="small" style="margin:0">🌙 자정이 지났어요. 어느 날에 기록할까요?</p><div class="chips tm-days">${days.map((d, i) => `<label class="chip tm-day"><input type="radio" name="tmDay" value="${d}"${i === 0 ? " checked" : ""}> ${shortDate(d)}${d === t ? " 오늘" : i === 0 ? " 시작한 날" : ""}</label>`).join("")}</div>` : "") +
+    `<p class="small muted" style="margin:0">[기록하고 체크]를 누르면 '${esc(tm.title)}'이(가) ${days.length > 1 ? "고른 날" : "오늘"} 이 시간으로 체크돼요 (🔥 실천 · ⭐ 포인트).</p>`;
   $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="tmSave">기록하고 체크</button><button class="btn ghost" type="button" data-act="mvClose">더 할래요</button><button class="btn ghost danger-txt" type="button" data-act="tmDrop">버리기</button>';
   openDlg($("moveDlg"));
 }
@@ -733,7 +743,8 @@ function timerSave() {
   const min = (parseInt($("tmH").value, 10) || 0) * 60 + (parseInt($("tmM").value, 10) || 0);
   if (!(min > 0)) { toast("시간을 넣어 주세요."); return; }
   closeDlg($("moveDlg"));
-  const x = S.tasks.get(tm.taskId), id = tm.taskId, t = today();
+  const pick = document.querySelector('#moveDlg input[name="tmDay"]:checked');
+  const x = S.tasks.get(tm.taskId), id = tm.taskId, t = pick && /^\d{4}-\d{2}-\d{2}$/.test(pick.value) ? pick.value : today();   // t = 기록할 날 (자정을 넘겼으면 고른 날)
   if (!x) { saveTimer(null, "할 일이 지워져서 타이머만 껐어요."); return; }
   const was = isDone(x, t), day = !isRep(x) && was && x.doneDate ? x.doneDate : t, prevMin = was ? taskMinutes(id, day) : 0;
   act((async () => {
@@ -742,7 +753,7 @@ function timerSave() {
     for (const l of taskLogs(id, day)) await backend.remove("logs", l.id);
     await backend.add("logs", { date: day, minutes: prevMin + min, text: x.title, goalId: x.goalId || null, taskId: id, createdAt: Date.now() });
     await backend.saveSettings({ timer: null });
-  })(), `⏱ ${fmtMin(min)} 기록하고 '${x.title}' 체크했어요. 🔥`).catch(() => {});
+  })(), `⏱ ${t === today() ? "" : shortDate(t) + "에 "}${fmtMin(min)} 기록하고 '${x.title}' 체크했어요. 🔥`).catch(() => {});
 }
 
 // 시간 입력: 숨은 칸(id)에 총 분, 보이는 칸은 [시간][분] (data-hm="id")
@@ -1980,8 +1991,20 @@ function askLog(id) {
 function openLog(id) {
   const l = S.logs.get(id); if (!l) return;
   logFor = id;
+  // 할 일 체크 때 적은 시간이면: 무슨 할 일인지 보여 주고, 날짜 칸은 숨김(바꾸면 체크한 날과 어긋나서) + [📌 할 일 편집]
+  const x = l.taskId && S.tasks.get(l.taskId);
+  $("lgTitle").textContent = x ? "🔥 실천한 시간 고치기" : "🔥 실천한 일 편집";
+  $("lgFor").hidden = !x; $("lgFor").textContent = x ? `${x.title} · ${shortDate(l.date)}` : "";
+  $("lgDateWrap").hidden = !!x; $("lgTaskBtn").hidden = !x;
   $("lgDate").value = l.date || today(); setMinInput("lgMin", l.minutes); $("lgText").value = l.text || "";
   openDlg($("logDlg"));
+}
+// 🔥 시간과 같이 끝낸 할 일을 누르면: 그날 기록한 시간 고치기 창 (없으면 할 일 편집)
+function openTaskLog(id, day) {
+  const x = S.tasks.get(id); if (!x) return;
+  if (x.penId && S.wins.get(x.penId)) { openWin(x.penId); return; }
+  const ls = taskLogs(id, day).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if (ls.length) openLog(ls[0].id); else openTask(id);
 }
 function delLog(id) {
   const l = S.logs.get(id); if (!l || !ready()) return;
@@ -2595,6 +2618,8 @@ document.addEventListener("click", (ev) => {
   if (a === "searchMoney") { const m = S.money.get(id); if (!m) return; ui.month = m.date.slice(0, 7); location.hash = "#money"; if (!moneyAdminView()) setTimeout(() => editMoney(id), 60); return; }
   if (a === "logFire") { askLog(id); return; }
   if (a === "editLog") { openLog(id); return; }
+  if (a === "editTaskLog") { openTaskLog(id, el.dataset.day); return; }
+  if (a === "lgTask") { const l = logFor && S.logs.get(logFor); closeDlg($("logDlg")); logFor = null; if (l && l.taskId) openTask(l.taskId); return; }
   if (a === "logEditGo") { closeDlg($("moveDlg")); openLog(logFor); return; }
   if (a === "logDelGo") { closeDlg($("moveDlg")); delLog(logFor); logFor = null; return; }
   if (a === "lgClose") { closeDlg($("logDlg")); logFor = null; return; }
