@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022h";
-import { CHANGES } from "./changes.js?v=20261022h";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022h";
-import { mountAcctSet } from "./acctset.js?v=20261022h";
-import { mountBalance } from "./balance.js?v=20261022h";
-import { firebaseConfig } from "./firebase-config.js?v=20261022h";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022i";
+import { CHANGES } from "./changes.js?v=20261022i";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022i";
+import { mountAcctSet } from "./acctset.js?v=20261022i";
+import { mountBalance } from "./balance.js?v=20261022i";
+import { firebaseConfig } from "./firebase-config.js?v=20261022i";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -596,6 +596,7 @@ function renderCalendar() {
   S.tasks.forEach((x, id) => { const k = moneyTaskKind(x, id); if (k && k.k === "income" && x.done && x.date) delete income[x.date]; });
   const calMoney = calMoneyShown(), spent = {};
   if (calMoney) S.money.forEach((x) => { if ((x.kind === "expense" || x.kind === "transfer" || !x.kind) && x.date && isWon(x) && moneyShown(x)) spent[x.date] = (spent[x.date] || 0) + (Number(x.amount) || 0); });
+  const calTime = calTimeShown(); $("calTimeBtn").classList.toggle("off", !calTime); $("calTimeBtn").title = calTime ? "달력에서 실천 시간 숨기기" : "달력에 그날 실천 시간 보이기";
   $("calMoneyBtn").classList.toggle("off", !calMoney); $("calMoneyBtn").title = calMoney ? "달력에서 지출 숨기기 (월급만)" : "달력에 날마다 수입·지출 보이기";
   const habits = rows(S.tasks).filter(isRep);
   // 보드를 쓰기 시작한 날 (그 전 날짜는 '안 한 날'로 칠하지 않음)
@@ -647,7 +648,7 @@ function renderCalendar() {
     if (spent[d]) ics.push("💸");
     const cellIc = ics.length ? `<span class="cell-ic" aria-hidden="true">${ics.slice(0, 2).join("")}${openN > 1 && ics.slice(0, 2).some((c) => c === "📌" || c === "❌") ? `<small>${openN}</small>` : ""}</span>` : "";
     html += `<div class="${cls}${pts ? " has-pts" : ""}${mLines ? (income[d] && spent[d] ? " has-money2" : " has-money") : ""}" role="button" tabindex="0" data-act="selDay" data-day="${d}" aria-label="${esc(prettyDate(d))}">` +
-      `<span class="top"><span class="num">${dt.getDate()}</span></span>${mm > 0 || missed ? `<small class="part-m ${lv ? "ok" : mm > 0 ? "low" : "zero"}" title="이날 실천 ${fmtHM(Math.round(mm))}${lv ? " · 실천한 날" : " · 60분이면 실천한 날"}"><span class="pm-l">${fmtHM(Math.round(mm))}</span><span class="pm-s">${fmtDot(Math.round(mm))}</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts${pts < 0 ? " neg" : ""}">${sgn(pts)}</span>` : ""}${mLines ? `<span class="day-money">${mLines}</span>` : ""}</div>`;
+      `<span class="top"><span class="num">${dt.getDate()}</span></span>${calTime && (mm > 0 || missed) ? `<small class="part-m ${lv ? "ok" : mm > 0 ? "low" : "zero"}" title="이날 실천 ${fmtHM(Math.round(mm))}${lv ? " · 실천한 날" : " · 60분이면 실천한 날"}"><span class="pm-l">${fmtHM(Math.round(mm))}</span><span class="pm-s">${fmtDot(Math.round(mm))}</span></small>` : ""}${shown.join("")}${cellIc}${pts ? `<span class="day-pts${pts < 0 ? " neg" : ""}">${sgn(pts)}</span>` : ""}${mLines ? `<span class="day-money">${mLines}</span>` : ""}</div>`;
   }
   $("calGrid").innerHTML = html;
   renderGcalChip();
@@ -1876,6 +1877,7 @@ function renderPoints() {
 }
 function ptsShown() { try { return localStorage.getItem("ukjin-pts-show") !== "0"; } catch (e) { return true; } }
 // 💰 달력 돈 보기 (이 기기에 기억, 기본 끔): 끄면 월급(수입)만, 켜면 날마다 +수입 · −지출(💝 준 돈 포함)
+function calTimeShown() { try { return localStorage.getItem("ukjin-cal-time") !== "0"; } catch (e) { return true; } }   // ⏱ 칸 오른쪽 위 실천 시간 (기본 보임, 이 기기에 기억)
 function calMoneyShown() { try { return localStorage.getItem("ukjin-cal-money") === "1"; } catch (e) { return false; } }
 function renderPointsDlg(L) {
   L = L || pointsLedger();
@@ -2599,6 +2601,7 @@ document.addEventListener("click", (ev) => {
   if (a === "openPoints") { closeMenu(); if (S.loaded && lottoVisible() && ticketsLeft() > 0) { openScratch(); return; } location.hash = "#coupons"; return; }
   if (a === "openPtsDlg") { renderPointsDlg(); openDlg($("pointsDlg")); return; }
   if (a === "ptClose") { closeDlg($("pointsDlg")); return; }
+  if (a === "calTimeToggle") { try { localStorage.setItem("ukjin-cal-time", calTimeShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); toast(calTimeShown() ? "⏱ 달력에 그날 실천 시간을 보여요." : "⏱ 달력에서 실천 시간을 숨겼어요."); return; }
   if (a === "calMoneyToggle") { try { localStorage.setItem("ukjin-cal-money", calMoneyShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); toast(calMoneyShown() ? "💰 달력에 날마다 수입·지출을 보여요." : "💰 달력엔 월급(수입)만 보여요."); return; }
   if (a === "ptsToggle") { try { localStorage.setItem("ukjin-pts-show", ptsShown() ? "0" : "1"); } catch (e) { /* 무시 */ } renderCalendar(); renderPoints(); toast(ptsShown() ? "달력에 포인트를 보여요." : "달력에서 포인트를 숨겼어요."); return; }
   if (a === "goalAchieve") {
