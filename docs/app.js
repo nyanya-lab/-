@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261026c";
-import { CHANGES } from "./changes.js?v=20261026c";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261026c";
-import { mountAcctSet } from "./acctset.js?v=20261026c";
-import { mountBalance } from "./balance.js?v=20261026c";
-import { firebaseConfig } from "./firebase-config.js?v=20261026c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261026d";
+import { CHANGES } from "./changes.js?v=20261026d";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261026d";
+import { mountAcctSet } from "./acctset.js?v=20261026d";
+import { mountBalance } from "./balance.js?v=20261026d";
+import { firebaseConfig } from "./firebase-config.js?v=20261026d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2452,7 +2452,9 @@ function renderCommon() {
   if (uriSaves() && S.settings.uriPw && S.settings.uriPw !== uriPwUsed) { uriPwUsed = S.settings.uriPw; uriApi.usePassword(S.settings.uriPw); }
   if (!commonMine()) return;   // 연습 가계부·테스트 모드·관리자 기기는 복사 안 함
   const docs = {};
-  S.money.forEach((x, id) => { if (x && x.common && (x.kind === "expense" || !x.kind) && isWon(x)) docs[id] = { date: x.date, amount: x.amount, cat: x.ccat || x.cat, sub: x.ccat ? x.csub || null : null, memo: x.memo, settled: false }; });
+  // 🤝 공동 자산(accounts.joint, 데이트통장 등)으로 낸 건 payer "joint" = 둘이 같이 냄 (정산할 돈엔 안 들어감, 냐냐 보드 09f9d52와 같게)
+  const jointOf = (x) => { const a = S.accounts.get(x.account); return a && a.joint ? "joint" : null; };
+  S.money.forEach((x, id) => { if (x && x.common && (x.kind === "expense" || !x.kind) && isWon(x)) docs[id] = { date: x.date, amount: x.amount, cat: x.ccat || x.cat, sub: x.ccat ? x.csub || null : null, memo: x.memo, settled: false, payer: jointOf(x) }; });
   uriApi.setMirror(docs);
 }
 window.addEventListener("hashchange", () => { closeMenu(); route(); });
