@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261026b";
-import { CHANGES } from "./changes.js?v=20261026b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261026b";
-import { mountAcctSet } from "./acctset.js?v=20261026b";
-import { mountBalance } from "./balance.js?v=20261026b";
-import { firebaseConfig } from "./firebase-config.js?v=20261026b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261026c";
+import { CHANGES } from "./changes.js?v=20261026c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261026c";
+import { mountAcctSet } from "./acctset.js?v=20261026c";
+import { mountBalance } from "./balance.js?v=20261026c";
+import { firebaseConfig } from "./firebase-config.js?v=20261026c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2429,13 +2429,14 @@ function mountUriTab() {
 //   → uri.js setMirror로 공통 저장소 costs/ukjin-{가계부 id}에 저절로 복사 (고치면 고쳐지고, ❤️ 빼거나 지우면 지워짐, 원화만).
 //   냐냐 보드 uri/changes.js의 URI_HOLD가 true면(공개 전) ❤️ 칸·공통 탭 숨김. 관리자 기기(연습 가계부)·테스트 모드에선 복사 안 함
 let uriHold = null, uriApi = null, uriPwUsed = null;
-const commonOpen = () => APP === "money" && !DEMO && uriHold === false;
+const commonOpen = () => APP === "money" && uriHold === false;   // ❤️ 공통 탭 (관리자 기기 연습 가계부에서도 보기·정산은 됨 — 냐냐 이름으로)
+const commonMine = () => commonOpen() && !DEMO && !testMode && !isAdminDevice();   // ❤️ 체크 칸 · 공통으로 복사는 욱진이 기기 진짜 가계부만
 function mountUriMoney() {
   if (uriApi || !commonOpen()) return;
   uriApi = { loading: true };
   import(URI_JS).then((m) => {
     uriApi = m.mountUri($("uriMoneyRoot"), {
-      who: "ukjin", toast, mirror: true, savePassword: uriSavePw, ...uriLook(),
+      who: commonMine() ? "ukjin" : "nyanya", toast, mirror: true, ...(uriSaves() ? { savePassword: uriSavePw } : {}), ...uriLook(),   // 관리자 기기 = 냐냐가 보는 것 (setMirror 안 부름 → 연습 기록은 복사 안 됨)
       onCats: () => { if (S.loaded) { renderMoneyForm(); if (!$("catEditor").contains(document.activeElement)) renderCatEditor(); } },   // 🏷 공통 분류가 바뀌면 기록 창 분류 칸도
     });
     uriPwUsed = null; render();
@@ -2449,7 +2450,7 @@ function renderCommon() {
   mountUriMoney();
   if (!uriApi || uriApi.loading || !S.loaded) return;
   if (uriSaves() && S.settings.uriPw && S.settings.uriPw !== uriPwUsed) { uriPwUsed = S.settings.uriPw; uriApi.usePassword(S.settings.uriPw); }
-  if (testMode || isAdminDevice()) return;
+  if (!commonMine()) return;   // 연습 가계부·테스트 모드·관리자 기기는 복사 안 함
   const docs = {};
   S.money.forEach((x, id) => { if (x && x.common && (x.kind === "expense" || !x.kind) && isWon(x)) docs[id] = { date: x.date, amount: x.amount, cat: x.ccat || x.cat, sub: x.ccat ? x.csub || null : null, memo: x.memo, settled: false }; });
   uriApi.setMirror(docs);
@@ -3077,7 +3078,8 @@ document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (
 
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
 bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
-  commonOpen: () => commonOpen(),   // ❤️ 공통이 열렸는지 (공개 전·연습 가계부면 ❤️ 칸·공통 탭 숨김)
+  commonOpen: () => commonOpen(),   // ❤️ 공통 탭이 열렸는지 (공개 전이면 숨김)
+  commonMark: () => commonMine(),   // ❤️ 공통비용 체크 칸 (욱진이 기기 진짜 가계부만)
   commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null),   // 🏷 ❤️ 체크하면 분류 칸 = 공통 분류 (공통 저장소, 고치는 건 냐냐만)
   catRank: true,   // 분류 색: 원형마다 금액 큰 8개가 서로 다른 색, 9번째부터 '그 밖' (냐냐 가계부와 같게)
   get backend() { return backend; }, get testMode() { return testMode; } });

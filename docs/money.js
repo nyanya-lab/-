@@ -1085,7 +1085,7 @@ export function renderMoneyForm(fill) {
   $("mSub").innerHTML = ccOn() ? ccSubOptions(mc.value, sv && sv !== "__add" ? sv : "") : subOptions(k, mc.value, sv && sv !== "__add" ? sv : "");
   salaryHint();
   // ❤️ 공통비용 (냐냐 보드만 칸이 있음): 지출만. 체크하면 공통 저장소로 복사돼서 욱진이 가계부에도 보임
-  const cw = $("mCommonWrap"); if (cw) cw.hidden = k !== "expense" || !(E.commonOpen && E.commonOpen());   // 욱진 보드: 공통이 열렸을 때만 (E.commonOpen)
+  const cw = $("mCommonWrap"); if (cw) cw.hidden = k !== "expense" || !(E.commonMark ? E.commonMark() : E.commonOpen && E.commonOpen());   // 욱진 보드: 공통이 열렸고 욱진이 기기 진짜 가계부일 때만 (E.commonMark)
   // 💸 이체할 때 '공통비용 정산' 체크 (냐냐 쪽에서 더함, E.settleCommon): 체크하고 저장하면 이 금액만큼 선입선출 정산. 이미 정산한 이체는 ✅만
   const sw = $("mSettleWrap");
   if (sw) {
