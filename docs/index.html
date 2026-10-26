@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261022i">
+<link rel="stylesheet" href="style.css?v=20261026a">
 </head>
 <body>
 
@@ -580,7 +580,7 @@
       <div class="chips" id="dtDays" hidden></div>
       <div class="chips" id="dtTimes" hidden></div>
       <p class="small muted" id="dtHint"></p>
-      <div class="f">할 시간 (선택)<input type="hidden" id="dtMin"><div class="hm"><input type="number" data-hm="dtMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dtMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
+      <div class="f">할 시간 (선택)<input type="hidden" id="dtMin"><div class="hm"><input type="number" data-hm="dtMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dtMin" data-u="m" min="0" max="59" step="1" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
       <div class="chips" data-min-for="dtMin"></div>
       <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
       <div class="row" style="align-items:end">
@@ -598,7 +598,7 @@
     <div class="dlg-sec"><div class="list" id="dayLogs"></div></div>
     <form class="dlg-sec" id="dayLogForm" autocomplete="off">
       <h4>실천한 일 기록</h4>
-      <input type="hidden" id="dayLogMin"><div class="hm"><input type="number" data-hm="dayLogMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dayLogMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div>
+      <input type="hidden" id="dayLogMin"><div class="hm"><input type="number" data-hm="dayLogMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dayLogMin" data-u="m" min="0" max="59" step="1" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div>
       <div class="chips" data-min-for="dayLogMin"></div>
       <div class="mini-row"><input type="text" id="dayLogText" maxlength="300" placeholder="예: CAD 벽체 연습, 현장에서 줄눈 맞추는 법 배움" aria-label="메모"><button class="btn small" type="submit">기록</button></div>
     </form>
@@ -636,7 +636,7 @@
       <label class="f" id="gtEndLabel" hidden>끝나는 날 (비우면 계속)<input type="date" id="gtEnd"></label>
     </div>
     <div class="chips" id="gtEndQuick" hidden></div>
-    <div class="f">할 시간 (선택)<input type="hidden" id="gtMin"><div class="hm"><input type="number" data-hm="gtMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="gtMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
+    <div class="f">할 시간 (선택)<input type="hidden" id="gtMin"><div class="hm"><input type="number" data-hm="gtMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="gtMin" data-u="m" min="0" max="59" step="1" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="chips" data-min-for="gtMin"></div>
     <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
     <label class="real-chk" hidden><input type="checkbox" id="gtReal" checked> 💜 진짜 보드에도 추가 (관리자)</label>
@@ -661,13 +661,13 @@
       <label class="f" id="tkDateLabel">날짜<input type="date" id="tkDate"></label>
       <label class="f" id="tkEndLabel" hidden>끝나는 날 (비우면 계속)<input type="date" id="tkEnd"></label>
     </div>
-    <div class="f">할 시간 (선택)<input type="hidden" id="tkPlan"><div class="hm"><input type="number" data-hm="tkPlan" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="tkPlan" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
+    <div class="f">할 시간 (선택)<input type="hidden" id="tkPlan"><div class="hm"><input type="number" data-hm="tkPlan" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="tkPlan" data-u="m" min="0" max="59" step="1" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="chips" data-min-for="tkPlan"></div>
     <p class="small muted" style="margin:0">넣어 두면 체크만 해도 이 시간이 실천으로 기록돼요.</p>
     <label class="f">목표<select id="tkGoal"></select></label>
     <label class="f" id="tkSubWrap" hidden>세부목표<select id="tkSubGoal"></select></label>
     <label class="inline-check" id="tkDoneWrap"><input type="checkbox" id="tkDone"> 다 했어요</label>
-    <div class="f" id="tkMinWrap" hidden>걸린 시간 (비우면 기록 안 함)<input type="hidden" id="tkMin"><div class="hm"><input type="number" data-hm="tkMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="tkMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
+    <div class="f" id="tkMinWrap" hidden>걸린 시간 (비우면 기록 안 함)<input type="hidden" id="tkMin"><div class="hm"><input type="number" data-hm="tkMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="tkMin" data-u="m" min="0" max="59" step="1" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="row" style="align-items:center;flex:0 0 auto">
       <button class="btn" type="submit">저장</button>
       <button class="btn ghost" type="button" data-act="tmStartDlg" id="tkTimer">▶ 타이머 시작</button>
@@ -680,7 +680,7 @@
   <p id="dsTitle"></p>
   <div class="chips" id="dsQuick"></div>
   <form class="ds-form" id="dsForm" autocomplete="off">
-    <input type="hidden" id="dsMin"><div class="hm hm-sm"><input type="number" data-hm="dsMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dsMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div>
+    <input type="hidden" id="dsMin"><div class="hm hm-sm"><input type="number" data-hm="dsMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="dsMin" data-u="m" min="0" max="59" step="1" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div>
     <button class="btn small" type="submit">기록</button>
     <button class="btn ghost small" type="button" data-act="dsSkip">건너뛰기</button>
   </form>
@@ -771,7 +771,7 @@
   <div class="dlg-head"><div><h3 id="lgTitle">🔥 실천한 일 편집</h3><span class="muted small" id="lgFor" hidden></span></div><button class="icon-round" type="button" data-act="lgClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <form class="dlg-sec form" id="logForm" autocomplete="off">
     <label class="f" id="lgDateWrap">날짜<input type="date" id="lgDate"></label>
-    <div class="f">한 시간<input type="hidden" id="lgMin"><div class="hm"><input type="number" data-hm="lgMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="lgMin" data-u="m" min="0" max="59" step="5" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
+    <div class="f">한 시간<input type="hidden" id="lgMin"><div class="hm"><input type="number" data-hm="lgMin" data-u="h" min="0" max="99" step="1" inputmode="numeric" placeholder="0" aria-label="시간"><span>시간</span><input type="number" data-hm="lgMin" data-u="m" min="0" max="59" step="1" inputmode="numeric" placeholder="0" aria-label="분"><span>분</span></div></div>
     <div class="chips" data-min-for="lgMin"></div>
     <label class="f">메모<input type="text" id="lgText" maxlength="300" placeholder="예: CAD 벽체 연습"></label>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn" type="submit">저장</button><button class="btn ghost" type="button" data-act="lgTask" id="lgTaskBtn" hidden>📌 할 일 편집</button><button class="icon-btn" type="button" data-act="lgDel">삭제</button></div>
@@ -829,6 +829,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="common" hidden><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>공통</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261022i"></script>
+<script type="module" src="app.js?v=20261026a"></script>
 </body>
 </html>
