@@ -1214,3 +1214,4 @@ table.bulk { min-width: 1200px; table-layout: fixed; }
 /* ⏱ 타이머 끝: 자정을 넘겼을 때 기록할 날 고르기 */
 .tm-day { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .tm-day input { margin: 0; accent-color: var(--blue); }
+.mini-x { opacity: .75; }   /* 지난 날 못 한 일 ❌ = 체크 버튼 */

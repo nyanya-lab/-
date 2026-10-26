@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261026a";
-import { CHANGES } from "./changes.js?v=20261026a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261026a";
-import { mountAcctSet } from "./acctset.js?v=20261026a";
-import { mountBalance } from "./balance.js?v=20261026a";
-import { firebaseConfig } from "./firebase-config.js?v=20261026a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261026b";
+import { CHANGES } from "./changes.js?v=20261026b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261026b";
+import { mountAcctSet } from "./acctset.js?v=20261026b";
+import { mountBalance } from "./balance.js?v=20261026b";
+import { firebaseConfig } from "./firebase-config.js?v=20261026b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -579,8 +579,10 @@ function calTask(x, d, repeat) {
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
       : done   // 시간과 같이 끝낸 일은 🔥, 시간 없이 체크한 일은 ✅. 누르면 체크가 풀려서 다시 네모로
       ? `<button type="button" class="mini-fire" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="true" aria-label="${esc(x.title)} 체크 풀기" title="누르면 체크가 풀려요">${prac ? "🔥" : mi || "✅"}</button>`
+      : missed   // 지난 날 못 한 일: 네모 대신 ❌ 하나만 — 누르면 네모처럼 체크 (2026-10-26 냐냐 요청)
+      ? `<button type="button" class="mini-fire mini-x" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="false" aria-label="${esc(x.title)} 못 한 일 — 눌러서 체크" title="못 한 일 · 누르면 체크돼요">❌</button>`
       : `<button type="button" class="mini-check" data-act="toggle" data-id="${esc(x.id)}" data-day="${d}" aria-pressed="false" aria-label="${esc(x.title)} 완료 표시">${CHECK}</button>`) +
-    `<span>${missed ? '<span class="ev-long">❌ </span>' : ""}${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(title)}${x.repeat === "nweek" ? ` <small class="nw">${nweekCount(x, d)}/${nweekNeed(x)}</small>` : ""}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
+    `<span>${min ? `<b class="ev-short">${fmtShort(min)}</b>` : ""}${esc(title)}${x.repeat === "nweek" ? ` <small class="nw">${nweekCount(x, d)}/${nweekNeed(x)}</small>` : ""}${min ? `<span class="ev-long"> · ${fmtHM(min)}</span>` : ""}</span></div>`;
 }
 function renderCalendar() {
   const t = today(), m = ui.calMonth, p = m.split("-");
