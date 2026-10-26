@@ -1,9 +1,9 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261022i";
-import { CHANGES } from "./changes.js?v=20261022i";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261022i";
-import { mountAcctSet } from "./acctset.js?v=20261022i";
-import { mountBalance } from "./balance.js?v=20261022i";
-import { firebaseConfig } from "./firebase-config.js?v=20261022i";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261026a";
+import { CHANGES } from "./changes.js?v=20261026a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261026a";
+import { mountAcctSet } from "./acctset.js?v=20261026a";
+import { mountBalance } from "./balance.js?v=20261026a";
+import { firebaseConfig } from "./firebase-config.js?v=20261026a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -530,7 +530,7 @@ function taskItem(x, day, upcoming, hideGoal) {
       : `<div class="body" data-act="editTask" data-id="${esc(x.id)}" style="cursor:pointer" title="눌러서 편집">`) +
     `<div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
     `<div class="actions">` +
-    (canTime(x) && !done && day <= today() && (!isRep(x) || activeOn(x, day)) ? (timerNow() && timerNow().taskId === x.id ? '<span class="tm-on" title="타이머로 재는 중">⏱</span>' : `<button class="icon-btn tm-go" type="button" data-act="tmStart" data-id="${esc(x.id)}" title="타이머 시작" aria-label="${esc(x.title)} 타이머 시작">▶</button>`) : "") +
+    (canTime(x) && day <= today() && (!isRep(x) || activeOn(x, day)) ? (timerNow() && timerNow().taskId === x.id ? '<span class="tm-on" title="타이머로 재는 중">⏱</span>' : `<button class="icon-btn tm-go" type="button" data-act="tmStart" data-id="${esc(x.id)}" title="${done ? "타이머로 시간 더하기" : "타이머 시작"}" aria-label="${esc(x.title)} ${done ? "타이머로 시간 더하기" : "타이머 시작"}">▶</button>`) : "") +   // 이미 체크한 일도 ▶ → 끝내면 그날 시간에 더함
     `<button class="icon-btn" type="button" data-act="del" data-col="tasks" data-id="${esc(x.id)}">삭제</button></div></div>`;
 }
 function statTile(label, value, sub, cls, act) {
@@ -2942,7 +2942,8 @@ function doRepSplit() {
   Object.keys(doc).forEach((k) => { if (doc[k] == null) delete doc[k]; });
   act((async () => {
     const nid = await backend.add("tasks", doc);
-    await backend.update("tasks", r.id, { end: keepEnd, doneDates: Object.fromEntries(moved.map((d) => [d, null])) });
+    // ⚠️ 옮길 체크가 없을 때 doneDates: {}를 넘기면 Firebase update가 예전 체크를 통째로 지움 (2026-10-25 '강의듣기' 10/12~10/23 체크가 사라진 원인) → 옮길 날만 하나씩 지움
+    await backend.update("tasks", r.id, { end: keepEnd, ...(moved.length ? { doneDates: Object.fromEntries(moved.map((d) => [d, null])) } : {}) });
     for (const l of rows(S.logs).filter((l) => l.taskId === r.id && l.date >= start)) await backend.update("logs", l.id, { taskId: nid });
   })(), `오늘부터 '${repeatLabel(doc)}'로 새로 만들었어요. 지난 기록은 그대로예요.`).then(() => closeDlg($("taskDlg"))).catch(() => {});
 }
