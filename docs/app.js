@@ -1,9 +1,10 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261026d";
-import { CHANGES } from "./changes.js?v=20261026d";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName } from "./money.js?v=20261026d";
-import { mountAcctSet } from "./acctset.js?v=20261026d";
-import { mountBalance } from "./balance.js?v=20261026d";
-import { firebaseConfig } from "./firebase-config.js?v=20261026d";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261027a";
+import { CHANGES } from "./changes.js?v=20261027a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, MONEY_CATS } from "./money.js?v=20261027a";
+import { mountAcctSet } from "./acctset.js?v=20261027a";
+import { mountReport } from "./report.js?v=20261027a";
+import { mountBalance } from "./balance.js?v=20261027a";
+import { firebaseConfig } from "./firebase-config.js?v=20261027a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1077,13 +1078,22 @@ function testBackend(snapshot) {
     async getPic(id, part) { if (pics[id]) return pics[id][part] || null; return realBackend && realBackend.getPic ? realBackend.getPic(id, part) : null; }
   };
 }
+// 🧪 테스트 모드에서도 기능 요청(requests)은 진짜 보드에 같이 저장 — 상태 바꾸기·메모·추가·삭제 (2026-10-27 냐냐: 테스트 모드에서 '완료' 눌렀는데 다시 풀려 있었음)
+function realRequests(b) {
+  const { add, update, remove, set } = b, real = (c) => c === "requests" && testMode && realBackend;
+  b.add = async (c, obj) => { if (!real(c)) return add(c, obj); const id = await realBackend.add(c, clone(obj)); await set(c, id, obj); return id; };
+  b.update = (c, id, patch) => real(c) ? Promise.all([realBackend.update(c, id, clone(patch)), update(c, id, patch)]) : update(c, id, patch);
+  b.remove = (c, id) => real(c) ? Promise.all([realBackend.remove(c, id), remove(c, id)]) : remove(c, id);
+  b.set = (c, id, obj) => real(c) ? Promise.all([realBackend.set(c, id, clone(obj)), set(c, id, obj)]) : set(c, id, obj);
+  return b;
+}
 function toggleTestMode() {
   if (testMode) { try { sessionStorage.setItem("ukjin-real", "1"); } catch (e) { /* 무시 */ } toast("진짜 보드로 돌아가요… (이번에 연 동안만)"); setTimeout(() => location.reload(), 300); return; }
   if (!isAdminDevice() || !backend) return;
   const snap = {}; COLS.forEach((c) => { snap[c] = Object.fromEntries(clone([...S[c]])); });
   snap.settings = clone(S.settings); snap.history = clone(S.history || []);
   testMode = true; testBonus = 0; realBackend = backend;
-  backend = wrapHistory(testBackend(snap));
+  backend = wrapHistory(realRequests(testBackend(snap)));
   closeMenu(); closeSettings();
   try { sessionStorage.removeItem("ukjin-real"); } catch (e) { /* 무시 */ }
   toast("🧪 테스트 모드예요. 복권 관리만 진짜로 저장돼요.");
@@ -2385,7 +2395,7 @@ function render() {
   if (S.loaded && uriNewsReady && !newsChecked) { newsChecked = true; maybeShowNews(); }   // 우리 탭 내역까지 받은 뒤에
   if ($("settingsDlg").open) renderGcalBox();
   if (APP === "money" || ui.page === "money") { if (acctSet) acctSet.render(); if (balPanel) balPanel.render(); fitPanels(); }
-  if (APP === "money") renderCommon();   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
+  if (APP === "money") { renderCommon(); if (rptView) rptView.render(); }   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
 }
 
 // ---------- 동작 ----------
@@ -3088,6 +3098,9 @@ bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMe
 initMoney();
 // 🏦 자산 관리(이름·계좌번호·메모·🙈 숨기기) · 🧮 실제 잔액 맞추기 — 가계부 설정 '자산' 작은 탭 (냐냐 가계부 acctset.js·balance.js 복사)
 var acctSet = mountAcctSet($("acctSetPanel"), { S, backend: () => backend, toast, act, esc, rows });
+// 📑 보고서 탭 (냐냐 가계부 report.js 복사): 저장한 보고서는 settings.reports (rootUpdate)
+var rptView = mountReport($("reportRoot"), { S, backend: () => backend, toast, esc, won, isWon, acctName, subs: moneySubsOf, chart: setChart, pie: pieHtml, txRow: (x) => txRow(x, false), mineOn, cntAmt, isSettleIn,
+  accts: () => sortedAccts(), cats: (k) => { const c = (S.settings.moneyCats || {})[k]; return (c && c.length ? c : MONEY_CATS[k] || []).slice(); } });
 var balPanel = mountBalance($("balPanel"), { S, backend: () => backend, toast, act, esc, won: wonS, rows, balances });
 // ⚙ 가계부 설정 탭 안 작은 탭: 분류 · 자산 · 반복 · 화폐 (이 기기에 기억)
 function setSubTab(k) {
@@ -3107,7 +3120,7 @@ function fitPanels() {
   });
 }
 window.addEventListener("resize", fitPanels);
-document.addEventListener("click", () => setTimeout(fitPanels, 0));   // 탭을 바꾸면
+document.addEventListener("click", (ev) => setTimeout(() => { fitPanels(); if (rptView && ev.target.closest && ev.target.closest('[data-act="mTab"]')) rptView.render(); }, 0));   // 탭을 바꾸면 (📑 보고서는 그 탭으로 올 때 그림)
 
 // ---------- 시작 ----------
 route();

@@ -488,7 +488,7 @@ export const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷
 export function moneyAdminView() { return isAdminDevice() && !DEMO; }
 export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
-export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "settings", "common"].includes(v) || (v === "common" && !(E.commonOpen && E.commonOpen())) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
+export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "report", "settings", "common"].includes(v) ||   /* 📑 report = 보고서 탭 (냐냐 가계부 report.js 복사) */ (v === "common" && !(E.commonOpen && E.commonOpen())) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
 export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } if (k === "assets") { ui.asSel = null; ui.asOpen = false; } renderMoney(); }
 export function renderMTabs() {
   const adm = moneyAdminView(), tab = adm ? "stats" : mTab();   // 관리자 보드 '예산'은 통계만 (실제 수입 · 보낸 돈 · 나머지)
@@ -508,7 +508,7 @@ export function renderMTabs() {
   // 가계부 모드: 탭마다 위에 있던 '💰 가계부' 제목·설명 줄은 숨기고, 예산 탭이면 달 넘기기만 오른쪽에 (관리자 보드의 '예산' 제목은 그대로)
   const appMoney = document.documentElement.classList.contains("app-money");
   document.querySelector("#moneyPage .page-head").hidden = appMoney && !adm && tab !== "budget";
-  const mb = $("mineBtn"); if (mb) { mb.hidden = !E.mineView || !["budget", "spend", "cal", "stats"].includes(tab); mb.setAttribute("aria-pressed", String(mineOn())); }   // 💑 내 몫으로 보기 (냐냐)
+  const mb = $("mineBtn"); if (mb) { mb.hidden = !E.mineView || !["budget", "spend", "cal", "stats", "report"].includes(tab); mb.setAttribute("aria-pressed", String(mineOn())); }   // 💑 내 몫으로 보기 (냐냐)
   if (tab === "settings" && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
   if (tab === "settings") renderRepeat();
 }
@@ -604,7 +604,9 @@ export function acctFlow(id) {
 // 그 달에 보여 줄 기간: 보통은 달력 한 달. 결제일을 정한 카드는 결제일 기준 = 그 달에 빠지는 카드값의 이용기간 (date = 결제일)
 export function acctPeriod(a, m) { return a && a.type === "card" && a.pay && a.pay.day ? cardPayPlan(a.pay, m) : { from: `${m}-01`, to: dayInMonth(m, 31) }; }
 const ymdDot = (s) => `${s.slice(2, 4)}.${+s.slice(5, 7)}.${+s.slice(8)}`;   // 2026-10-01 → 26.10.1
-function renderAssets(accts, bal) {
+function renderAssets(all, bal) {
+  // 냐냐: 🤝 공동 자산(accounts.joint, 데이트통장 등)은 내 자산·부채·합계에서 빼고 맨 아래 '🤝 공동' 묶음으로 따로 (기록 칸에선 그대로 고를 수 있음)
+  const accts = all.filter((a) => !a.joint), joints = all.filter((a) => a.joint);
   const fold = asFold(), sel = asSelected(), owedOf = (a) => Math.max(0, -(bal[a.id] || 0));
   const total = accts.reduce((s2, a) => s2 + (bal[a.id] || 0), 0);
   const owed = accts.filter((a) => a.type === "card").reduce((s2, a) => s2 + owedOf(a), 0);
@@ -625,17 +627,25 @@ function renderAssets(accts, bal) {
         return `<button type="button" class="as-row${a.id === sel ? " on" : ""}" data-act="asSel" data-id="${esc(a.id)}" aria-pressed="${a.id === sel}"><span class="as-name">${esc(a.name)}${a.number ? `<small class="as-num">${esc(a.number)}</small>` : ""}</span>` +   // 냐냐: 계좌번호 (accounts.number)
           (card ? `<span class="as-cp"><b class="won${d.due ? " minus" : ""}">${won(d.due)}</b><b class="won${d.open ? " minus" : ""}">${d.none ? "-" : won(d.open)}</b></span>` : `<b class="won${sg(v)}">${won(v)}</b>`) + "</button>";
       }).join("")) + "</div>";
-  }).join("") : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>');
+  }).join("") + (joints.length ? (() => {   // 🤝 공동 (내 합계에 안 들어감, 공통 탭 🏦 공동 자산에서 둘이 같이 봄)
+    const shut = !!fold.joint, jsum = joints.reduce((s2, a) => s2 + (bal[a.id] || 0), 0);
+    return `<div class="as-group t-joint"><button type="button" class="as-gh" data-act="asFold" data-k="joint" aria-expanded="${!shut}"><span>🤝 공동<small>${joints.length}</small><i class="as-chev" aria-hidden="true"></i></span><b class="won${sg(jsum)}">${won(jsum)}</b></button>` +
+      (shut ? "" : `<p class="as-jnote small muted">내 합계엔 안 들어가요 · 공통 탭 🏦 공동 자산에서 같이 봐요</p>` + joints.map((a) => { const v = bal[a.id] || 0;
+        return `<button type="button" class="as-row${a.id === sel ? " on" : ""}" data-act="asSel" data-id="${esc(a.id)}" aria-pressed="${a.id === sel}"><span class="as-name">${esc(a.name)}${a.number ? `<small class="as-num">${esc(a.number)}</small>` : ""}</span><b class="won${sg(v)}">${won(v)}</b></button>`; }).join("")) + "</div>";
+  })() : "") : '<p class="muted small" style="margin:0">통장·카드·현금을 추가하면 어디서 쓰고 어디로 들어왔는지 기록하고, 자산마다 잔액을 볼 수 있어요.</p>');
   $("asGrid").classList.toggle("as-open", !!ui.asOpen && !!sel);
   renderAssetDetail(sel);
 }
 // 🏦 자산 전체: 자산 · 부채 · 합계, 최근 12달 합계 흐름, 자산 구성 · 부채 구성 원형
 function renderAssetAll() {
-  const box = $("asDetail"), accts = sortedAccts(), bal = balances(), m = ui.month;
+  const box = $("asDetail"), accts = sortedAccts().filter((a) => !a.joint), bal = balances(), m = ui.month;   // 냐냐: 🤝 공동 자산은 빼고
   if (!accts.length) { box.innerHTML = '<p class="muted small" style="margin:0">자산을 추가하면 여기에 자산·부채·합계가 보여요.</p>'; return; }
   const part = (sign) => accts.map((a) => ({ cat: a.name, amt: sign * (bal[a.id] || 0) })).filter((x) => x.amt > 0).sort((x1, x2) => x2.amt - x1.amt).map((x, i) => ({ ...x, col: (sign > 0 ? PIE_WARM : PIE_COOL)[i % PIE_WARM.length] }));
   const plus = part(1), minus = part(-1), A = plus.reduce((t, x) => t + x.amt, 0), D = minus.reduce((t, x) => t + x.amt, 0);
-  const pts = Array.from({ length: 12 }, (_, i) => shiftMonth(m, i - 11)).map((mm) => { const b = balances(dayInMonth(mm, 31)), v = Object.values(b).reduce((t, x) => t + x, 0); return { lab: `${+mm.slice(5)}월`, v, on: mm === m, tip: `${monthLabel(mm)} 끝 합계 ${won(v)}` }; });
+  const pts = Array.from({ length: 12 }, (_, i) => shiftMonth(m, i - 11)).map((mm) => { const b = balances(dayInMonth(mm, 31)), v = accts.reduce((t, a) => t + (b[a.id] || 0), 0);
+    const pA = accts.reduce((t, a) => t + Math.max(0, b[a.id] || 0), 0), pD = accts.reduce((t, a) => t + Math.max(0, -(b[a.id] || 0)), 0);
+    return { lab: `${+mm.slice(5)}월`, v, on: mm === m, tip: `${monthLabel(mm)} 끝 합계 ${won(v)}`,
+      box: [`${monthLabel(mm)}`, `합계 <span class="won${v < 0 ? " minus" : " plus"}">${v < 0 ? "-" : ""}${won(v)}</span>`, `자산 <span class="won plus">${won(pA)}</span>`, `부채 <span class="won minus">${won(pD)}</span>`] }; });   // 냐냐: 점 누르면 합계·자산·부채
   const tile = (label, v, cls) => `<div><span>${label}</span><b class="won${cls ? " " + cls : ""}">${v}</b></div>`;
   const sec = (cls, label, sum, list, name) => `<div class="as-sec ${cls}"><span>${label}</span><b class="won">${won(sum)}</b></div>` + (list.length ? pieHtml(null, list, name, { color: (x) => x.col, legend: false, amount: false, center: name === "부채" ? "var(--blue)" : "var(--coral)" }) : `<p class="muted small" style="margin:0">${name === "부채" ? "갚을 카드값·빚이 없어요." : "잔액이 있는 자산이 없어요."}</p>`);
   box.innerHTML =
@@ -645,7 +655,7 @@ function renderAssetAll() {
     `<div class="as-chart-h small muted">달마다 합계 (그 달 끝) · 최근 12달</div><div class="as-chart" id="asChart"></div>` +
     sec("plus", "자산 구성", A, plus, "자산") + sec("minus", "부채 구성", D, minus, "부채") +
     '<button class="fab" type="button" data-act="txAdd" aria-label="기록하기" title="기록하기">＋</button>';
-  setChart($("asChart"), { pts, label: "달마다 합계" });
+  setChart($("asChart"), { pts, label: "달마다 합계", fit: true });
 }
 function renderAssetDetail(id) {
   if (id === "__all") { renderAssetAll(); return; }
@@ -688,7 +698,7 @@ function renderAssetDetail(id) {
     `<div class="as-fabs">${card ? `<button class="fab fab-sub as-pay" type="button" data-act="cardPayNow" data-id="${esc(id)}" aria-label="${esc(a.name)} 결제" title="${esc(a.name)} 카드값 결제">결제</button>` : ""}` +
     `<button class="fab" type="button" data-act="asAdd" data-id="${esc(id)}" aria-label="${esc(a.name)}(으)로 기록하기" title="${esc(a.name)}(으)로 기록하기">＋</button></div>`;
   if (box.dataset.acct !== id) { box.scrollTop = 0; box.dataset.acct = id; }   // 냐냐: 자산 탭 양쪽 따로 스크롤 — 다른 자산을 고르면 오른쪽은 맨 위부터
-  setChart($("asChart"), { bars: card, pts: asPts, label: card ? "달마다 쓴 돈" : "달마다 잔액" });
+  setChart($("asChart"), { bars: card, pts: asPts, label: card ? "달마다 쓴 돈" : "달마다 잔액", fit: !card });
 }
 // 📈 그래프: 칸 너비 그대로 그림 (글자가 안 줄어들게), 너비가 바뀌면 다시 그림 (ResizeObserver)
 // data = { bars(막대면 true), pts: [{ lab 아래 글자, v 값, on 지금 보는 칸, tip 마우스 올리면 }], label }
@@ -705,7 +715,10 @@ function drawChart(el) {
   const pts = d.pts, W = Math.max(260, el.clientWidth || 600), H = 170, L = 44, R = 8, T = 8, B = 24, pw = W - L - R, ph = H - T - B;
   el._w = Math.round(el.clientWidth);
   const vs = pts.map((p) => p.v);
-  let lo = Math.min(0, ...vs), hi = Math.max(0, ...vs); if (hi === lo) hi = lo + 10000;
+  let lo = Math.min(0, ...vs), hi = Math.max(0, ...vs);
+  // 냐냐: 잔액 꺾은선(d.fit)은 0부터 말고 값 범위에 맞춤 → 7천만 원 근처에서 몇십만 원 오르내리는 것도 보이게 (막대는 그대로 0부터)
+  if (d.fit && !d.bars && vs.length) { lo = Math.min(...vs); hi = Math.max(...vs); const pad = (hi - lo) * 0.2 || Math.max(Math.abs(hi) * 0.01, 10000); lo -= pad; hi += pad; }
+  if (hi === lo) hi = lo + 10000;
   const st = niceStep(hi - lo); lo = Math.floor(lo / st) * st; hi = Math.ceil(hi / st) * st;
   const n = pts.length, cw = pw / n, x = (i) => L + cw * (i + 0.5), y = (v) => T + ph - (v - lo) / (hi - lo) * ph, f = (v) => v.toFixed(1);
   let s = `<rect x="${L}" y="${T}" width="${f(pw)}" height="${ph}" class="bg"/>`;
@@ -716,7 +729,22 @@ function drawChart(el) {
   else s += `<polyline points="${pts.map((p, i) => f(x(i)) + "," + f(y(p.v))).join(" ")}" class="ln"/>` + pts.map((p, i) => `<circle cx="${f(x(i))}" cy="${f(y(p.v))}" r="${p.on ? 4.5 : 3}" class="dot"><title>${esc(p.tip || "")}</title></circle>`).join("");
   const every = Math.max(1, Math.ceil(34 / cw));
   s += pts.map((p, i) => (n - 1 - i) % every ? "" : `<text x="${f(x(i))}" y="${H - 7}" class="xl${p.on ? " on" : ""}">${esc(p.lab)}</text>`).join("");
-  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(d.label || "그래프")}">${s}</svg>`;
+  // 냐냐: 점마다 p.box(줄 목록)가 있으면 그 칸을 누르면 위에 작은 상자 (예: 자산 전체 = 합계·자산·부채)
+  const boxed = pts.some((p) => p.box);
+  if (boxed) s += pts.map((p, i) => `<rect class="hit" x="${f(L + cw * i)}" y="${T}" width="${f(cw)}" height="${ph}" data-i="${i}"><title>${esc(p.tip || "")}</title></rect>`).join("");
+  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(d.label || "그래프")}">${s}</svg>` + (boxed ? '<div class="ch-box" hidden></div>' : "");
+  if (boxed && !el._boxBound) {
+    el._boxBound = true;
+    el.addEventListener("click", (ev) => {
+      const r = ev.target.closest && ev.target.closest("rect.hit"), box = el.querySelector(".ch-box"), dd = el._chart; if (!box || !dd) return;
+      if (!r) { box.hidden = true; return; }
+      const i = +r.dataset.i, p = dd.pts[i]; if (!p || !p.box) return;
+      if (!box.hidden && box.dataset.i === String(i)) { box.hidden = true; return; }
+      box.dataset.i = String(i); box.innerHTML = p.box.map((l, k) => k ? `<div>${l}</div>` : `<b>${l}</b>`).join(""); box.hidden = false;
+      const cx = (+r.getAttribute("x")) + (+r.getAttribute("width")) / 2, w = box.offsetWidth || 160;
+      box.style.left = Math.max(4, Math.min(el.clientWidth - w - 4, cx - w / 2)) + "px";
+    });
+  }
 }
 
 // ---------- 🧾 내역 (지출 탭): 요약 칸 = 전체 · 수입 · 지출 · 💝 준 돈 (누르면 그것만), 표 = ☐ 날짜 · 자산 · 분류 · 소분류 · 금액 · 내용 · 메모 ----------
@@ -742,7 +770,7 @@ function renderTx(m, r) {
       items.map((x) => txRow(x, true)).join("");
 }
 // 내역 한 줄 (ck = ☐ 고르기 칸 같이) — 지출 탭 · 통계 탭이 같이 씀
-function txRow(x, ck, o = {}) {   // o.d = 이 자산 쪽에서 본 +/− (자산 화면), o.bal = 금액 밑 그때 잔액
+export function txRow(x, ck, o = {}) {   // o.d = 이 자산 쪽에서 본 +/− (자산 화면), o.bal = 금액 밑 그때 잔액
         const kind = x.kind || "expense", n = x.pics && typeof x.pics === "object" ? Object.keys(x.pics).length : 0;
         const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
         const cat = kind === "move" ? '<span class="muted">이체</span>' : `${x.cat ? esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ' <span class="muted small">💝</span>' : ""}${x.common ? ' <span class="m-common-mark" title="공통비용">❤️</span>' : ""}`;   // 표·목록 줄엔 색 동그라미 없이 (색은 원형·그 옆 목록·예산·설정에만)
