@@ -7,18 +7,16 @@
  *   · 실천한 일(최근 1년) → 🔥 노랑
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
- *   · 보드에서 넣는 건 따로 만든 캘린더 두 개에: 📅 욱진 일정(할 일·반복·D-DAY) · 🔥 욱진 실천(실천 기록)
- *     → 기본 캘린더엔 욱진이가 직접 넣은 일정만 남아서, 기본 캘린더를 공유받은 사람에게 보드 일정이 안 보임 (예전에 기본 캘린더에 넣은 건 지움)
+ *   · 캘린더 두 개로 나눔: 기본 캘린더 = 욱진 일정(한 번 하는 할 일·D-DAY) · 따로 만든 🔥 욱진 실천 = 루틴(반복하는 할 일)·실천 기록
+ *     → 기본 캘린더를 공유받은 사람에게 루틴·실천 기록은 안 보임 (예전에 기본 캘린더에 넣은 루틴·실천은 옮김)
  */
-const CORE_VERSION = "2026-10-27a";
+const CORE_VERSION = "2026-10-27b";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
-const CAL = "primary";       // 욱진이 기본 캘린더: 구글 → 보드로 읽고, 예전에 넣은 보드 일정만 지움
-const CALS = {               // 보드가 넣는 캘린더: 없으면 만들고, 설명 글로 찾음 (이름은 욱진이가 바꿔도 됨)
-  plan: { name: "욱진 일정", tag: "ukjin-board:plan" },
-  log: { name: "욱진 실천", tag: "ukjin-board:log" }
-};
+const CAL = "primary";       // 욱진이 기본 캘린더 = 욱진 일정 (한 번 하는 할 일·D-DAY + 직접 넣은 일정)
+const LOG_CAL = { name: "욱진 실천", tag: "ukjin-board:log" };   // 루틴·실천 기록 캘린더: 없으면 만들고, 설명 글로 찾음 (이름은 욱진이가 바꿔도 됨)
+const OLD_PLAN_TAG = "ukjin-board:plan";   // 10/27 잠깐 따로 만들었던 '욱진 일정' 캘린더 → 있으면 지움 (기본 캘린더로 돌아옴)
 const COLOR = { plan: "9", done: "5", check: "2", dday: "11", log: "5", miss: "8" };   // 구글 일정 색: 파랑, 노랑(시간과 같이 끝낸 일 = 실천), 초록(시간 없이 체크만), 빨강, 노랑, 회색(못 한 일)
 const DOW = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const MARK = { plan: "📌 ", done: "🔥 ", check: "✅ ", dday: "🎯 D-DAY ", log: "🔥 ", miss: "❌ " };   // 제목 앞 이모지. 시간과 같이 끝낸 할 일은 실천 🔥, 시간 없이 체크만 한 일은 ✅, 지난 날 못 한 일은 ❌
@@ -73,7 +71,7 @@ function pushToGoogle_(tasks, goals, logs) {
         const full = n >= need, past = ws < cur;
         items["nw:" + id + ":" + ws] = {
           summary: (full ? (timedAny ? MARK.done : MARK.check) : past ? MARK.miss : MARK.plan) + label,
-          colorId: full ? (timedAny ? COLOR.done : COLOR.check) : past ? COLOR.miss : COLOR.plan, date: date
+          colorId: full ? (timedAny ? COLOR.done : COLOR.check) : past ? COLOR.miss : COLOR.plan, date: date, cal: "log"
         };
       }
       return;
@@ -83,7 +81,7 @@ function pushToGoogle_(tasks, goals, logs) {
       if (!start) return;
       let rule = t.repeat === "daily" ? "RRULE:FREQ=DAILY" : "RRULE:FREQ=WEEKLY;BYDAY=" + (t.days || []).map(function (n) { return DOW[n]; }).join(",");
       if (t.end) rule += ";UNTIL=" + t.end.replace(/-/g, "");
-      items["rep:" + id] = { summary: MARK.plan + withPlan(t), colorId: COLOR.plan, date: start, recurrence: [rule], title: t.title, plan: withPlan(t), doneDates: t.doneDates || {}, taskId: id };
+      items["rep:" + id] = { summary: MARK.plan + withPlan(t), colorId: COLOR.plan, date: start, recurrence: [rule], title: t.title, plan: withPlan(t), doneDates: t.doneDates || {}, taskId: id, cal: "log" };
       return;
     }
     if (!t.date) return;
@@ -113,13 +111,11 @@ function pushToGoogle_(tasks, goals, logs) {
   });
 
   const res = { added: 0, updated: 0, deleted: 0, cleaned: 0 };
-  const cals = { plan: calId_("plan"), log: calId_("log") };
+  const old = findCal_(OLD_PLAN_TAG);
+  if (old) { try { Calendar.Calendars.remove(old); res.deleted++; } catch (e) { /* 다음에 다시 */ } }
+  const cals = { plan: CAL, log: findCal_(LOG_CAL.tag) || newCal_(LOG_CAL) };
   const ids = {}, calOf = function (ref) { return cals[items[ref].cal || "plan"]; };
-  // 예전에 기본 캘린더에 넣은 보드 일정은 지움 (이제 따로 만든 캘린더에 넣음)
-  listAll_(CAL, { privateExtendedProperty: "ukjinApp=1", singleEvents: false }).forEach(function (ev) {
-    if (ev.recurringEventId || ev.status === "cancelled") return;
-    remove_(CAL, ev.id); res.deleted++;
-  });
+  // 캘린더마다 보드가 넣은 일정 맞추기 (다른 캘린더에 있어야 할 건 지우고 아래에서 그쪽에 새로 넣음)
   Object.keys(cals).forEach(function (key) {
     const cal = cals[key];
     listAll_(cal, { privateExtendedProperty: "ukjinApp=1", singleEvents: false }).forEach(function (ev) {
@@ -228,17 +224,18 @@ function pullFromGoogle_() {
 }
 
 // ---------- 도우미 ----------
-// 보드 캘린더 찾기 (설명 글에 표시) → 없으면 새로 만듦. 욱진이가 지우면 다음에 다시 만들어짐
-function calId_(key) {
-  const c = CALS[key];
+// 보드 캘린더 찾기 (설명 글에 표시). 없으면 null → 루틴·실천 캘린더는 새로 만듦 (욱진이가 지우면 다음에 다시 만들어짐)
+function findCal_(tag) {
   let pageToken, found = null;
   do {
     const r = Calendar.CalendarList.list({ maxResults: 250, pageToken: pageToken });
-    (r.items || []).forEach(function (x) { if (!found && String(x.description || "").indexOf(c.tag) >= 0) found = x.id; });
+    (r.items || []).forEach(function (x) { if (!found && String(x.description || "").indexOf(tag) >= 0) found = x.id; });
     pageToken = r.nextPageToken;
   } while (!found && pageToken);
-  if (found) return found;
-  return Calendar.Calendars.insert({ summary: c.name, timeZone: TZ, description: "욱진 실천 보드가 자동으로 맞추는 캘린더예요. (" + c.tag + ")" }).id;
+  return found;
+}
+function newCal_(c) {
+  return Calendar.Calendars.insert({ summary: c.name, timeZone: TZ, description: "욱진 실천 보드가 자동으로 맞추는 캘린더예요. 반복하는 할 일(루틴)·실천 기록 (" + c.tag + ")" }).id;
 }
 function listAll_(cal, opts) {
   const now = new Date();

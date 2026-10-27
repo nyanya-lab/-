@@ -1,10 +1,10 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261027b";
-import { CHANGES } from "./changes.js?v=20261027b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, MONEY_CATS } from "./money.js?v=20261027b";
-import { mountAcctSet } from "./acctset.js?v=20261027b";
-import { mountReport } from "./report.js?v=20261027b";
-import { mountBalance } from "./balance.js?v=20261027b";
-import { firebaseConfig } from "./firebase-config.js?v=20261027b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261027c";
+import { CHANGES } from "./changes.js?v=20261027c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, MONEY_CATS } from "./money.js?v=20261027c";
+import { mountAcctSet } from "./acctset.js?v=20261027c";
+import { mountReport } from "./report.js?v=20261027c";
+import { mountBalance } from "./balance.js?v=20261027c";
+import { firebaseConfig } from "./firebase-config.js?v=20261027c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
