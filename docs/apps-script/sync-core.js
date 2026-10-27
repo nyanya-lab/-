@@ -7,12 +7,18 @@
  *   · 실천한 일(최근 1년) → 🔥 노랑
  *   · 예전 '캘린더' 버튼으로 직접 넣었던 보드 일정 정리
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
+ *   · 보드에서 넣는 건 따로 만든 캘린더 두 개에: 📅 욱진 일정(할 일·반복·D-DAY) · 🔥 욱진 실천(실천 기록)
+ *     → 기본 캘린더엔 욱진이가 직접 넣은 일정만 남아서, 기본 캘린더를 공유받은 사람에게 보드 일정이 안 보임 (예전에 기본 캘린더에 넣은 건 지움)
  */
-const CORE_VERSION = "2026-10-15b";
+const CORE_VERSION = "2026-10-27a";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
-const CAL = "primary";       // 욱진이 기본 캘린더
+const CAL = "primary";       // 욱진이 기본 캘린더: 구글 → 보드로 읽고, 예전에 넣은 보드 일정만 지움
+const CALS = {               // 보드가 넣는 캘린더: 없으면 만들고, 설명 글로 찾음 (이름은 욱진이가 바꿔도 됨)
+  plan: { name: "욱진 일정", tag: "ukjin-board:plan" },
+  log: { name: "욱진 실천", tag: "ukjin-board:log" }
+};
 const COLOR = { plan: "9", done: "5", check: "2", dday: "11", log: "5", miss: "8" };   // 구글 일정 색: 파랑, 노랑(시간과 같이 끝낸 일 = 실천), 초록(시간 없이 체크만), 빨강, 노랑, 회색(못 한 일)
 const DOW = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const MARK = { plan: "📌 ", done: "🔥 ", check: "✅ ", dday: "🎯 D-DAY ", log: "🔥 ", miss: "❌ " };   // 제목 앞 이모지. 시간과 같이 끝낸 할 일은 실천 🔥, 시간 없이 체크만 한 일은 ✅, 지난 날 못 한 일은 ❌
@@ -103,25 +109,34 @@ function pushToGoogle_(tasks, goals, logs) {
     const parts = [];
     if (Number(l.minutes) > 0) parts.push(fmtMin_(Number(l.minutes)));
     if (l.text) parts.push(l.text);
-    items["log:" + id] = { summary: MARK.log + (parts.join(" · ") || "기록"), colorId: COLOR.log, date: l.date };
+    items["log:" + id] = { summary: MARK.log + (parts.join(" · ") || "기록"), colorId: COLOR.log, date: l.date, cal: "log" };
   });
 
   const res = { added: 0, updated: 0, deleted: 0, cleaned: 0 };
-  const ids = {};
-  listAll_({ privateExtendedProperty: "ukjinApp=1", singleEvents: false }).forEach(function (ev) {
-    // 반복 일정에서 ✅로 바꾼 날(예외 일정)도 같은 표시를 달고 따로 나옴 → 중복으로 보고 지우면 그 날이 사라짐. 아래 반복 칸에서 따로 다룸
+  const cals = { plan: calId_("plan"), log: calId_("log") };
+  const ids = {}, calOf = function (ref) { return cals[items[ref].cal || "plan"]; };
+  // 예전에 기본 캘린더에 넣은 보드 일정은 지움 (이제 따로 만든 캘린더에 넣음)
+  listAll_(CAL, { privateExtendedProperty: "ukjinApp=1", singleEvents: false }).forEach(function (ev) {
     if (ev.recurringEventId || ev.status === "cancelled") return;
-    const p = ev.extendedProperties && ev.extendedProperties.private;
-    const ref = p && p.ukjinRef, it = ref && items[ref];
-    if (!it || ids[ref]) { remove_(ev.id); res.deleted++; return; }   // 보드에서 지웠거나 중복
-    ids[ref] = ev.id;
-    const sameRule = String((ev.recurrence || []).join("|")) === String((it.recurrence || []).join("|"));
-    if (ev.summary !== it.summary || (ev.colorId || "") !== it.colorId || !ev.start || ev.start.date !== it.date || !sameRule) {
-      const body = { summary: it.summary, colorId: it.colorId, start: { date: it.date }, end: { date: nextDay_(it.date) } };
-      if (it.recurrence) body.recurrence = it.recurrence;
-      Calendar.Events.patch(body, CAL, ev.id);
-      res.updated++;
-    }
+    remove_(CAL, ev.id); res.deleted++;
+  });
+  Object.keys(cals).forEach(function (key) {
+    const cal = cals[key];
+    listAll_(cal, { privateExtendedProperty: "ukjinApp=1", singleEvents: false }).forEach(function (ev) {
+      // 반복 일정에서 ✅로 바꾼 날(예외 일정)도 같은 표시를 달고 따로 나옴 → 중복으로 보고 지우면 그 날이 사라짐. 아래 반복 칸에서 따로 다룸
+      if (ev.recurringEventId || ev.status === "cancelled") return;
+      const p = ev.extendedProperties && ev.extendedProperties.private;
+      const ref = p && p.ukjinRef, it = ref && items[ref];
+      if (!it || ids[ref] || (it.cal || "plan") !== key) { remove_(cal, ev.id); res.deleted++; return; }   // 보드에서 지웠거나 중복이거나 다른 캘린더 것
+      ids[ref] = ev.id;
+      const sameRule = String((ev.recurrence || []).join("|")) === String((it.recurrence || []).join("|"));
+      if (ev.summary !== it.summary || (ev.colorId || "") !== it.colorId || !ev.start || ev.start.date !== it.date || !sameRule) {
+        const body = { summary: it.summary, colorId: it.colorId, start: { date: it.date }, end: { date: nextDay_(it.date) } };
+        if (it.recurrence) body.recurrence = it.recurrence;
+        Calendar.Events.patch(body, cal, ev.id);
+        res.updated++;
+      }
+    });
   });
   Object.keys(items).forEach(function (ref) {
     if (ids[ref]) return;
@@ -132,7 +147,7 @@ function pushToGoogle_(tasks, goals, logs) {
       extendedProperties: { private: { ukjinApp: "1", ukjinRef: ref } }
     };
     if (it.recurrence) body.recurrence = it.recurrence;
-    ids[ref] = Calendar.Events.insert(body, CAL).id;
+    ids[ref] = Calendar.Events.insert(body, calOf(ref)).id;
     res.added++;
   });
 
@@ -142,7 +157,7 @@ function pushToGoogle_(tasks, goals, logs) {
     const it = items[ref];
     if (!it.recurrence || it.date > today) return;
     const from = it.date > since ? it.date : since;
-    const r = Calendar.Events.instances(CAL, ids[ref], {
+    const r = Calendar.Events.instances(calOf(ref), ids[ref], {
       timeMin: new Date(from + "T00:00:00+09:00").toISOString(),
       timeMax: new Date(nextDay_(today) + "T00:00:00+09:00").toISOString(), maxResults: 100, showDeleted: true
     });
@@ -157,17 +172,17 @@ function pushToGoogle_(tasks, goals, logs) {
       if (gone || inst.summary !== summary || (inst.colorId || "") !== colorId) {
         const body = { summary: summary, colorId: colorId };
         if (gone) body.status = "confirmed";
-        Calendar.Events.patch(body, CAL, inst.id);
+        Calendar.Events.patch(body, calOf(ref), inst.id);
         res.updated++;
       }
     });
   });
 
   // 예전 '캘린더' 버튼으로 넣은 일정: 설명이 "○○ 실천 보드"로 끝나고 동기화 표시가 없는 것 (반복이면 묶음째)
-  listAll_({ q: "실천 보드", singleEvents: false }).forEach(function (ev) {
+  listAll_(CAL, { q: "실천 보드", singleEvents: false }).forEach(function (ev) {
     const p = ev.extendedProperties && ev.extendedProperties.private;
     if (p && p.ukjinApp === "1") return;
-    if (/실천 보드$/.test(String(ev.description || "").trim())) { remove_(ev.id); res.cleaned++; }
+    if (/실천 보드$/.test(String(ev.description || "").trim())) { remove_(CAL, ev.id); res.cleaned++; }
   });
   return res;
 }
@@ -196,7 +211,7 @@ function pullFromGoogle_() {
   const to = new Date(now.getFullYear(), now.getMonth() + 4, 1);
   const out = {};
   let i = 0;
-  listAll_({ timeMin: from.toISOString(), timeMax: to.toISOString(), singleEvents: true, orderBy: "startTime" }).forEach(function (ev) {
+  listAll_(CAL, { timeMin: from.toISOString(), timeMax: to.toISOString(), singleEvents: true, orderBy: "startTime" }).forEach(function (ev) {
     const p = ev.extendedProperties && ev.extendedProperties.private;
     if (ev.status === "cancelled" || (p && p.ukjinApp === "1")) return;      // 보드가 넣은 건 보드에 이미 있음
     if (/실천 보드$/.test(String(ev.description || "").trim())) return;
@@ -213,7 +228,19 @@ function pullFromGoogle_() {
 }
 
 // ---------- 도우미 ----------
-function listAll_(opts) {
+// 보드 캘린더 찾기 (설명 글에 표시) → 없으면 새로 만듦. 욱진이가 지우면 다음에 다시 만들어짐
+function calId_(key) {
+  const c = CALS[key];
+  let pageToken, found = null;
+  do {
+    const r = Calendar.CalendarList.list({ maxResults: 250, pageToken: pageToken });
+    (r.items || []).forEach(function (x) { if (!found && String(x.description || "").indexOf(c.tag) >= 0) found = x.id; });
+    pageToken = r.nextPageToken;
+  } while (!found && pageToken);
+  if (found) return found;
+  return Calendar.Calendars.insert({ summary: c.name, timeZone: TZ, description: "욱진 실천 보드가 자동으로 맞추는 캘린더예요. (" + c.tag + ")" }).id;
+}
+function listAll_(cal, opts) {
   const now = new Date();
   const base = {
     timeMin: new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString(),
@@ -225,13 +252,13 @@ function listAll_(opts) {
   let pageToken;
   do {
     if (pageToken) base.pageToken = pageToken;
-    const r = Calendar.Events.list(CAL, base);
+    const r = Calendar.Events.list(cal, base);
     (r.items || []).forEach(function (x) { all.push(x); });
     pageToken = r.nextPageToken;
   } while (pageToken && all.length < 2000);
   return all;
 }
-function remove_(id) { try { Calendar.Events.remove(CAL, id); } catch (e) { /* 이미 없음 */ } }
+function remove_(cal, id) { try { Calendar.Events.remove(cal, id); } catch (e) { /* 이미 없음 */ } }
 function addDays_(ymd, n) {
   const p = ymd.split("-");
   return Utilities.formatDate(new Date(+p[0], +p[1] - 1, +p[2] + n, 12), TZ, "yyyy-MM-dd");
