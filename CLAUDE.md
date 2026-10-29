@@ -24,6 +24,8 @@ docs/app.js            보드 화면 로직 (상태 S, 저장소 backend, render
 docs/range.js          📅 기간 고르기 창 (냐냐 가계부와 같은 파일을 복사, CSS 안에 있음 rg-). 내역 탭 달 이름·[이번 달] → ui.txRange (txPick·txShift)
 docs/money.js          💰 돈 관리(가계부) 코드: 예산·지출·자산·분류 색·원형·카드값·줄 돈 자동·연습 데이터 (app.js가 import, 바뀌는 값은 E.backend·E.testMode)
 docs/money.html        가계부 짧은 주소 → index.html?app=money (가계부 모드, money.webmanifest)
+docs/calsum.js         📝 달력 아래 ○월 정리 (#calSum, renderCalendar가 calSummary(달, env)로 그림): 실천 시간 평소(앞 12달 평균)·지난달 비교 · 실천한 날 · 할 일 체크 · 주 목표·연속 · 많이 한 목표·일 · 놓친 할 일 · 포인트
+docs/summary.js        📝 가계부 이번 달 정리 (냐냐 가계부 summary.js 옮김): 예산 탭 #sumPanel 한 줄 + 📑 보고서 '월간 정리' 카드·화면(report.js env.summary). 욱진용 = 💝 준 돈 따로(남은 돈 = 수입 − 준 돈 − 지출), 관리자 기기는 안 보임
 docs/firebase-config.js  Firebase 웹 설정 (공개돼도 되는 값)
 docs/changes.js        업데이트 내역 CHANGES (설명서 탭 + 새 버전 알림)
 docs/lotto-presets.js  복권 추천 목록 (쿠폰 200 · 벌칙 50, 관리 창에서 한 번에 넣기)

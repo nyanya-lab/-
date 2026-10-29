@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261029a">
+<link rel="stylesheet" href="style.css?v=20261029b">
 </head>
 <body>
 
@@ -201,6 +201,7 @@
           <button class="btn small" type="submit">＋ 추가</button>
         </form>
       </div>
+      <div class="panel sm-panel no-admin" id="sumPanel" data-mtab="budget"></div>
 
       <!-- 자산: 왼쪽 목록(현금·통장·카드·저축 묶음) + 오른쪽 자세히(그 달 입금·출금·잔액·내역). 좁은 화면은 목록 → 누르면 자세히 -->
       <div class="as-grid no-admin" id="asGrid" data-mtab="assets">
@@ -488,6 +489,7 @@
           <li>가계부 메뉴는 5개예요 (PC는 왼쪽, 폰은 아래) + <b>⚙ 가계부 설정</b>(작은 탭: 분류 · 자산 · 🔁 반복 · 화폐): <b>예산</b> (수입·쓸 돈·줄 돈·잔액, 분류별 예산) · <b>달력</b> (날마다 +수입 · −지출 · 합계, 날짜를 누르면 그 날 내역과 [＋ 내역 추가]) · <b>내역</b> (그 달 내역 — 달 이름·[이번 달]을 누르면 기간 고르기: 오늘·이번 주·지난 달·올해·전체 등, 달력에서 시작일~끝날. 위 칸 <b>전체 · 수입 · 지출 · 💝 준 돈</b>을 누르면 그것만, ☐로 골라 [선택 삭제]. 금액은 +/- 없이 색으로: 초록 = 들어온 돈, 빨강 = 나간 돈, -가 붙은 건 직접 -로 적은 금액(환불 등)) · <b>자산</b> (처음엔 <b>자산 전체</b>: 자산·부채·합계·12달 흐름·구성 원형 / 현금·통장·카드·저축 묶음별 잔액, 누르면 그 달 입금·출금·누적잔액, 최근 12달 그래프와 내역, ✏️로 고치기·카드 결제일, 오른쪽 아래 <b>＋</b>로 그 자산 기록하기 · 카드는 ＋ 왼쪽 <b>[결제]</b> · 내역 줄 눌러 고치기. PC에선 목록과 자세히가 따로 스크롤) · <b>통계</b> (수입/지출 · 오른쪽 위 주간·월간·연간·기간, 분류별 원형·목록 → 누르면 그 분류의 흐름 그래프와 내역, 아래 달마다 표). 마지막에 본 메뉴를 기억해요.</li>
           <li><b>돈 기록하기</b>: 내역·달력·자산 화면 오른쪽 아래 <b>＋</b>를 누르면 기록 창이 떠요 (PC는 오른쪽, 폰은 아래). 수입 · 지출 · 보낸 돈(여자친구에게) · 이체(내 통장끼리). 어느 통장·카드인지 고르면 자산마다 잔액이 계산돼요. 내역 줄을 누르면 같은 창에서 고쳐요.</li>
           <li>📑 <b>보고서</b> (가계부 메뉴): 맨 앞 <b>📅 연간 보고서</b> = 해마다 달별 수입·지출 막대와 표 (분류 줄을 누르면 그 분류만, ☑ 전년도 비교, 🖨 인쇄). <b>＋ 새 보고서</b>로 기간·자산·분류·검색어를 골라 합계·분류별·달마다·내역을 보고, 저장해 두면 카드로 다시 열어요 (예: '이번 달 지출', '올해 수입·지출').</li>
+          <li>📝 <b>이번 달 정리</b>: 예산 탭 '한 달 예산' 아래 한 줄로 평소보다 더/덜 썼는지 · 예산 몇 % 썼는지가 보여요. <b>[자세히 ›]</b>(또는 보고서 첫 화면 <b>📝 월간 정리</b> 카드)를 누르면 쓴 돈 · 들어온 돈 · 남은 돈 · 저축으로 + 평소보다 많이/덜 쓴 분류 · 예산 넘은 분류 · 큰 지출 3건 · 💝 준 돈을 문장으로 봐요. 평소 = 지난 12달 평균, 이번 달이면 지난달·평소도 같은 날짜까지로 비교해요.</li>
           <li>▦ <b>다건입력</b>: 내역 화면 ＋ 옆 표 버튼. 엑셀처럼 여러 줄을 적고 <b>[저장]</b>하면 한 번에 기록돼요. 금액이 빈 줄은 건너뛰고, Enter = 아래 칸, 엑셀에서 여러 칸을 복사해서 붙여넣어도 돼요 (날짜·고르는 칸에서도 Ctrl+V). 칸을 누르면 오른쪽 아래 생기는 <b>작은 네모를 끌면</b> 아래 줄에 같은 값이 복사돼요. 자산·분류는 꼭 골라야 저장돼요. 이체는 분류 칸에서 받는 곳을 골라요. (사진은 한 줄씩 ＋ 창에서)</li>
           <li>칸: 날짜 · 금액 · <b>화폐</b>(기본 원, '＋ 화폐 추가'로 달러 등. 원이 아닌 건 합계에 안 들어가요) · 자산(현금·통장·카드·저축 묶음으로 보여요) · 분류 · <b>소분류</b>(선택, 전에 쓴 걸 추천) · <b>내용</b> · <b>메모</b>. 메모엔 📷 사진을 4장까지 붙여요 (PC는 캡처 후 Ctrl+V). 📄 <b>월급</b>을 기록할 땐 월급명세서 사진을 붙여 주세요.</li>
           <li><b>예산</b>: 분류별로 쓸 돈(예: 식비 300,000)과 <b>💝 여자친구에게 줄 돈</b>을 넣어요. 위 칸에 <b>수입 · 쓸 돈 · 줄 돈 · 잔액</b>(수입 − 쓸 돈 − 줄 돈)이 보여요. 수입은 이번 달 실제 수입, 아직이면 지난달 실제 수입으로 계산해요. 줄 돈은 정한 금액 그대로고, 실제 수입이 들어오면 맨 위에 확인 띠가 한 번 떠요. <b>15일</b>에는 줄 돈이 '보낸 돈'으로 저절로 기록돼요 (그 달에 이미 보낸 만큼은 빼고, 다르면 💝 칸 [고치기]). 분류 이름을 지출 기록과 같게 쓰면 실제로 쓴 돈도 같이 보여요. 다음 달로 자동으로 이어지고, 고치면 그 달만 바뀌어요.</li>
@@ -836,6 +838,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="report"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4M10 12h5M10 15.5h5M10 8.5h2"/></svg><span>보고서</span></button><button type="button" data-act="mTab" data-k="common" hidden><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>공통</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261029a"></script>
+<script type="module" src="app.js?v=20261029b"></script>
 </body>
 </html>
