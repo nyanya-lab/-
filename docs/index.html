@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261027c">
+<link rel="stylesheet" href="style.css?v=20261029a">
 </head>
 <body>
 
@@ -126,6 +126,7 @@
         </div>
         <p class="cal-legend-phone small muted">🎯 시험일 · 🔥 실천 · ✅ 체크만 · ❌ 못 한 일 · 📌 할 일 · 📅 구글 · 💰 수입 · 날짜 밑 숫자(1.05h = 1시간 5분) = 그날 실천 시간 (초록 60분 이상 = 실천한 날 · 노랑 60분 안 됨 · 빨강 0m) · 한 주에 5일이면 성공</p>
         <div class="panel day-panel" id="dayPanel"></div>
+        <div class="panel sm-panel" id="calSum"></div>
         <div class="panel">
           <div class="panel-head"><h3>목표</h3><button class="btn ghost small" type="button" data-act="homeGoalOpen">＋ 목표</button></div>
           <form class="home-goal-form" id="homeGoalForm" autocomplete="off" hidden>
@@ -434,6 +435,7 @@
           <li>달력 줄 위 <b>도장판</b> = 그 주 결과: <b>■ 5칸</b>은 실천한 날만큼 초록으로 채워져요. 5칸을 다 채우면 클리어 (띠가 초록). 뒤의 <b>☆ 2칸</b>은 보너스 칸이라 6일째 ★ (+15점), 7일째 ★ 🏆 (+30점) — 7일 다 하면 보너스 +45. 못 채운 주는 빨갛게, 오른쪽 🔥 = 연속 ○주 (그 주에 받은 연속 보너스는 +30처럼). 못 채운 주는 ❄️. 이번 주는 <b>🔥 ○주 도전</b> (이어 온 연속이 없으면 흐린 🔥 1주 도전) → 5일을 채우면 🔥 ○주.</li>
           <li>날짜가 지난 할 일(반복하는 일의 지난 날도)을 체크하면 물어봐요: <b>[오늘 했어요]</b> 원래 날짜는 ❌로 남고 오늘 🔥 / <b>[그날 했어요]</b> 그 날 한 걸로.</li>
           <li>앞으로 할 일을 미리 하면 <b>[오늘로 당기기]</b>. 체크를 풀면 원래 날짜로 돌아가요.</li>
+          <li>달력 아래 <b>📝 ○월 정리</b>: 그 달 실천 시간을 평소(지난 12달 평균)·지난달과 비교해 줘요. 이번 달이면 오늘 날짜까지만, 비교하는 달도 같은 날짜까지로 비교해요. 실천한 날 · 할 일 체크 · 주 목표 성공한 주와 🔥 연속 · 시간을 많이 쓴 목표와 일 · 자주 놓친 할 일(❌) · 모은 ⭐ 포인트가 나와요. 달을 넘기면 그 달 정리로 바뀌어요.</li>
           <li>달력 아래에는 <b>목표 → 세부목표 → 할 일</b>이 보여요. 여기서도 바로 체크할 수 있어요.</li>
         </ul>
         </div>
@@ -834,6 +836,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="report"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4M10 12h5M10 15.5h5M10 8.5h2"/></svg><span>보고서</span></button><button type="button" data-act="mTab" data-k="common" hidden><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>공통</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261027c"></script>
+<script type="module" src="app.js?v=20261029a"></script>
 </body>
 </html>

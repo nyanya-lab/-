@@ -752,6 +752,12 @@ table.bulk { border-collapse: collapse; width: 100%; min-width: 1060px; font-siz
 .plan-tile span { font-size: 12px; color: var(--muted); }
 .plan-tile b { font-family: var(--f-mono); font-size: 18px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .plan-tile small { font-size: 12px; color: var(--muted); }
+/* 📝 달력 아래 ○월 정리 (calsum.js) */
+.sm-panel { display: grid; gap: 12px; }
+.sm-list { display: grid; gap: 10px; font-size: 14px; line-height: 1.55; }
+.sm-li ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
+.sm-li .muted { font-size: 12.5px; }
+.sm-good { color: var(--ok); } .sm-bad { color: var(--danger); }
 .plan-tile.give { background: var(--mint-soft); } .plan-tile.give b { color: var(--ok); }
 .plan-tile.give { background: var(--grape-soft, var(--sunk)); } .plan-tile.give b { color: var(--grape); }
 .plan-tile.left { background: var(--mint-soft); } .plan-tile.left b { color: var(--ok); }
