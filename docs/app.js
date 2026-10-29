@@ -1,10 +1,11 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261027c";
-import { CHANGES } from "./changes.js?v=20261027c";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, MONEY_CATS } from "./money.js?v=20261027c";
-import { mountAcctSet } from "./acctset.js?v=20261027c";
-import { mountReport } from "./report.js?v=20261027c";
-import { mountBalance } from "./balance.js?v=20261027c";
-import { firebaseConfig } from "./firebase-config.js?v=20261027c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261029a";
+import { CHANGES } from "./changes.js?v=20261029a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, MONEY_CATS } from "./money.js?v=20261029a";
+import { mountAcctSet } from "./acctset.js?v=20261029a";
+import { mountReport } from "./report.js?v=20261029a";
+import { mountBalance } from "./balance.js?v=20261029a";
+import { calSummary } from "./calsum.js?v=20261029a";
+import { firebaseConfig } from "./firebase-config.js?v=20261029a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -656,6 +657,8 @@ function renderCalendar() {
   $("calGrid").innerHTML = html;
   renderGcalChip();
   renderDaySide(); renderDayPanel();
+  // 📝 그 달 정리 (calsum.js)
+  $("calSum").innerHTML = calSummary(m, { S, esc, fmtHM, today, addDays, rows, boardStart, noPracLog, practiceMinutes, practiced, weekRuns, streak, WEEK_GOAL, activeOn, isDone, isRep, lottoVisible, pointsLedger, PT_TICKET });
 }
 // 🟩 주 도장판 (달력 줄 위 띠): 목표 5칸 ■ + 보너스 2칸 ★ (6일째 +15 · 7일째 🏆 +30) · 오른쪽 🔥 연속 ○주 (+그 주에 받은 연속 보너스)
 function weekBar(w) {
