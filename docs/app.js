@@ -1,11 +1,12 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261029a";
-import { CHANGES } from "./changes.js?v=20261029a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, MONEY_CATS } from "./money.js?v=20261029a";
-import { mountAcctSet } from "./acctset.js?v=20261029a";
-import { mountReport } from "./report.js?v=20261029a";
-import { mountBalance } from "./balance.js?v=20261029a";
-import { calSummary } from "./calsum.js?v=20261029a";
-import { firebaseConfig } from "./firebase-config.js?v=20261029a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261029b";
+import { CHANGES } from "./changes.js?v=20261029b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261029b";
+import { mountAcctSet } from "./acctset.js?v=20261029b";
+import { mountReport } from "./report.js?v=20261029b";
+import { mountSummary } from "./summary.js?v=20261029b";
+import { mountBalance } from "./balance.js?v=20261029b";
+import { calSummary } from "./calsum.js?v=20261029b";
+import { firebaseConfig } from "./firebase-config.js?v=20261029b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2398,7 +2399,7 @@ function render() {
   if (S.loaded && uriNewsReady && !newsChecked) { newsChecked = true; maybeShowNews(); }   // 우리 탭 내역까지 받은 뒤에
   if ($("settingsDlg").open) renderGcalBox();
   if (APP === "money" || ui.page === "money") { if (acctSet) acctSet.render(); if (balPanel) balPanel.render(); fitPanels(); }
-  if (APP === "money") { renderCommon(); if (rptView) rptView.render(); }   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
+  if (APP === "money") { renderCommon(); if (rptView) rptView.render(); if (smView) smView.render(); }   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
 }
 
 // ---------- 동작 ----------
@@ -3101,8 +3102,11 @@ bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMe
 initMoney();
 // 🏦 자산 관리(이름·계좌번호·메모·🙈 숨기기) · 🧮 실제 잔액 맞추기 — 가계부 설정 '자산' 작은 탭 (냐냐 가계부 acctset.js·balance.js 복사)
 var acctSet = mountAcctSet($("acctSetPanel"), { S, backend: () => backend, toast, act, esc, rows });
+// 📝 이번 달 정리 (냐냐 가계부 summary.js 옮김) — 예산 탭엔 한 줄 + [자세히 ›] → 📑 보고서 '월간 정리' 화면 (관리자 기기는 안 보임)
+var smView = mountSummary($("sumPanel"), { S, esc, won, isWon, mineOn, cntAmt, monthTotals, planOf, partner, adminView: moneyAdminView, month: () => ui.month,
+  openReport: (m) => { setMTab("report"); rptView.openMonth(m); } });
 // 📑 보고서 탭 (냐냐 가계부 report.js 복사): 저장한 보고서는 settings.reports (rootUpdate)
-var rptView = mountReport($("reportRoot"), { S, backend: () => backend, toast, esc, won, isWon, acctName, subs: moneySubsOf, chart: setChart, pie: pieHtml, txRow: (x) => txRow(x, false), mineOn, cntAmt, isSettleIn,
+var rptView = mountReport($("reportRoot"), { S, backend: () => backend, summary: smView, toast, esc, won, isWon, acctName, subs: moneySubsOf, chart: setChart, pie: pieHtml, txRow: (x) => txRow(x, false), mineOn, cntAmt, isSettleIn,
   accts: () => sortedAccts(), cats: (k) => { const c = (S.settings.moneyCats || {})[k]; return (c && c.length ? c : MONEY_CATS[k] || []).slice(); } });
 var balPanel = mountBalance($("balPanel"), { S, backend: () => backend, toast, act, esc, won: wonS, rows, balances });
 // ⚙ 가계부 설정 탭 안 작은 탭: 분류 · 자산 · 반복 · 화폐 (이 기기에 기억)
@@ -3123,7 +3127,7 @@ function fitPanels() {
   });
 }
 window.addEventListener("resize", fitPanels);
-document.addEventListener("click", (ev) => setTimeout(() => { fitPanels(); if (rptView && ev.target.closest && ev.target.closest('[data-act="mTab"]')) rptView.render(); }, 0));   // 탭을 바꾸면 (📑 보고서는 그 탭으로 올 때 그림)
+document.addEventListener("click", (ev) => setTimeout(() => { fitPanels(); if (rptView && ev.target.closest && ev.target.closest('[data-act="mTab"]')) rptView.render(); if (smView && ev.target.closest && ev.target.closest('[data-act="month"], [data-act="histMonth"], [data-act="mcDay"], #mineBtn')) smView.render(); }, 0));   // 탭을 바꾸면 (📑 보고서는 그 탭으로 올 때 그림)
 
 // ---------- 시작 ----------
 route();
