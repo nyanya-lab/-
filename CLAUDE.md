@@ -33,7 +33,7 @@ docs/google-sync.html  구글 캘린더 동기화 설정 안내 페이지
 docs/apps-script/Code.gs       욱진이 Apps Script에 넣는 짧은 로더 (한 번만 붙여넣음)
 docs/apps-script/sync-core.js  실제 구글 동기화 코드. 로더가 5분마다 받아서 실행 → 여기만 고치면 자동 적용
 docs/manifest.webmanifest, uk-*.png  실천 보드 아이콘 (욱진이 캐릭터 얼굴: PC 설치 앱·안드로이드 = 동그라미 uk-round-192/512(any) + 네모 uk-icon-512(maskable), 아이폰 홈 = 네모 uk-apple-touch-icon, 탭·제목 로고 = 동그라미 uk-favicon-64)
-docs/money.webmanifest, icon-*.png, apple-touch-icon.png  가계부 아이콘 (네 칸 타일, index.html 머리 스크립트가 가계부 모드면 바꿔 끼움)
+docs/money.webmanifest, icon-*.png, apple-touch-icon.png  가계부 아이콘 (욱진이 얼굴 + 금색 배경 + ₩ 동전, `python tools/make_coin_icon.py`로 만듦, index.html 머리 스크립트가 가계부 모드면 바꿔 끼움, 제목 로고 `.logo-coin`)
 ```
 
 ## 데이터 (Firebase Realtime Database `ukjin-207a3`)
