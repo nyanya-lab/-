@@ -491,7 +491,7 @@ export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" 
 export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "report", "settings", "common"].includes(v) ||   /* 📑 report = 보고서 탭 (냐냐 가계부 report.js 복사) */ (v === "common" && !(E.commonOpen && E.commonOpen())) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
 export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } if (k === "assets") { ui.asSel = null; ui.asOpen = false; } renderMoney(); }
 export function renderMTabs() {
-  const adm = moneyAdminView(), tab = adm ? "stats" : mTab();   // 관리자 보드 '예산'은 통계만 (실제 수입 · 보낸 돈 · 나머지)
+  const adm = moneyAdminView(), tab = adm ? "stats" : mTab();   // 관리자 보드 '예산' = 맨 위 3칸(실제 수입 · 보낸 돈 · 나머지) + 한 달 예산 세부(보기만) + 달마다 표
   $("mTabs").hidden = adm;
   // 가계부 모드: 옆 메뉴(PC)·아래 메뉴(폰)의 예산·지출·자산·통계 / 제목: 관리자 보드는 '예산', 그 외 '가계부'
   document.querySelectorAll('.m-nav, #mBottom button').forEach((b) => { const on = b.dataset.k === tab; b.setAttribute(b.tagName === "A" ? "aria-current" : "aria-pressed", on ? (b.tagName === "A" ? "page" : "true") : (b.tagName === "A" ? "" : "false")); if (b.tagName === "A" && !on) b.removeAttribute("aria-current"); });
@@ -502,7 +502,7 @@ export function renderMTabs() {
     if (b.dataset.k === "spend") b.textContent = "🧾 내역";
   });
   $("mTabs").classList.toggle("seg3", adm);
-  document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.dataset.mtab !== tab; });
+  document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.dataset.mtab !== tab && !(adm && el.id === "planPanel"); });
   // 맨 위 달 넘기기는 예산 탭만 (내역·달력·자산·통계는 자기 칸에 따로), 맨 위 요약 4칸은 관리자 보드만 (내역 탭에 요약 칸이 있어서)
   document.querySelector("#moneyPage .month-nav").hidden = !adm && tab !== "budget"; $("moneyStats").hidden = !adm;
   // 가계부 모드: 탭마다 위에 있던 '💰 가계부' 제목·설명 줄은 숨기고, 예산 탭이면 달 넘기기만 오른쪽에 (관리자 보드의 '예산' 제목은 그대로)

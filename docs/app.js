@@ -1,12 +1,12 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261031c";
-import { CHANGES } from "./changes.js?v=20261031c";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261031c";
-import { mountAcctSet } from "./acctset.js?v=20261031c";
-import { mountReport } from "./report.js?v=20261031c";
-import { mountSummary } from "./summary.js?v=20261031c";
-import { mountBalance } from "./balance.js?v=20261031c";
-import { calSummary } from "./calsum.js?v=20261031c";
-import { firebaseConfig } from "./firebase-config.js?v=20261031c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261101a";
+import { CHANGES } from "./changes.js?v=20261101a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261101a";
+import { mountAcctSet } from "./acctset.js?v=20261101a";
+import { mountReport } from "./report.js?v=20261101a";
+import { mountSummary } from "./summary.js?v=20261101a";
+import { mountBalance } from "./balance.js?v=20261101a";
+import { calSummary } from "./calsum.js?v=20261101a";
+import { firebaseConfig } from "./firebase-config.js?v=20261101a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
