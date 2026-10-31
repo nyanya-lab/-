@@ -1,12 +1,12 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261031b";
-import { CHANGES } from "./changes.js?v=20261031b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261031b";
-import { mountAcctSet } from "./acctset.js?v=20261031b";
-import { mountReport } from "./report.js?v=20261031b";
-import { mountSummary } from "./summary.js?v=20261031b";
-import { mountBalance } from "./balance.js?v=20261031b";
-import { calSummary } from "./calsum.js?v=20261031b";
-import { firebaseConfig } from "./firebase-config.js?v=20261031b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261031c";
+import { CHANGES } from "./changes.js?v=20261031c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261031c";
+import { mountAcctSet } from "./acctset.js?v=20261031c";
+import { mountReport } from "./report.js?v=20261031c";
+import { mountSummary } from "./summary.js?v=20261031c";
+import { mountBalance } from "./balance.js?v=20261031c";
+import { calSummary } from "./calsum.js?v=20261031c";
+import { firebaseConfig } from "./firebase-config.js?v=20261031c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -69,9 +69,10 @@ const CERT_TAGS = ["전체", "도면·CAD", "인테리어", "타일·마감", "�
 const S = { wins: new Map(), goals: new Map(), tasks: new Map(), logs: new Map(), money: new Map(), accounts: new Map(), requests: new Map(), settings: { ...DEFAULTS }, loaded: false, gevents: {}, gsync: null, history: [] };
 const ui = { reqArea: "달력", reqFilter: "open", mEdit: null, acctFilter: "all", page: "calendar", calMonth: today().slice(0, 7), selDay: today(), month: today().slice(0, 7), kind: "expense", certTag: "전체", certQ: "" };
 let backend = null;
-// 💰 가계부 모드 (money.html → index.html?app=money): 돈 관리만 보이는 같은 사이트. 관리자 기기는 가짜 연습 데이터(이 기기에만 저장)로 열림
+// 💰 가계부 모드 (money.html → index.html?app=money): 돈 관리만 보이는 같은 사이트. 관리자 기기는 열지 않고 보드 '예산'으로 보냄
 const APP = new URLSearchParams(location.search).get("app") === "money" ? "money" : "board";
-const DEMO = APP === "money" && (() => { try { return localStorage.getItem("ukjin-admin") === "1"; } catch (e) { return false; } })();
+const ADMIN_MONEY = APP === "money" && (() => { try { return localStorage.getItem("ukjin-admin") === "1"; } catch (e) { return false; } })();
+if (ADMIN_MONEY) location.replace("./#money");
 
 // 저장 상태: 서버에 아직 안 올라간 쓰기 수 + 연결 여부. 옆 메뉴 점과 설정 창에 표시
 const sync = { pending: 0, connected: true };
@@ -393,7 +394,6 @@ function ready() { if (!backend) { toast("아직 불러오는 중이에요."); r
 function showNote(msg, warn) { const n = $("modeNote"); n.hidden = !msg; n.textContent = msg || ""; n.classList.toggle("warn", !!warn); }
 function showMode() {
   if (!backend) return;
-  if (DEMO) { showNote(""); $("modeInfo").textContent = "🧪 연습 가계부: 가짜 데이터, 이 기기에만 저장돼요."; return; }
   if (backend.mode === "local") {
     showNote("지금은 이 브라우저에만 저장돼요. firebase-config.js에 Realtime Database 주소(databaseURL)를 넣으면 폰·PC 어디서든 같은 데이터를 써요.");
     $("modeInfo").textContent = "Firebase에 연결되지 않아 이 브라우저에만 저장돼요.";
@@ -1107,10 +1107,12 @@ function toggleTestMode() {
 }
 function renderAdminUi() {
   const me = isAdminDevice();
-  if (APP === "board") {   // 💰 욱진이 보드의 '돈 관리'는 가계부 화면 링크로, 관리자 보드는 보드 안 돈 관리(예산·내역·통계) + '가계부 (연습)'
-    const nm = $("navMoney"); nm.setAttribute("href", me ? "#money" : "money.html"); nm.querySelector("span").textContent = me ? "예산" : "가계부";
-    $("navMoneyApp").hidden = !me;
+  if (APP === "board") {   // 관리자 보드 메뉴 '예산' = 보드 안 돈 화면. 욱진이 보드엔 없고 아래 가계부 버튼으로
+    const nm = $("navMoney"); nm.hidden = !me; nm.querySelector("span").textContent = "예산";
   }
+  // 💰 가계부 ↔ 실천 보드: 다른 프로그램으로 넘어가는 버튼이라 메뉴 밖, 복권 그림 위 (관리자 보드는 없음)
+  const sa = $("sideApp"), toBoard = APP === "money"; sa.hidden = !toBoard && me; sa.setAttribute("href", toBoard ? "./" : "money.html");
+  sa.innerHTML = (toBoard ? '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>실천 보드</span>' : '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg><span>가계부</span>') + '<span class="side-go" aria-hidden="true">↗</span>';
   document.querySelectorAll(".real-chk").forEach((e) => { e.hidden = !me; });
   ["testBtnSide", "testBtnTop"].forEach((id) => { $(id).hidden = !me && !testMode; $(id).classList.toggle("on", testMode); $(id).title = testMode ? "테스트 끝내기" : "테스트 모드 (저장 안 됨)"; });
   $("testBar").hidden = !testMode;
@@ -1147,7 +1149,7 @@ function renderNags() {
   const t = today(), m = t.slice(0, 7), mon = +m.slice(5) + "월", r = monthTotals(m), pl = planOf(m), list = [];
   let later = ""; try { later = sessionStorage.getItem("ukjin-nag-later") || ""; } catch (e) { /* 무시 */ }
   const skip = (k) => later.split(",").includes(k + "@" + m);
-  const adm = isAdminDevice() && !DEMO;   // 연습 가계부는 욱진이 화면처럼
+  const adm = isAdminDevice();
   // 1일부터: 이 달 예산이 없으면 · 15일부터: 이 달 수입 기록이 없으면 (둘 다 모든 기기, 버튼은 욱진이만)
   if (!(S.settings.budgets || {})[m] && !skip("budget")) list.push(["budget", `🗓️ <b>이번 달 예산</b>이 아직 입력 안 됐어요. 입력해 주세요!`, adm ? "" : `<button class="btn small" type="button" data-act="nagGo" data-k="plan">예산 입력하기</button>` +
     (planSource(m) ? `<button class="btn ghost small" type="button" data-act="nagKeep">지난달 그대로 쓸게요</button>` : "")]);
@@ -2424,7 +2426,7 @@ function route() {
 // ?v=는 10분 단위라 냐냐 보드에서 uri.js를 고치면 늦어도 10분쯤 뒤 여기도 바뀜. 관리자 기기(냐냐)에서 적으면 '냐냐'로 기록
 const URI_JS = URI_BASE + "uri.js?v=" + Math.floor(Date.now() / 600000);
 // 🔑 공통 비밀번호는 보드 설정 settings.uriPw에 기억 (냐냐 보드와 같은 방식) → 다른 기기에선 보드만 열면 공통도 열림. 욱진이 기기만 (관리자·테스트 모드는 안 씀)
-const uriSaves = () => !isAdminDevice() && !testMode && !DEMO;
+const uriSaves = () => !isAdminDevice() && !testMode;
 const uriSavePw = (pw) => { if (backend && uriSaves()) act(backend.saveSettings({ uriPw: pw || null })).catch(() => {}); };
 // 공통 탭 모양 (보드 🤝 우리 탭 · 가계부 ❤️ 공통 탭 같이): 📊 공통 지출 = 가계부 통계 탭과 같은 기간 계산·흐름 그래프·원형, 자산·메모는 내가 ❤️로 적은 가계부 기록에서
 function uriLook() {
@@ -2446,10 +2448,10 @@ function mountUriTab() {
 }
 // ❤️ 공통 (가계부 모드 '❤️ 공통' 탭, 냐냐 가계부와 같은 방식): 지출에 ❤️ 공통비용 체크 → common: true(공통 분류 ccat·csub)
 //   → uri.js setMirror로 공통 저장소 costs/ukjin-{가계부 id}에 저절로 복사 (고치면 고쳐지고, ❤️ 빼거나 지우면 지워짐, 원화만).
-//   냐냐 보드 uri/changes.js의 URI_HOLD가 true면(공개 전) ❤️ 칸·공통 탭 숨김. 관리자 기기(연습 가계부)·테스트 모드에선 복사 안 함
+//   냐냐 보드 uri/changes.js의 URI_HOLD가 true면(공개 전) ❤️ 칸·공통 탭 숨김. 관리자 기기·테스트 모드에선 복사 안 함
 let uriHold = null, uriApi = null, uriPwUsed = null;
-const commonOpen = () => APP === "money" && uriHold === false;   // ❤️ 공통 탭 (관리자 기기 연습 가계부에서도 보기·정산은 됨 — 냐냐 이름으로)
-const commonMine = () => commonOpen() && !DEMO && !testMode && !isAdminDevice();   // ❤️ 체크 칸 · 공통으로 복사는 욱진이 기기 진짜 가계부만
+const commonOpen = () => APP === "money" && uriHold === false;   // ❤️ 공통 탭
+const commonMine = () => commonOpen() && !testMode && !isAdminDevice();   // ❤️ 체크 칸 · 공통으로 복사는 욱진이 기기만
 function mountUriMoney() {
   if (uriApi || !commonOpen()) return;
   uriApi = { loading: true };
@@ -2469,7 +2471,7 @@ function renderCommon() {
   mountUriMoney();
   if (!uriApi || uriApi.loading || !S.loaded) return;
   if (uriSaves() && S.settings.uriPw && S.settings.uriPw !== uriPwUsed) { uriPwUsed = S.settings.uriPw; uriApi.usePassword(S.settings.uriPw); }
-  if (!commonMine()) return;   // 연습 가계부·테스트 모드·관리자 기기는 복사 안 함
+  if (!commonMine()) return;   // 테스트 모드·관리자 기기는 복사 안 함
   const docs = {};
   // 🤝 공동 자산(accounts.joint, 데이트통장 등)으로 낸 건 payer "joint" = 둘이 같이 냄 (정산할 돈엔 안 들어감, 냐냐 보드 09f9d52와 같게)
   const jointOf = (x) => { const a = S.accounts.get(x.account); return a && a.joint ? "joint" : null; };
@@ -3098,7 +3100,7 @@ setTimeout(checkNewVersion, 5000);
 document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (ev) => { ev.preventDefault(); hardReload(); }));
 
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
-bindMoney({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
+bindMoney({ $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
   commonOpen: () => commonOpen(),   // ❤️ 공통 탭이 열렸는지 (공개 전이면 숨김)
   commonMark: () => commonMine(),   // ❤️ 공통비용 체크 칸 (욱진이 기기 진짜 가계부만)
   commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null),   // 🏷 ❤️ 체크하면 분류 칸 = 공통 분류 (공통 저장소, 고치는 건 냐냐만)
@@ -3137,10 +3139,8 @@ document.addEventListener("click", (ev) => setTimeout(() => { fitPanels(); if (r
 // ---------- 시작 ----------
 route();
 render();
-if (DEMO) {
-  $("demoBar").hidden = false;
-  backend = wrapHistory(localBackend("ukjin-money-demo", makeDemoData));
-  render();
+if (ADMIN_MONEY) {
+  /* 보드 '예산'으로 넘어가는 중: 진짜 데이터를 안 엶 */
 } else if (firebaseConfig && firebaseConfig.databaseURL) {
   $("mainView").hidden = true;
   firebaseStart().catch(() => {

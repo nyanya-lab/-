@@ -102,7 +102,7 @@ html:not(.app-money) .logo, .app-money .logo-face { display: none; }
 .nag { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; background: var(--coral-soft, var(--sunk)); border: 2px solid var(--coral); border-radius: 12px; padding: 8px 12px; font-size: 14px; }
 /* 💰 가계부 모드: 돈 관리만 (메뉴·복권·테스트 버튼 숨김), '실천 보드로' 링크만 보임 */
 .only-money { display: none !important; }
-.app-money #navMoneyApp, .app-money #navMoney, .app-money #mTabs { display: none !important; }
+.app-money #navMoney, .app-money #mTabs { display: none !important; }
 /* 가계부 아래 메뉴 (폰, 가계부 모드만) */
 .m-bottom { display: none; }
 @media (max-width: 720px) {
@@ -115,7 +115,6 @@ html:not(.app-money) .logo, .app-money .logo-face { display: none; }
 .app-money .only-money { display: flex !important; }
 .app-money .nav a:not([href="#money"]):not(.only-money), .app-money #sideReqs, .app-money .side-lotto, .app-money #topLotto, .app-money .test-btn, .app-money #testBar { display: none !important; }
 .app-money #moneyPage .page-head h2::before { content: "💰 "; }
-.test-bar.demo-bar { background: var(--grape-soft, var(--sunk)); border-color: var(--grape); }
 .m-tabs { margin: 4px 0 12px; }
 .m-tabs.seg3 { grid-template-columns: repeat(3, 1fr); }
 .m-tabs button { white-space: nowrap; }
@@ -272,6 +271,14 @@ html:not(.app-money) .logo, .app-money .logo-face { display: none; }
   border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-size: 15px; position: relative;
 }
 .side-settings:hover { background: var(--sunk); }
+/* 💰 가계부 ↔ 실천 보드 버튼 (메뉴 밖, 복권 그림 위) */
+.side-app { text-decoration: none; }
+.side-app[hidden] { display: none; }
+.side-app .side-go { margin-left: auto; color: var(--muted); }
+.side-reqs:not([hidden]) + .side-app { margin-top: 8px; }
+.side-app:not([hidden]) + .side-lotto { margin-top: 8px; }
+.side-app:not([hidden]) ~ .side-theme { margin-top: 8px; }
+@media (min-width: 721px) and (max-height: 800px) { .side { gap: 10px; } .side-theme + .side-settings { margin-top: -2px; } }   /* 낮은 화면에서도 설정 버튼이 잘리지 않게 */
 .side-settings .sync-dot { margin-left: auto; }
 .sync-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; flex-shrink: 0; }
 .sync-dot[data-state="ok"] { background: var(--mint); }

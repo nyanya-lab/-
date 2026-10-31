@@ -12,10 +12,10 @@ import { openRangePicker, rangeLabel, shiftRange, wholeMonth } from "./range.js?
 // (따로 떼어 새 가계부를 만들 땐: 이 파일 + index.html의 위 마크업 + env로 넘기는 공통 함수(저장소·$·toast 등)만 가져가면 됨)
 
 let E = null;   // 보드 쪽 환경 (값이 바뀌는 backend·testMode·realBackend 는 E.이름 으로 읽음)
-let $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won;
+let $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won;
 export function bindMoney(env) {
   E = env;
-  ({ $, DEFAULTS, DEMO, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won } = env);
+  ({ $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won } = env);
 }
 
 export const MONEY_CATS = {
@@ -485,7 +485,7 @@ export const sortedAccts = () => rows(S.accounts).filter((a) => !a.hidden).sort(
 export const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷" };
 
 // 관리자(여자친구) 기기에선 지출·자산은 안 보이게 (예산 금액 · 수입 · 보낸 돈만). 화면에서만 숨김
-export function moneyAdminView() { return isAdminDevice() && !DEMO; }
+export function moneyAdminView() { return isAdminDevice(); }
 export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
 export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "report", "settings", "common"].includes(v) ||   /* 📑 report = 보고서 탭 (냐냐 가계부 report.js 복사) */ (v === "common" && !(E.commonOpen && E.commonOpen())) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
@@ -1308,36 +1308,6 @@ function renameSub(k, cat, old) {
   act(E.backend.rootUpdate(p), `'${old}' → '${name}'로 바꿨어요 (기록 ${ids.length.toLocaleString()}건).`).then(() => { renderCatEditor(); renderMoneyForm(); render(); }).catch(() => {});
 }
 
-// 🧪 연습 가계부 가짜 데이터: 통장·카드·현금·저축, 지난 3달 + 이번 달 월급(10일)·지출·카드값(15일)·줄 돈(15일), 예산·줄 돈
-// 특정 상황이 필요하면 여기에 더 넣으면 됨 (주인이 말해 주면 Claude가 상황에 맞게 추가)
-export function makeDemoData() {
-  const t = today(), m0 = t.slice(0, 7), now = Date.now(), money = {}, rnd = (a, b) => Math.round((a + Math.random() * (b - a)) / 100) * 100;
-  let n = 0; const put = (doc) => { money["d" + (++n)] = { createdAt: now + n, ...doc }; };
-  const accounts = {
-    bank: { name: "국민 월급통장", type: "bank", initial: 1200000, createdAt: 1 },
-    card: { name: "현대카드", type: "card", initial: 0, createdAt: 2, pay: { day: 15, from: "bank", fm: -1, fd: 4, tm: 0, td: 3, since: shiftMonth(m0, -3) + "-01" } },
-    cash: { name: "현금", type: "cash", initial: 300000, createdAt: 3 },
-    save: { name: "청년 적금", type: "save", initial: 3000000, createdAt: 4 }
-  };
-  const spend = [["식비", 8000, 15000, 10], ["카페·간식", 3000, 7000, 6], ["교통·차량", 10000, 50000, 3], ["장보기", 20000, 60000, 3], ["데이트", 30000, 80000, 2], ["통신", 59000, 59000, 1], ["생필품", 5000, 25000, 2], ["쇼핑", 20000, 70000, 1]];
-  for (let k = -3; k <= 0; k++) {
-    const m = shiftMonth(m0, k), last = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate(), upto = k === 0 ? +t.slice(8) : last, day = (d) => `${m}-${pad(Math.min(d, last))}`;
-    if (upto >= 10) put({ kind: "income", cat: "월급", amount: 2600000 + (k % 2) * 100000, date: day(10), account: "bank", memo: `${+m.slice(5)}월 월급` });
-    spend.forEach(([cat, lo, hi, times]) => { for (let i = 0; i < times; i++) { const d = 1 + Math.floor(Math.random() * upto); put({ kind: "expense", cat, amount: rnd(lo, hi), date: day(d), account: cat === "통신" ? "bank" : Math.random() < 0.75 ? "card" : Math.random() < 0.8 ? "bank" : "cash", memo: "" }); } });
-    if (k < 0 || upto >= 15) put({ kind: "transfer", cat: "생활비", amount: 1500000, date: day(15), account: "bank", memo: `💝 ${+m.slice(5)}월 줄 돈` });
-  }
-  // 카드값: 15일에 이용기간(전월 4일 ~ 당월 3일) 카드 사용액만큼 통장 → 카드 (이번 달은 15일이 지났을 때만)
-  for (let k = -2; k <= 0; k++) {
-    const m = shiftMonth(m0, k), date = `${m}-15`, from = `${shiftMonth(m, -1)}-04`, to = `${m}-03`;
-    if (date > t) continue;
-    const amt = Object.values(money).filter((x) => x.kind === "expense" && x.account === "card" && x.date >= from && x.date <= to).reduce((a, x) => a + x.amount, 0);
-    if (amt) put({ kind: "move", amount: amt, date, account: "bank", toAccount: "card", memo: `💳 현대카드값 (${+from.slice(5, 7)}/4~${+m.slice(5)}/3 사용분)` });
-  }
-  const items = { a: { cat: "식비", memo: "점심", amount: 300000, createdAt: 1 }, b: { cat: "교통·차량", memo: "", amount: 150000, createdAt: 2 }, c: { cat: "통신", memo: "", amount: 60000, createdAt: 3 }, d: { cat: "데이트", memo: "", amount: 200000, createdAt: 4 }, e: { cat: "기타", memo: "", amount: 50000, createdAt: 5 } };
-  const budgets = {}; for (let k = -3; k <= 0; k++) budgets[shiftMonth(m0, k)] = { items: clone(items), give: 1500000 };
-  const autoTasks = {}; for (let k = -3; k <= 0; k++) { const m = shiftMonth(m0, k); autoTasks[`give-${m}`] = true; autoTasks[`cp-card-${m}`] = true; }
-  return { settings: { ...DEFAULTS, createdAt: now - 100 * 864e5, budgets, autoTasks, giveFrom: "bank" }, accounts, money, goals: {}, tasks: {}, logs: {}, requests: {}, wins: {} };
-}
 
 
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
@@ -1580,7 +1550,6 @@ export function moneyAction(a, el, id, t) {
   }
   if (a === "newAcct") { openAcct(null); return true; }
   if (a === "editAcct") { openAcct(id); return true; }
-  if (a === "demoReset") { try { localStorage.removeItem("ukjin-money-demo"); } catch (e) { /* 무시 */ } toast("연습 데이터를 새로 만들어요…"); setTimeout(() => location.reload(), 300); return true; }
   if (a === "mTab") { setMTab(el.dataset.k); return true; }
   if (a === "closeAcct") { closeDlg($("acctDlg")); return true; }
   if (a === "acType") { ac.type = el.dataset.k; renderAcctForm(); return true; }
