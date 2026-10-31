@@ -83,7 +83,7 @@ button { cursor: pointer; }
 .logo i:nth-child(3) { background: var(--sun); } .logo i:nth-child(4) { background: var(--mint); }
 /* 실천 보드 제목 = 욱진이 얼굴 (동그라미), 가계부 모드 = 네 칸 타일 */
 .logo-face { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: block; }
-html:not(.app-money) .logo, .app-money .logo-face { display: none; }
+html:not(.app-money) .logo, html:not(.app-money) .logo-coin, .app-money .logo-face:not(.logo-coin) { display: none; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); min-width: 0; }
 .brand b { font-family: var(--f-display); font-weight: 400; font-size: 21px; display: block; line-height: 1.2; }
 .brand .mono { font-size: 11px; color: var(--muted); display: block; }
