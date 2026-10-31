@@ -1,12 +1,12 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261029b";
-import { CHANGES } from "./changes.js?v=20261029b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261029b";
-import { mountAcctSet } from "./acctset.js?v=20261029b";
-import { mountReport } from "./report.js?v=20261029b";
-import { mountSummary } from "./summary.js?v=20261029b";
-import { mountBalance } from "./balance.js?v=20261029b";
-import { calSummary } from "./calsum.js?v=20261029b";
-import { firebaseConfig } from "./firebase-config.js?v=20261029b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261031a";
+import { CHANGES } from "./changes.js?v=20261031a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261031a";
+import { mountAcctSet } from "./acctset.js?v=20261031a";
+import { mountReport } from "./report.js?v=20261031a";
+import { mountSummary } from "./summary.js?v=20261031a";
+import { mountBalance } from "./balance.js?v=20261031a";
+import { calSummary } from "./calsum.js?v=20261031a";
+import { firebaseConfig } from "./firebase-config.js?v=20261031a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -472,9 +472,11 @@ function noPracLog(l) { const t = l && l.taskId && S.tasks.get(l.taskId); return
 // 끝낸 돈 할 일 아이콘: 🗓️ 예산 · 💰 수입 · 💳 카드값 (아니면 "")
 function moneyIcon(x) { const k = moneyTaskKind(x, x.id); return k ? (k.k === "budget" ? "🗓️" : "💰") : x.cardPay ? "💳" : ""; }
 // 🛡️ 쿠폰으로 채운 날 {날짜: 쿠폰 id}
-function fillDays() { const o = {}; S.wins.forEach((w, id) => { if (w && w.effect === "streak" && w.usedAt && w.fillDate) o[w.fillDate] = id; }); return o; }
+function fillDays() { const o = {}; S.wins.forEach((w, id) => { if (w && w.fillDate && ((w.effect === "streak" && w.usedAt) || w.shield)) o[w.fillDate] = id; }); return o; }
+// 🥇 덤 🛡️ (wins.shield): 상품과 따로 쓰는 연속 채우기 1번, 기한은 상품과 같음. 채우면 fillDate
+const shieldOpen = (w) => !!(w && w.shield && !w.fillDate && (w.expires || "9999") >= today());
 // 🎟️ 그 날이 마감인 안 쓴 쿠폰 (지난 마감은 안 보임, 공개 전엔 관리자 기기만)
-function couponsDueOn(d) { return lottoVisible() && d >= today() ? rows(S.wins).filter((w) => w.kind === "coupon" && !w.usedAt && w.expires === d) : []; }
+function couponsDueOn(d) { return lottoVisible() && d >= today() ? rows(S.wins).filter((w) => w.kind === "coupon" && (!w.usedAt || shieldOpen(w)) && w.expires === d) : []; }
 // 할 일을 체크할 때 같이 기록한 시간 (실천 기록에 taskId로 연결)
 function taskLogs(taskId, day) { return rows(S.logs).filter((l) => l.taskId === taskId && (!day || l.date === day)); }
 function taskMinutes(taskId, day) { return taskLogs(taskId, day).reduce((s, l) => s + (Number(l.minutes) || 0), 0); }
@@ -616,7 +618,7 @@ function renderCalendar() {
     if (i % 7 === 0 && wkMap[d]) html += weekBar(wkMap[d]);
     (exams[d] || []).forEach((g) => evs.push(`<div class="ev exam" data-act="openGoal" data-id="${esc(g.id)}" title="${esc(g.title)} · 눌러서 목표 보기">D-DAY ${esc(g.title)}</div>`));
     const cpDue = couponsDueOn(d);
-    cpDue.forEach((w) => evs.push(`<div class="ev cpexp" data-act="winOpen" data-id="${esc(w.id)}" title="${esc(w.title)} 쿠폰 마감 · 눌러서 보기">🎟️ ${esc(w.title)} 마감</div>`));
+    cpDue.forEach((w) => evs.push(`<div class="ev cpexp" data-act="winOpen" data-id="${esc(w.id)}" title="${esc(w.title)} 쿠폰 마감 · 눌러서 보기">${w.usedAt ? "🛡️ 연속 채우기" : "🎟️ " + esc(w.title)} 마감</div>`));
     if (fills[d]) evs.push(`<div class="ev fill" data-act="winOpen" data-id="${esc(fills[d])}" title="🛡️ 연속일 채우기 쿠폰으로 실천한 날로 채웠어요">🛡️ 채운 날</div>`);
     // 할 일은 칸 안에서 바로 체크 (반복하는 일도 날마다 하나씩, 앞으로의 날은 체크만 막음)
     rows(S.tasks).filter((x) => !isRep(x) && x.date === d).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((x) => evs.push(calTask(x, d, false)));
@@ -916,7 +918,8 @@ function histDescribe(e) {
   }
   if (c === "accounts") return { label: `자산 '${d.name || ""}' ${verb}`, date: null };
   if (c === "wins") {
-    if (a && b && !b.usedAt && a.usedAt) return a.fillDate ? { label: "🛡️ 쿠폰으로 실천 안 한 날 채우기", date: a.fillDate } : { label: `쿠폰 '${d.title}' 쓰기`, date: a.usedAt };
+    if (a && b && b.shield && !b.fillDate && a.fillDate) return { label: "🛡️ 쿠폰으로 실천 안 한 날 채우기", date: a.fillDate };
+    if (a && b && !b.usedAt && a.usedAt) return a.fillDate && !a.shield ? { label: "🛡️ 쿠폰으로 실천 안 한 날 채우기", date: a.fillDate } : { label: `쿠폰 '${d.title}' 쓰기`, date: a.usedAt };
     if (a && b && (a.left || 0) < (b.left || 0)) return { label: `벌칙 '${d.title}' 했어요`, date: a.doneAt || null };
     return { label: `쿠폰함 '${d.title}' ${verb}`, date: null };
   }
@@ -1337,14 +1340,14 @@ function drawLotto() {
   if (["big", "mid", "small"].includes(pick)) {
     let list = cs.filter((v) => v.tier === pick);
     if (!list.length) list = cs;   // 그 등급이 비었으면 아무 쿠폰
-    const v = any(list); if (v) return { kind: "coupon", tier: v.tier, title: v.title, days: Number(v.days) || 30, effect: v.effect || null };
+    const v = any(list); if (v) return { kind: "coupon", tier: v.tier, title: v.title, days: Number(v.days) || 30, effect: v.effect || null, shield: v.tier === "big" && v.effect !== "streak" };
   }
   return { kind: "miss", title: "꽝" };
 }
 async function quietly(fn) { histApplying = true; try { return await fn(); } finally { histApplying = false; } }   // 되돌리기 기록에 안 남김
 function commitWin(res, at) {
   const t = today(), doc = { kind: res.kind, title: res.title, wonAt: t, at };
-  if (res.kind === "coupon") Object.assign(doc, { tier: res.tier, days: res.days, expires: addDays(t, res.days) }, res.effect ? { effect: res.effect } : {});
+  if (res.kind === "coupon") Object.assign(doc, { tier: res.tier, days: res.days, expires: addDays(t, res.days) }, res.effect ? { effect: res.effect } : {}, res.shield ? { shield: true } : {});
   if (res.kind === "pen") Object.assign(doc, { days: res.days, left: 1, deadline: addDays(t, res.days) });
   return quietly(() => backend.add("wins", doc));
 }
@@ -1352,7 +1355,7 @@ function commitWin(res, at) {
 function untilText(d) { const n = diffDays(d, today()); return `${shortDate(d)}까지 (${n > 0 ? n + "일 남음" : n === 0 ? "오늘 마감" : "지남"})`; }
 function resHtml(res) {
   const due = addDays(today(), res.days);
-  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="tt">${esc(res.title)}</div>${res.effect === "streak" ? '<div class="sm">🛡️ 쓰면 실천 못 한 날 하루를 채워요</div>' : payText(res) ? `<div class="sm">${payText(res)}</div>` : ""}<div class="sm">${untilText(due)}</div>`;
+  if (res.kind === "coupon") return `<div class="big">${res.tier === "big" ? "🥇" : res.tier === "mid" ? "🥈" : "🥉"}</div><div class="tt">${esc(res.title)}</div>${res.effect === "streak" ? '<div class="sm">🛡️ 쓰면 실천 못 한 날 하루를 채워요</div>' : payText(res) ? `<div class="sm">${payText(res)}</div>` : ""}${res.shield ? '<div class="sm"><b>🛡️ 연속 채우기 1번도 같이 받아요!</b></div>' : ""}<div class="sm">${untilText(due)}</div>`;
   if (res.kind === "pen") return `<div class="big">😈</div><div class="lv">벌칙…</div><div class="tt">${esc(res.title)}</div><div class="sm">${untilText(due)} · 못 하면 ×2</div><div class="sm"><b>📸 하고 나면 인증샷 올리기!</b></div>`;
   return `<div class="big">😐</div><div class="lv">꽝</div><div class="tt">아쉽다! 다음 기회에</div>`;
 }
@@ -1426,7 +1429,7 @@ async function scratchReveal() {
 // 🛡️ 연속일 채우기: 최근 30일 중 실천 안 한 날 하나를 골라 wins.fillDate (보드 쓰기 전 날은 빼고)
 let fillFor = null;
 function openFill(id) {
-  const w = S.wins.get(id); if (!w || w.usedAt || !ready()) return;
+  const w = S.wins.get(id); if (!w || !(w.shield ? shieldOpen(w) : !w.usedAt) || !ready()) return;
   const t = today(), pm = practiceMinutes(), st = boardStart(), ds = [];
   for (let i = 1; i <= 30; i++) { const d = addDays(t, -i); if ((st && d < st) || d < WEEK_RULE_FROM) break; if (!practiced(pm, d)) ds.push(d); }
   if (!ds.length) { toast("최근 30일에 빈 날이 없어요. 쿠폰은 아껴 둬요! 👍"); return; }
@@ -1577,9 +1580,9 @@ function renderCoupons() {
   const by = (dueKey) => (a, b) => sort === "recent" ? (b.at || 0) - (a.at || 0)
     : sort === "tier" && dueKey === "expires" ? (TR[a.tier] ?? 3) - (TR[b.tier] ?? 3) || String(a.expires).localeCompare(String(b.expires))
     : String(a[dueKey] || "9999").localeCompare(String(b[dueKey] || "9999")) || (b.at || 0) - (a.at || 0);
-  const avail = ws.filter((w) => w.kind === "coupon" && !w.usedAt && (w.expires || "9999") >= t).sort(by("expires"));
+  const avail = ws.filter((w) => w.kind === "coupon" && (w.usedAt ? shieldOpen(w) : (w.expires || "9999") >= t)).sort(by("expires"));
   const pens = ws.filter((w) => w.kind === "pen"), pOpen = pens.filter((w) => w.left > 0).sort(by("deadline"));
-  const pastAll = ws.filter((w) => (w.kind === "coupon" && (w.usedAt || (w.expires || "9999") < t)) || w.kind === "miss" || (w.kind === "pen" && !(w.left > 0)));
+  const pastAll = ws.filter((w) => (w.kind === "coupon" && ((w.usedAt && !shieldOpen(w)) || (w.expires || "9999") < t)) || w.kind === "miss" || (w.kind === "pen" && !(w.left > 0)));
   const pf = cpPf(), PR = (w) => w.kind === "coupon" ? TR[w.tier] ?? 3 : w.kind === "pen" ? 4 : 5, nm = (w) => w.kind === "miss" ? "꽝" : w.title || "";
   const past = pastAll.filter(CP_PF[pf][1]).sort(sort === "tier" ? (a, b) => PR(a) - PR(b) || (b.at || 0) - (a.at || 0) : sort === "abc" ? (a, b) => nm(a).localeCompare(nm(b), "ko") || (b.at || 0) - (a.at || 0) : (a, b) => (b.at || 0) - (a.at || 0));
   $("cpPastFilter").innerHTML = Object.keys(CP_PF).map((k) => `<button type="button" data-act="cpPf" data-k="${k}" aria-pressed="${k === pf}">${CP_PF[k][0]} <b>${pastAll.filter(CP_PF[k][1]).length}</b></button>`).join("");
@@ -1591,13 +1594,13 @@ function renderCoupons() {
   const sel = $("cpSort"); sel.hidden = !CP_SORTS[tab];
   if (CP_SORTS[tab]) { sel.innerHTML = CP_SORTS[tab].map((k) => `<option value="${k}">${k === "recent" && tab !== "past" ? "최근 받은 순" : CP_SORT_LABEL[k]}</option>`).join(""); sel.value = sort; }
   $("cpAvail").innerHTML = avail.length ? avail.map((w) => `<div class="item cp-item"><span class="cp-tier">${tierIc(w)}</span><div class="body"><div class="title">${esc(w.title)}</div>` +
-    `<div class="meta">${w.effect === "streak" ? '<span class="tag cat c-grape">🛡️ 연속일 채우기</span>' : ""}<span class="tag">${untilText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음${w.effect === "streak" || !payText(w) ? "" : " · " + esc(TIER_CAP[w.tier] || "")}</span></div></div>` +
-    `<div class="actions"><button class="btn small" type="button" data-act="cpUse" data-id="${esc(w.id)}">쓰기</button></div></div>`).join("") : '<div class="empty">아직 쓸 쿠폰이 없어요.</div>';
+    `<div class="meta">${w.effect === "streak" ? '<span class="tag cat c-grape">🛡️ 연속일 채우기</span>' : ""}${w.usedAt ? `<span class="tag">✅ 상품 사용: ${yDate(w.usedAt)}</span>` : ""}${w.fillDate && w.shield ? `<span class="tag">🛡️ 채운 날: ${yDate(w.fillDate)}</span>` : shieldOpen(w) ? '<span class="tag cat c-grape">🛡️ 연속 채우기 포함</span>' : ""}<span class="tag">${untilText(w.expires)}</span><span class="small muted">${esc(shortDate(w.wonAt))} 받음${w.effect === "streak" || !payText(w) ? "" : " · " + esc(TIER_CAP[w.tier] || "")}</span></div></div>` +
+    `<div class="actions" style="display:grid;gap:4px">${w.usedAt ? "" : `<button class="btn small" type="button" data-act="cpUse" data-id="${esc(w.id)}">쓰기</button>`}${shieldOpen(w) ? `<button class="btn ghost small" type="button" data-act="cpFill" data-id="${esc(w.id)}">🛡️ 채우기</button>` : ""}</div></div>`).join("") : '<div class="empty">아직 쓸 쿠폰이 없어요.</div>';
   $("cpPens").innerHTML = pOpen.length ? pOpen.map((w) => `<div class="item cp-item"><span class="cp-tier">😈</span><div class="body"><div class="title">${esc(w.title)}${w.left > 1 ? ` <b style="color:var(--danger)">×${w.left}</b>` : ""}</div>` +
     `<div class="meta"><span class="tag late">${untilText(w.deadline)}</span><span class="small muted">못 하면 ×${w.left * 2}</span></div></div>` +
     `<div class="actions" style="display:grid;gap:4px"><button class="btn small" type="button" data-act="penDone" data-id="${esc(w.id)}">했어요${w.left > 1 ? " (1장)" : ""}</button>${w.game ? "" : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`}</div></div>`).join("") : '<div class="empty">지금 할 벌칙이 없어요. 👍 끝낸 벌칙은 📜 지난 것에 있어요.</div>';
   $("cpPast").innerHTML = past.length ? past.map((w) => {
-    const st = w.kind === "pen" ? `✅ 끝: ${yDate(w.doneAt || w.wonAt)} · ` : w.kind === "miss" ? "" : w.usedAt ? `사용: ${yDate(w.usedAt)}${w.fillDate ? ` · 🛡️ 채운 날: ${yDate(w.fillDate)}` : ""} · ` : `만료: ${yDate(w.expires)} · `;
+    const st = w.kind === "pen" ? `✅ 끝: ${yDate(w.doneAt || w.wonAt)} · ` : w.kind === "miss" ? "" : `${w.usedAt ? `사용: ${yDate(w.usedAt)}` : `만료: ${yDate(w.expires)}`}${w.fillDate ? ` · 🛡️ 채운 날: ${yDate(w.fillDate)}` : ""} · `;
     const np = w.pics && typeof w.pics === "object" ? Object.keys(w.pics).length : 0;
     const gm = w.kind === "miss" || w.kind === "pen" ? (w.game ? `<span class="small muted">🎯 +${w.game.pts}</span>` : `<button class="btn ghost small" type="button" data-act="gmOpen" data-id="${esc(w.id)}">🎯 한 판</button>`) : "";
     return `<div class="item${w.kind !== "coupon" && !w.game ? "" : " done"}" data-act="winOpen" data-id="${esc(w.id)}" style="cursor:pointer" title="눌러서 보기"><span class="cp-tier">${w.kind === "miss" ? "😐" : w.kind === "pen" ? "😈" : tierIc(w)}</span><div class="body"><div class="title">${esc(w.kind === "miss" ? "꽝" : w.title)}${np ? ` <span class="small muted">📸${np > 1 ? np : ""}</span>` : ""}</div><div class="meta"><span class="small muted">${esc(st)}긁음: ${esc(yDate(w.wonAt))}</span></div></div><div class="actions">${gm}</div></div>`;
@@ -1697,7 +1700,7 @@ function renderDayPanel() {
 function dayExtraItems(d) {
   const row = (id, tag, title) => `<div class="item" data-act="winOpen" data-id="${esc(id)}" style="cursor:pointer" title="눌러서 보기"><span class="tag cat c-grape">${tag}</span><div class="body"><div class="title">${title}</div></div></div>`;
   const f = fillDays()[d];
-  return couponsDueOn(d).map((w) => row(w.id, "🎟️ 쿠폰 마감", `${esc(w.title)} <span class="small muted">· 이 날까지 써요</span>`)).join("") +
+  return couponsDueOn(d).map((w) => row(w.id, "🎟️ 쿠폰 마감", `${w.usedAt ? "🛡️ 연속 채우기" : esc(w.title)} <span class="small muted">· 이 날까지 써요</span>`)).join("") +
     (f ? row(f, "🛡️ 채운 날", "연속일 채우기 쿠폰으로 실천한 날로 쳤어요") : "");
 }
 // 🎟️·😈 팝업: 달력에서 쿠폰·벌칙을 누르면 쿠폰함으로 안 가고 여기서 보고 바로 [쓰기]·[했어요]
@@ -1719,10 +1722,12 @@ function openWin(id) {
     $("wnTitle").textContent = `${tierIc} ${w.title}`;
     if (w.effect === "streak") body.push(`<p>🛡️ 쓰면 실천 못 한 날 하루를 채워요</p>`);
     else if (usable && payText(w)) body.push(`<p class="muted">${payText(w)}</p>`);
-    if (w.usedAt) body.push(`<p>✅ 사용: ${yDate(w.usedAt)}${w.fillDate ? ` · 🛡️ 채운 날: ${yDate(w.fillDate)}` : ""}</p>`);
+    if (w.usedAt) body.push(`<p>✅ 사용: ${yDate(w.usedAt)}${w.fillDate && !w.shield ? ` · 🛡️ 채운 날: ${yDate(w.fillDate)}` : ""}</p>`);
     else if (usable) body.push(`<p><b>${untilText(w.expires)}</b></p>`);
     else body.push(`<p>⌛ 만료: ${yDate(w.expires)} (안 쓰고 기한이 지났어요)</p>`);
+    if (w.shield) body.push(w.fillDate ? `<p>🛡️ 채운 날: ${yDate(w.fillDate)}</p>` : shieldOpen(w) ? `<p>🛡️ 연속 채우기 1번도 같이 받았어요. 최근 30일 중 실천을 못 채운 날 하루를 채워요 (사진 없이, ${untilText(w.expires)})</p>` : `<p class="muted">🛡️ 연속 채우기는 안 쓰고 기한이 지났어요</p>`);
     if (usable) btns.push(`<button class="btn" type="button" data-act="cpUse" data-id="${esc(id)}">쓰기</button>`);
+    if (shieldOpen(w)) btns.push(`<button class="btn ghost" type="button" data-act="cpFill" data-id="${esc(id)}">🛡️ 채우기</button>`);
   } else if (w.kind === "miss") {
     $("wnTitle").textContent = "😐 꽝";
     body.push(w.game ? `<p>🎯 게임으로 +${w.game.pts} 돌려받음</p>` : "<p>아쉽다! 🎯 게임 한 판으로 포인트를 돌려받을 수 있어요.</p>");
@@ -2586,11 +2591,11 @@ document.addEventListener("click", (ev) => {
   if (a === "scAgain") { cancelGame(); closeDlg($("scratchDlg")); setTimeout(openScratch, 150); return; }
   if (a === "scClose") { if (scratch && scratch.committed && !scratch.revealed) scratchReveal(); else { closeDlg($("scratchDlg")); scratch = null; } return; }
   if (a === "liClose") { closeDlg($("lottoIntroDlg")); return; }
-  if (a === "cpUse" && S.wins.get(id) && S.wins.get(id).effect === "streak") { openFill(id); return; }
+  if (a === "cpFill" || (a === "cpUse" && S.wins.get(id) && S.wins.get(id).effect === "streak")) { openFill(id); return; }
   if (a === "fillDo") {
     const fid = fillFor, w = fid && S.wins.get(fid), d = el.dataset.day; fillFor = null; closeDlg($("moveDlg"));
-    if (!w || w.usedAt || !ready()) return;
-    act(backend.update("wins", fid, { usedAt: t, fillDate: d }), `🛡️ ${shortDate(d)}, 실천한 날로 채웠어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return;
+    if (!w || !(w.shield ? shieldOpen(w) : !w.usedAt) || !ready()) return;
+    act(backend.update("wins", fid, w.shield ? { fillDate: d } : { usedAt: t, fillDate: d }), `🛡️ ${shortDate(d)}, 실천한 날로 채웠어요! (↶로 되돌릴 수 있어요)`).catch(() => {}); return;
   }
   if (a === "winOpen") { openWin(id); return; }
   if (a === "winClose") { closeDlg($("winDlg")); return; }
