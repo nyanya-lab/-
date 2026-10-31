@@ -490,12 +490,12 @@ export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" 
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
 export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "report", "settings", "common"].includes(v) ||   /* 📑 report = 보고서 탭 (냐냐 가계부 report.js 복사) */ (v === "common" && !(E.commonOpen && E.commonOpen())) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
 export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } if (k === "assets") { ui.asSel = null; ui.asOpen = false; } renderMoney(); }
-// 예산 안 작은 탭 (욱진이 가계부 예산 탭 · 관리자 보드 '예산' 같음): plan 한 달 예산 / hist 달마다 표 (이 기기에 기억)
+// 관리자 보드 '예산' 안 작은 탭: plan 한 달 예산 / hist 달마다 표 (이 기기에 기억). 욱진이 가계부엔 탭도 달마다 표도 없음 (냐냐 가계부 예산 탭처럼 한 달 예산만)
 function planTab() { try { return localStorage.getItem("ukjin-plan-tab") === "hist" ? "hist" : "plan"; } catch (e) { return "plan"; } }
 function setPlanTab(k) { try { localStorage.setItem("ukjin-plan-tab", k); } catch (e) { /* 무시 */ } }
 export function renderMTabs() {
-  const adm = moneyAdminView(), tab = adm ? "stats" : mTab(), inPlan = adm || tab === "budget", pt = inPlan ? planTab() : "";
-  $("planTabs").hidden = !inPlan;
+  const adm = moneyAdminView(), tab = adm ? "stats" : mTab(), pt = adm ? planTab() : "";
+  $("planTabs").hidden = !adm;
   document.querySelectorAll("#planTabs button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === pt)));
   $("mTabs").hidden = adm;
   // 가계부 모드: 옆 메뉴(PC)·아래 메뉴(폰)의 예산·지출·자산·통계 / 제목: 관리자 보드는 '예산', 그 외 '가계부'
@@ -507,9 +507,9 @@ export function renderMTabs() {
     if (b.dataset.k === "spend") b.textContent = "🧾 내역";
   });
   $("mTabs").classList.toggle("seg3", adm);
-  document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = el.id === "histPanel" ? pt !== "hist" : adm ? !(el.id === "planPanel" && pt === "plan") : el.dataset.mtab !== tab || pt === "hist"; });
+  document.querySelectorAll("#moneyPage [data-mtab]").forEach((el) => { el.hidden = adm ? !((el.id === "planPanel" && pt === "plan") || (el.id === "histPanel" && pt === "hist")) : el.id === "histPanel" || el.dataset.mtab !== tab; });
   // 맨 위 달 넘기기는 예산 탭만 (내역·달력·자산·통계는 자기 칸에 따로), 맨 위 요약 4칸은 관리자 보드만 (내역 탭에 요약 칸이 있어서)
-  document.querySelector("#moneyPage .month-nav").hidden = !inPlan || pt === "hist"; $("moneyStats").hidden = !adm || pt === "hist";
+  document.querySelector("#moneyPage .month-nav").hidden = adm ? pt === "hist" : tab !== "budget"; $("moneyStats").hidden = !adm || pt === "hist";
   // 가계부 모드: 탭마다 위에 있던 '💰 가계부' 제목·설명 줄은 숨기고, 예산 탭이면 달 넘기기만 오른쪽에 (관리자 보드의 '예산' 제목은 그대로)
   const appMoney = document.documentElement.classList.contains("app-money");
   document.querySelector("#moneyPage .page-head").hidden = appMoney && !adm && tab !== "budget";
