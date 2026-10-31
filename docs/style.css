@@ -113,7 +113,7 @@ html:not(.app-money) .logo, .app-money .logo-face { display: none; }
   .app-money body, .app-money .wrap { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 }
 .app-money .only-money { display: flex !important; }
-.app-money .nav a:not([href="#money"]):not(.only-money), .app-money #sideReqs, .app-money .side-lotto, .app-money #topLotto, .app-money .test-btn, .app-money #testBar { display: none !important; }
+.app-money .nav a:not([href="#money"]):not(.only-money), .app-money #sideReqs, .app-money .side-lotto, .app-money #topLotto, .app-money .test-btn { display: none !important; }
 .app-money #moneyPage .page-head h2::before { content: "💰 "; }
 .m-tabs { margin: 4px 0 12px; }
 .m-tabs.seg3 { grid-template-columns: repeat(3, 1fr); }
@@ -138,7 +138,6 @@ html:not(.app-money) .logo, .app-money .logo-face { display: none; }
 .test-bar-btns { display: flex; gap: 6px; }
 /* ⏱ 타이머 띠 (재는 중 파랑 · 멈춤 흐리게 · 5시간 넘으면 빨강) */
 .timer-bar { background: var(--blue-soft); border-color: var(--blue); }
-.test-bar:not([hidden]) + .timer-bar { top: 58px; }
 .timer-bar.paused { background: var(--sunk); border-color: var(--line); }
 .timer-bar.warn { background: var(--coral-soft); border-color: var(--danger); }
 .timer-bar .tm-clock { font-family: var(--f-mono); font-weight: 700; font-size: 17px; margin-left: 8px; font-variant-numeric: tabular-nums; }
@@ -200,6 +199,8 @@ html:not(.app-money) .logo, .app-money .logo-face { display: none; }
 .la-page .panel { margin: 0; }
 .la-page .panel > p.small { margin: 0 0 10px !important; }
 .seg.la-tabs { margin: 0; }
+.seg.plan-tabs { grid-template-columns: repeat(2, 1fr); margin-bottom: 12px; }
+.seg.plan-tabs[hidden] { display: none; }
 .la-tabs button { white-space: nowrap; }
 .la-tabs b { font-family: var(--f-mono); font-weight: 500; color: var(--muted); font-size: 12px; }
 .la-tabs b.la-new { background: var(--danger); color: #FFFFFF; border-radius: 9px; padding: 0 6px; font-weight: 700; }

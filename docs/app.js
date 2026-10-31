@@ -1,12 +1,12 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261101a";
-import { CHANGES } from "./changes.js?v=20261101a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261101a";
-import { mountAcctSet } from "./acctset.js?v=20261101a";
-import { mountReport } from "./report.js?v=20261101a";
-import { mountSummary } from "./summary.js?v=20261101a";
-import { mountBalance } from "./balance.js?v=20261101a";
-import { calSummary } from "./calsum.js?v=20261101a";
-import { firebaseConfig } from "./firebase-config.js?v=20261101a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261101c";
+import { CHANGES } from "./changes.js?v=20261101c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261101c";
+import { mountAcctSet } from "./acctset.js?v=20261101c";
+import { mountReport } from "./report.js?v=20261101c";
+import { mountSummary } from "./summary.js?v=20261101c";
+import { mountBalance } from "./balance.js?v=20261101c";
+import { calSummary } from "./calsum.js?v=20261101c";
+import { firebaseConfig } from "./firebase-config.js?v=20261101c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1115,7 +1115,7 @@ function renderAdminUi() {
   sa.innerHTML = (toBoard ? '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>실천 보드</span>' : '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg><span>가계부</span>') + '<span class="side-go" aria-hidden="true">↗</span>';
   document.querySelectorAll(".real-chk").forEach((e) => { e.hidden = !me; });
   ["testBtnSide", "testBtnTop"].forEach((id) => { $(id).hidden = !me && !testMode; $(id).classList.toggle("on", testMode); $(id).title = testMode ? "테스트 끝내기" : "테스트 모드 (저장 안 됨)"; });
-  $("testBar").hidden = !testMode;
+  $("laTestPts").hidden = !testMode;
 }
 
 // ---------- 📝 복권 관리 (관리자만): settings.lotto = { on, used, odds, coupons{id:{tier,title,days}}, pens{id:{title,days}} } ----------
