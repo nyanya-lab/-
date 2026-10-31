@@ -1,12 +1,13 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261101e";
-import { CHANGES } from "./changes.js?v=20261101e";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261101e";
-import { mountAcctSet } from "./acctset.js?v=20261101e";
-import { mountReport } from "./report.js?v=20261101e";
-import { mountSummary } from "./summary.js?v=20261101e";
-import { mountBalance } from "./balance.js?v=20261101e";
-import { calSummary } from "./calsum.js?v=20261101e";
-import { firebaseConfig } from "./firebase-config.js?v=20261101e";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261101f";
+import { CHANGES } from "./changes.js?v=20261101f";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261101f";
+import { mountAcctSet } from "./acctset.js?v=20261101f";
+import { mountReport } from "./report.js?v=20261101f";
+import { mountSummary } from "./summary.js?v=20261101f";
+import { mountExtras } from "./extras.js?v=20261101f";
+import { mountBalance } from "./balance.js?v=20261101f";
+import { calSummary } from "./calsum.js?v=20261101f";
+import { firebaseConfig } from "./firebase-config.js?v=20261101f";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1162,7 +1163,7 @@ function renderNags() {
       `<button class="btn small" type="button" data-act="nagGive" data-v="${pl.give}" data-inc="${r.inc}">확인했어요</button>`]);
   }
   // 욱진이: 이번 달 실제 수입이 들어오면 줄 돈·잔액 한 번 확인 (settings.giveAck[월] = 그때 수입, 수입이 바뀌면 다시)
-  if (!adm && r.inc > 0 && Number((S.settings.giveAck || {})[m]) !== r.inc && !skip("gack")) {
+  if (!adm && r.inc > 0 && !pl.incAuto && Number((S.settings.giveAck || {})[m]) !== r.inc && !skip("gack")) {   // 월초 이자처럼 월급 전 작은 수입엔 안 뜸 (incAuto)
     const left = r.inc - pl.total - (pl.give || 0);
     list.push(["gack", pl.give == null
       ? `💝 ${mon} 실제 수입 <b>${won(r.inc)}</b> − 예산 ${won(pl.total)} = <b>${wonS(r.inc - pl.total)}</b>. ${esc(partner())}에게 줄 돈을 아직 안 정했어요.`
@@ -2387,11 +2388,20 @@ async function loadBackups() {
 }
 
 let newsChecked = false;
+// 🔔 매달 1일 할 일 '지난달 가계부 정리 보기' (2026-11부터). 금액 없고 구글 캘린더엔 안 보냄(noGoogle). 지워도 다시 안 생김(settings.autoTasks). 욱진이 기기만
+let reviewAsked = "";
+function reviewTask() {
+  const m = today().slice(0, 7), key = `mt-review-${m}`;
+  if (testMode || isAdminDevice() || !backend || !S.loaded || !S.settings.createdAt || m < "2026-11" || reviewAsked === key || (S.settings.autoTasks || {})[key] || S.tasks.has(key)) return;
+  reviewAsked = key;
+  quietly(() => Promise.all([backend.set("tasks", key, { title: "📝 지난달 가계부 정리 보기", repeat: "none", date: `${m}-01`, noPractice: true, noGoogle: true, createdAt: Date.now() }),
+    backend.saveSettingsDeep({ autoTasks: { [key]: true } })])).catch(() => { reviewAsked = ""; });
+}
 function render() {
   refreshGoalColors(); renderHeader(); renderTimerBar(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons();
   // 저절로 고치는 일들(벌칙·돈 할 일·카드값·줄 돈): 관리자 기기가 테스트 모드로 바뀌기 직전엔 진짜 보드에 쓰지 않게 건너뜀
-  if (!(APP === "board" && !testMode && isAdminDevice() && !sessionReal())) { sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); syncRepeat(); }
+  if (!(APP === "board" && !testMode && isAdminDevice() && !sessionReal())) { sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); syncRepeat(); reviewTask(); }
   renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   maybePraise();
@@ -2406,7 +2416,7 @@ function render() {
   if (S.loaded && uriNewsReady && !newsChecked) { newsChecked = true; maybeShowNews(); }   // 우리 탭 내역까지 받은 뒤에
   if ($("settingsDlg").open) renderGcalBox();
   if (APP === "money" || ui.page === "money") { if (acctSet) acctSet.render(); if (balPanel) balPanel.render(); fitPanels(); }
-  if (APP === "money") { renderCommon(); if (rptView) rptView.render(); if (smView) smView.render(); }   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
+  if (APP === "money") { renderCommon(); if (rptView) rptView.render(); if (smView) smView.render(); if (exView) exView.renderBar(); }   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
 }
 
 // ---------- 동작 ----------
@@ -3104,16 +3114,21 @@ bindMoney({ $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, e
   commonOpen: () => commonOpen(),   // ❤️ 공통 탭이 열렸는지 (공개 전이면 숨김)
   commonMark: () => commonMine(),   // ❤️ 공통비용 체크 칸 (욱진이 기기 진짜 가계부만)
   commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null),   // 🏷 ❤️ 체크하면 분류 칸 = 공통 분류 (공통 저장소, 고치는 건 냐냐만)
+  mineView: true,   // 💑 내 몫으로 보기 버튼 (공통비용 절반·정산 받은 돈 빼고, 기본 꺼짐 — settings.moneyMine). 관리자 기기엔 버튼 없고, 욱진이가 켠 그대로 보임
+  onMoneySaved: (id) => { if (exView) exView.onSaved(id); },   // 🏥보험금 저장 → 🔗 병원비 고르는 창 (extras.js)
   catRank: true,   // 분류 색: 원형마다 금액 큰 8개가 서로 다른 색, 9번째부터 '그 밖' (냐냐 가계부와 같게)
   get backend() { return backend; }, get testMode() { return testMode; } });
 initMoney();
 // 🏦 자산 관리(이름·계좌번호·메모·🙈 숨기기) · 🧮 실제 잔액 맞추기 — 가계부 설정 '자산' 작은 탭 (냐냐 가계부 acctset.js·balance.js 복사)
 var acctSet = mountAcctSet($("acctSetPanel"), { S, backend: () => backend, toast, act, esc, rows });
 // 📝 이번 달 정리 (냐냐 가계부 summary.js 옮김) — 예산 탭엔 한 줄 + [자세히 ›] → 📑 보고서 '월간 정리' 화면 (관리자 기기는 안 보임)
-var smView = mountSummary($("sumPanel"), { S, esc, won, isWon, mineOn, cntAmt, monthTotals, planOf, partner, adminView: moneyAdminView, month: () => ui.month,
+// 🏥 보험금 챙기기 · 🎯 큰돈 모으기 (보고서 카드, 냐냐 가계부 extras.js 옮김) + 🔗 보험금 저장하면 병원비 고르기 + 못 받은 병원비 안내
+var exView = mountExtras({ S, esc, won, isWon, toast, backend: () => backend, editMoney,
+  openClaims: () => { setMTab("report"); rptView.openClaims(); } });
+var smView = mountSummary($("sumPanel"), { S, esc, won, isWon, mineOn, cntAmt, monthTotals, planOf, partner, adminView: moneyAdminView, month: () => ui.month, balances, sortedAccts, toast, backend: () => backend,
   openReport: (m) => { setMTab("report"); rptView.openMonth(m); } });
 // 📑 보고서 탭 (냐냐 가계부 report.js 복사): 저장한 보고서는 settings.reports (rootUpdate)
-var rptView = mountReport($("reportRoot"), { S, backend: () => backend, summary: smView, toast, esc, won, isWon, acctName, subs: moneySubsOf, chart: setChart, pie: pieHtml, txRow: (x) => txRow(x, false), mineOn, cntAmt, isSettleIn,
+var rptView = mountReport($("reportRoot"), { S, backend: () => backend, summary: smView, extras: exView, toast, esc, won, isWon, acctName, subs: moneySubsOf, chart: setChart, pie: pieHtml, txRow: (x) => txRow(x, false), mineOn, cntAmt, isSettleIn,
   accts: () => sortedAccts(), cats: (k) => { const c = (S.settings.moneyCats || {})[k]; return (c && c.length ? c : MONEY_CATS[k] || []).slice(); } });
 var balPanel = mountBalance($("balPanel"), { S, backend: () => backend, toast, act, esc, won: wonS, rows, balances });
 // ⚙ 가계부 설정 탭 안 작은 탭: 분류 · 자산 · 반복 · 화폐 (이 기기에 기억)
@@ -3134,7 +3149,7 @@ function fitPanels() {
   });
 }
 window.addEventListener("resize", fitPanels);
-document.addEventListener("click", (ev) => setTimeout(() => { fitPanels(); if (rptView && ev.target.closest && ev.target.closest('[data-act="mTab"]')) rptView.render(); if (smView && ev.target.closest && ev.target.closest('[data-act="month"], [data-act="histMonth"], [data-act="mcDay"], #mineBtn')) smView.render(); }, 0));   // 탭을 바꾸면 (📑 보고서는 그 탭으로 올 때 그림)
+document.addEventListener("click", (ev) => setTimeout(() => { fitPanels(); if (rptView && ev.target.closest && ev.target.closest('[data-act="mTab"]')) rptView.render(); if (smView && ev.target.closest && ev.target.closest('[data-act="month"], [data-act="histMonth"], [data-act="mcDay"], #mineBtn')) smView.render(); if (APP === "money" && exView) exView.renderBar(); }, 0));   // 탭을 바꾸면 (📑 보고서는 그 탭으로 올 때 그림)
 
 // ---------- 시작 ----------
 route();

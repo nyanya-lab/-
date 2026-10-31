@@ -84,7 +84,7 @@ function pushToGoogle_(tasks, goals, logs) {
       items["rep:" + id] = { summary: MARK.plan + withPlan(t), colorId: COLOR.plan, date: start, recurrence: [rule], title: t.title, plan: withPlan(t), doneDates: t.doneDates || {}, taskId: id, cal: "log" };
       return;
     }
-    if (!t.date) return;
+    if (!t.date || t.noGoogle) return;
     const missed = !t.done && t.date < today;   // 날짜가 지났는데 못 한 일
     // 늦게 한 일: 원래 날짜에는 ❌ 흔적, 한 날에는 🔥
     if (t.done && t.lateFrom) items["late:" + id] = { summary: MARK.miss + withPlan(t), colorId: COLOR.miss, date: t.lateFrom };
