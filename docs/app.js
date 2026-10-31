@@ -1,12 +1,12 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261031a";
-import { CHANGES } from "./changes.js?v=20261031a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261031a";
-import { mountAcctSet } from "./acctset.js?v=20261031a";
-import { mountReport } from "./report.js?v=20261031a";
-import { mountSummary } from "./summary.js?v=20261031a";
-import { mountBalance } from "./balance.js?v=20261031a";
-import { calSummary } from "./calsum.js?v=20261031a";
-import { firebaseConfig } from "./firebase-config.js?v=20261031a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261031b";
+import { CHANGES } from "./changes.js?v=20261031b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, makeDemoData, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261031b";
+import { mountAcctSet } from "./acctset.js?v=20261031b";
+import { mountReport } from "./report.js?v=20261031b";
+import { mountSummary } from "./summary.js?v=20261031b";
+import { mountBalance } from "./balance.js?v=20261031b";
+import { calSummary } from "./calsum.js?v=20261031b";
+import { firebaseConfig } from "./firebase-config.js?v=20261031b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1118,7 +1118,7 @@ function renderAdminUi() {
 
 // ---------- 📝 복권 관리 (관리자만): settings.lotto = { on, used, odds, coupons{id:{tier,title,days}}, pens{id:{title,days}} } ----------
 const TIERS = { big: "🥇 대박", mid: "🥈 쿠폰", small: "🥉 작은 쿠폰" };
-const TIER_CAP = { big: "금액 제한 없음", mid: "3만 원까지", small: "1만 원까지" };
+const TIER_CAP = { big: "30만 원까지", mid: "3만 원까지", small: "1만 원까지" };
 // 쿠폰 값: 누가 사는지 안 적힌 쿠폰은 공통비용에서 (등급별 금액까지)
 function payText(w) { return /사\s?줌|사\s?줄|사\s?주기|쏘기|쏜다|내가 (사|내)|본인 돈|용돈으로|부담/.test(w.title || "") ? "" : `💳 돈 드는 건 공통비용 · ${TIER_CAP[w.tier] || ""}`; }
 const ODDS_DEF = { big: 3, mid: 25, small: 47, miss: 20, pen: 5 };
@@ -1589,7 +1589,7 @@ function renderCoupons() {
   const TABS = { avail: ["🎟️ 쓸 쿠폰", avail.length], pens: ["😈 벌칙", pOpen.length], past: ["📜 지난 것", 0], pics: ["📸 추억", 0], reqs: ["💌 요청", 0] };
   $("cpTabs").querySelectorAll("button").forEach((b) => { const [lb, n] = TABS[b.dataset.k]; b.innerHTML = lb + (n ? ` <b>${n}</b>` : ""); b.setAttribute("aria-pressed", b.dataset.k === tab); });
   document.querySelectorAll("[data-cp]").forEach((el) => { el.hidden = el.dataset.cp !== tab; });
-  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 금액 제한 없음 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "📸 [했어요]를 누르고 인증샷 올리기 · 기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 · 끝낸 벌칙"], pics: ["📸 추억", "벌칙·쿠폰 인증샷 모음 · 누르면 크게 보여요"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
+  const HEAD = { avail: ["쓸 수 있는 쿠폰", "💳 누가 사는지 안 적힌 쿠폰은 공통비용에서 · 🥇 30만 원까지 · 🥈 3만 원까지 · 🥉 1만 원까지"], pens: ["벌칙", "📸 [했어요]를 누르고 인증샷 올리기 · 기한 안에 다 못 하면 남은 장 수가 두 배"], past: ["지난 것", "사용함 · 기한 만료 · 꽝 · 끝낸 벌칙"], pics: ["📸 추억", "벌칙·쿠폰 인증샷 모음 · 누르면 크게 보여요"], reqs: ["쿠폰 요청", "있으면 좋겠는 쿠폰을 보내면 관리자가 보고 넣어 줘요"] };
   $("cpTabTitle").textContent = HEAD[tab][0]; $("cpTabSub").textContent = HEAD[tab][1];
   const sel = $("cpSort"); sel.hidden = !CP_SORTS[tab];
   if (CP_SORTS[tab]) { sel.innerHTML = CP_SORTS[tab].map((k) => `<option value="${k}">${k === "recent" && tab !== "past" ? "최근 받은 순" : CP_SORT_LABEL[k]}</option>`).join(""); sel.value = sort; }
