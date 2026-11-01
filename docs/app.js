@@ -1,13 +1,13 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261101f";
-import { CHANGES } from "./changes.js?v=20261101f";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261101f";
-import { mountAcctSet } from "./acctset.js?v=20261101f";
-import { mountReport } from "./report.js?v=20261101f";
-import { mountSummary } from "./summary.js?v=20261101f";
-import { mountExtras } from "./extras.js?v=20261101f";
-import { mountBalance } from "./balance.js?v=20261101f";
-import { calSummary } from "./calsum.js?v=20261101f";
-import { firebaseConfig } from "./firebase-config.js?v=20261101f";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102a";
+import { CHANGES } from "./changes.js?v=20261102a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261102a";
+import { mountAcctSet } from "./acctset.js?v=20261102a";
+import { mountReport } from "./report.js?v=20261102a";
+import { mountSummary } from "./summary.js?v=20261102a";
+import { mountExtras } from "./extras.js?v=20261102a";
+import { mountBalance } from "./balance.js?v=20261102a";
+import { calSummary } from "./calsum.js?v=20261102a";
+import { firebaseConfig } from "./firebase-config.js?v=20261102a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -533,7 +533,7 @@ function taskItem(x, day, upcoming, hideGoal) {
       ? `<button class="check" type="button" disabled title="${activeOn(x, day) ? "그 날이 되면 체크할 수 있어요" : "이 날은 쉬는 날"}" aria-label="아직 체크할 수 없음" style="opacity:.35">${CHECK}</button>`
       : `<button class="check${done ? " on" : ""}" type="button" data-act="toggle" data-id="${esc(x.id)}" data-day="${day}" aria-pressed="${done}" aria-label="완료 표시">${CHECK}</button>`) +
     (tm ? `<div class="body" data-act="editTaskLog" data-id="${esc(x.id)}" data-day="${isRep(x) ? day : x.doneDate}" style="cursor:pointer" title="눌러서 실천한 시간 고치기">`   // 🔥 시간과 같이 끝낸 일 = 실천 시간 고치기 창 먼저
-      : `<div class="body" data-act="editTask" data-id="${esc(x.id)}" style="cursor:pointer" title="눌러서 편집">`) +
+      : `<div class="body" data-act="editTask" data-id="${esc(x.id)}" style="cursor:pointer" title="${isReviewTask(x.id) ? "눌러서 지난달 정리 보기" : "눌러서 편집"}">`) +
     `<div class="title">${esc(x.title)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>` +
     `<div class="actions">` +
     (canTime(x) && day <= today() && (!isRep(x) || activeOn(x, day)) ? (timerNow() && timerNow().taskId === x.id ? '<span class="tm-on" title="타이머로 재는 중">⏱</span>' : `<button class="icon-btn tm-go" type="button" data-act="tmStart" data-id="${esc(x.id)}" title="${done ? "타이머로 시간 더하기" : "타이머 시작"}" aria-label="${esc(x.title)} ${done ? "타이머로 시간 더하기" : "타이머 시작"}">▶</button>`) : "") +   // 이미 체크한 일도 ▶ → 끝내면 그날 시간에 더함
@@ -580,7 +580,7 @@ function calTask(x, d, repeat) {
   const later = repeat && d > today();   // 반복하는 일의 앞으로의 날은 그 날이 되면 체크
   const missed = !done && d < today();     // 지난 날 못 한 일 ❌
   const mi = done && !prac ? moneyIcon(x) : "", title = mi && x.title.startsWith(mi) ? x.title.slice(mi.length).trim() : x.title;   // 끝낸 돈 할 일은 ✅ 대신 제 아이콘
-  return `<div class="ev task ${color}${done ? " done" + (prac ? " prac" : "") : missed ? " miss" : ""}" ${prac ? `data-act="editTaskLog" data-day="${repeat ? d : x.doneDate}"` : 'data-act="editTask"'} data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · ${prac ? "눌러서 실천한 시간 고치기" : "눌러서 편집"}">` +   // 🔥 실천한 일은 시간 고치기 창 먼저
+  return `<div class="ev task ${color}${done ? " done" + (prac ? " prac" : "") : missed ? " miss" : ""}" ${prac ? `data-act="editTaskLog" data-day="${repeat ? d : x.doneDate}"` : 'data-act="editTask"'} data-id="${esc(x.id)}" title="${esc(x.title)}${repeat ? " (반복)" : ""} · ${prac ? "눌러서 실천한 시간 고치기" : isReviewTask(x.id) ? "눌러서 지난달 정리 보기" : "눌러서 편집"}">` +   // 🔥 실천한 일은 시간 고치기 창 먼저
     (later
       ? `<button type="button" class="mini-check" disabled aria-label="그 날이 되면 체크할 수 있어요" style="opacity:.35">${CHECK}</button>`
       : done   // 시간과 같이 끝낸 일은 🔥, 시간 없이 체크한 일은 ✅. 누르면 체크가 풀려서 다시 네모로
@@ -789,6 +789,12 @@ function fmtDot(m) { const h = Math.floor(m / 60), r = m % 60; return !h ? r + "
 function fmtShort(m) { const h = Math.floor(m / 60), r = m % 60; return !h ? r + "m" : !r ? h + "h" : r === 30 ? h + ".5h" : h + "h" + r; }   // 폰 칸이 좁아서 최대한 짧게
 
 // 🗓️ 예산·💰 수입 할 일 → 가계부의 예산 / 지출(수입 · 월급) 입력 칸 (관리자 기기는 알림만)
+// 📝 '지난달 가계부 정리 보기' 할 일(mt-review-YYYY-MM)을 누르면 가계부 보고서의 그 전달 월간 정리로 (관리자 기기는 지출을 안 보여서 그대로 편집 창)
+const isReviewTask = (id) => /^mt-review-\d{4}-\d{2}$/.test(id || "") && !isAdminDevice();
+function goReview(id) {
+  try { localStorage.setItem("ukjin-money-report", shiftMonth(id.slice(-7), -1)); } catch (e) { /* 무시 */ }
+  location.href = "money.html";
+}
 function goMoneyInput(mk) {
   if (isAdminDevice()) { toast(`욱진이가 가계부에 ${mk.k === "income" ? "수입" : "예산"}을 넣으면 저절로 체크돼요.`); return; }
   try { localStorage.setItem("ukjin-mtab", mk.k === "income" ? "spend" : "budget"); if (mk.k === "income") localStorage.setItem("ukjin-money-new", "income"); } catch (e) { /* 무시 */ }
@@ -2408,6 +2414,8 @@ function render() {
   if (APP === "money" && S.loaded) {   // 보드 검색에서 누른 돈 기록 열기
     let pe = null; try { pe = localStorage.getItem("ukjin-money-edit"); if (pe) localStorage.removeItem("ukjin-money-edit"); } catch (e) { /* 무시 */ }
     const pm = pe && S.money.get(pe); if (pm) { ui.month = pm.date.slice(0, 7); setTimeout(() => editMoney(pe), 0); }
+    let pr = null; try { pr = localStorage.getItem("ukjin-money-report"); if (pr) localStorage.removeItem("ukjin-money-report"); } catch (e) { /* 무시 */ }
+    if (pr) setTimeout(() => { setMTab("report"); rptView.openMonth(pr); }, 0);   // 📝 '지난달 가계부 정리 보기' 할 일에서 옴
     let pn = null; try { pn = localStorage.getItem("ukjin-money-new"); if (pn) localStorage.removeItem("ukjin-money-new"); } catch (e) { /* 무시 */ }
     if (pn === "income") { ui.month = today().slice(0, 7); ui.mEdit = null; ui.kind = "income"; setTimeout(() => { renderMoney(); renderMoneyForm({ cat: "월급" }); $("mAmount").focus(); $("moneyPanel").scrollIntoView({ block: "start" }); }, 0); }
   }
@@ -2511,6 +2519,7 @@ document.addEventListener("click", (ev) => {
   if (a === "dpAddTask") { openDay(el.dataset.day); return; }
   if (a === "dsMin") { saveTaskTime(+el.dataset.m); return; }
   if (a === "dsSkip") { hideDoneSheet(); return; }
+  if (a === "editTask" && isReviewTask(id)) { goReview(id); return; }
   if (a === "editTask") { const x = S.tasks.get(id); if (x && x.penId && S.wins.get(x.penId)) { openWin(x.penId); return; } openTask(id); return; }
   if (a === "closeTask") { closeDlg($("taskDlg")); return; }
   if (a === "tkRep") { tk.rep = el.dataset.k; renderTaskForm(); return; }
