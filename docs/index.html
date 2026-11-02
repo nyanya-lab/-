@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261102c">
+<link rel="stylesheet" href="style.css?v=20261102d">
 </head>
 <body>
 
@@ -238,7 +238,8 @@
               <label class="m-common" id="mCommonWrap" hidden><input type="checkbox" id="mCommon"><span>❤️ <b>공통비용</b> <span class="small muted">냐냐와 나눠 내는 돈 → 냐냐 가계부 ❤️ 공통에도 보여요</span></span></label>
               <div class="row" id="mCatWrap">
                 <label class="f"><span><span class="cat-lbl">분류</span> <button class="link-btn" type="button" data-act="editCats">편집</button></span><select id="mCat"></select></label>
-                <label class="f">소분류<select id="mSub"></select></label>
+                <label class="f" id="mSubWrap">소분류<select id="mSub"></select></label>
+                <label class="f" id="mRecvWrap" hidden>받을 사람<input type="text" id="mRecvTo" list="recvNames" maxlength="20" autocomplete="off" placeholder="이름 (예: 친구, 동료)"><datalist id="recvNames"></datalist></label>
               </div>
               <label class="f">내용<input type="text" id="mMemo" maxlength="80" placeholder="예: 10월 월급, 이마트 장보기, 카드값"></label>
               <div id="mSplit"></div>
@@ -265,6 +266,7 @@
         <div class="tx-sum" id="txSum" role="tablist" aria-label="내역 거르기"></div>
         <p class="small muted" id="mineNote" hidden style="margin:0"></p>
         <div class="tx-sel" id="txSel" hidden></div>
+        <div class="tf-bar" id="txBar"></div>
         <div class="tx-list" id="txList"></div>
       </div>
           <div class="panel no-admin" data-mtab="spend">
@@ -494,6 +496,8 @@
           <li>왼쪽 메뉴 아래(복권 그림 위) <b>가계부 ↗</b> 버튼을 누르면 가계부 화면이 따로 열려요 (보드와 같은 데이터). 폰에서 가계부 화면을 '홈 화면에 추가'하면 <b>가계부</b> 앱 아이콘이 따로 생겨요. 왼쪽 메뉴 '실천 보드로'를 누르면 보드로 돌아와요.</li>
           <li>가계부 메뉴는 5개예요 (PC는 왼쪽, 폰은 아래) + <b>⚙ 가계부 설정</b>(작은 탭: 분류 · 자산 · 🔁 반복 · 화폐): <b>예산</b> (수입·쓸 돈·줄 돈·잔액, 분류별 예산) · <b>달력</b> (날마다 +수입 · −지출 · 합계, 날짜를 누르면 그 날 내역과 [＋ 내역 추가]) · <b>내역</b> (그 달 내역 — 달 이름·[이번 달]을 누르면 기간 고르기: 오늘·이번 주·지난 달·올해·전체 등, 달력에서 시작일~끝날. 위 칸 <b>전체 · 수입 · 지출 · 💝 준 돈</b>을 누르면 그것만, ☐로 골라 [선택 삭제]. 금액은 +/- 없이 색으로: 초록 = 들어온 돈, 빨강 = 나간 돈, -가 붙은 건 직접 -로 적은 금액(환불 등)) · <b>자산</b> (처음엔 <b>자산 전체</b>: 자산·부채·합계·12달 흐름·구성 원형 / 현금·통장·카드·저축 묶음별 잔액, 누르면 그 달 입금·출금·누적잔액, 최근 12달 그래프와 내역, ✏️로 고치기·카드 결제일, 오른쪽 아래 <b>＋</b>로 그 자산 기록하기 · 카드는 ＋ 왼쪽 <b>[결제]</b> · 내역 줄 눌러 고치기. PC에선 목록과 자세히가 따로 스크롤) · <b>통계</b> (수입/지출 · 오른쪽 위 주간·월간·연간·기간, 분류별 원형·목록 → 누르면 그 분류의 흐름 그래프와 내역, 아래 달마다 표). 마지막에 본 메뉴를 기억해요.</li>
           <li><b>돈 기록하기</b>: 내역·달력·자산 화면 오른쪽 아래 <b>＋</b>를 누르면 기록 창이 떠요 (PC는 오른쪽, 폰은 아래). 수입 · 지출 · 보낸 돈(여자친구에게) · 이체(내 통장끼리). 어느 통장·카드인지 고르면 자산마다 잔액이 계산돼요. 내역 줄을 누르면 같은 창에서 고쳐요.</li>
+          <li>🤲 <b>받을 돈</b> (기록 창, 지출): 남의 몫을 대신 냈으면 분류 칸에서 <b>🤲 받을 돈</b>을 고르고 받을 사람 이름을 적어요. 그 돈은 내 지출에 안 들어가고, 자산 탭 <b>받기(이름)</b>에 모여요. 돈을 받으면 거기서 체크하고 [받았어요]를 눌러요. 다 받아서 0원이 되면 목록에서 숨겨져요.</li>
+          <li>🔎 <b>내역 정렬·거르기</b> (지출 탭): 표 머리줄 칸을 누르면 정렬, 오른쪽 클릭하면 값을 골라 걸러요. 폰은 표 위 칸 이름 버튼을 눌러요. 새로고침하면 풀리고, 기록은 안 바뀌어요.</li>
           <li>✂️ <b>금액 나눠 적기</b> (기록 창, 지출·수입): 위 금액 칸에 전체 금액을 적고 나눌 금액·분류를 더하면 여러 기록으로 들어가요. 위 칸 기록엔 나머지 금액이 남아요. 날짜·자산·메모는 같고, 사진은 위 칸 기록에만 남아요.</li>
           <li>📅 <b>오늘 쓸 수 있는 돈</b> (예산 탭, 이번 달): (예산 − 예산 분류에 쓴 돈 − 곧 나갈 🔁 고정비) ÷ 남은 날. 💝 줄 돈은 예산 밖이라 계산에 안 들어가요. <b>💰 저축 목표</b>를 적으면 저축 통장으로 넘긴 돈과 비교해 주고, 다음 달로 이어져요.</li>
           <li>💑 <b>내 몫으로 보기</b> (왼쪽 메뉴, 폰은 ☰ 안): 켜면 ❤️ 공통비용은 절반, 정산 받은 돈은 수입에서 빼고 봐요. 기록·잔액은 그대로예요. 공통비용 <b>예산은 내 몫으로 저장</b>돼서, 끄면 두 배(전체 금액)로 보여요.</li>
@@ -848,6 +852,6 @@
 
 <nav class="m-bottom" id="mBottom" aria-label="가계부 메뉴"><button type="button" data-act="mTab" data-k="budget"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>예산</span></button><button type="button" data-act="mTab" data-k="spend"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button><button type="button" data-act="mTab" data-k="cal"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>달력</span></button><button type="button" data-act="mTab" data-k="assets"><svg viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3.5 20h17"/></svg><span>자산</span></button><button type="button" data-act="mTab" data-k="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>통계</span></button><button type="button" data-act="mTab" data-k="report"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4M10 12h5M10 15.5h5M10 8.5h2"/></svg><span>보고서</span></button><button type="button" data-act="mTab" data-k="common" hidden><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>공통</span></button><button type="button" data-act="mTab" data-k="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>설정</span></button></nav>
 <div id="toast" hidden></div>
-<script type="module" src="app.js?v=20261102c"></script>
+<script type="module" src="app.js?v=20261102d"></script>
 </body>
 </html>

@@ -1,15 +1,17 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102c";
-import { CHANGES } from "./changes.js?v=20261102c";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261102c";
-import { mountAcctSet } from "./acctset.js?v=20261102c";
-import { mountReport } from "./report.js?v=20261102c";
-import { mountSummary } from "./summary.js?v=20261102c";
-import { mountPicker } from "./picker.js?v=20261102c";
-import { mountRecSplit } from "./recsplit.js?v=20261102c";
-import { mountExtras } from "./extras.js?v=20261102c";
-import { mountBalance } from "./balance.js?v=20261102c";
-import { calSummary } from "./calsum.js?v=20261102c";
-import { firebaseConfig } from "./firebase-config.js?v=20261102c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102d";
+import { CHANGES } from "./changes.js?v=20261102d";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261102d";
+import { mountAcctSet } from "./acctset.js?v=20261102d";
+import { mountReport } from "./report.js?v=20261102d";
+import { mountSummary } from "./summary.js?v=20261102d";
+import { mountPicker } from "./picker.js?v=20261102d";
+import { mountRecSplit } from "./recsplit.js?v=20261102d";
+import { mountRecv } from "./recv.js?v=20261102d";
+import { mountTxFilter } from "./txfilter.js?v=20261102d";
+import { mountExtras } from "./extras.js?v=20261102d";
+import { mountBalance } from "./balance.js?v=20261102d";
+import { calSummary } from "./calsum.js?v=20261102d";
+import { firebaseConfig } from "./firebase-config.js?v=20261102d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1011,7 +1013,7 @@ function searchRows(q) {
     subsOf(g).forEach((v) => { if (has(v.title)) out.push({ date: v.due || "", icon: "🎯", time: v.due ? ddayText(v.due) : "", title: `${g.title} › ${v.title}`, act: "openGoal", id }); });
   });
   S.money.forEach((m, id) => {
-    if (!m || !m.date || !(has(m.memo) || has(m.cat)) || !moneyShown(m)) return;
+    if (!m || !m.date || m.recvOf || !(has(m.memo) || has(m.cat)) || !moneyShown(m)) return;   // 🤲 받을 돈 짝은 실제 지출 한 줄로
     const neg = Number(m.amount) < 0, sign = m.kind === "move" ? "" : (m.kind === "income") !== neg ? "+" : "-";   // 마이너스(환불)는 부호를 뒤집어서 한 번만
     out.push({ date: m.date, icon: "💰", time: sign + amtText({ ...m, amount: Math.abs(Number(m.amount) || 0) }), title: [m.kind === "transfer" ? partner() + "에게" : m.cat, m.memo].filter(Boolean).join(" · "), act: "searchMoney", id });
   });
@@ -1693,7 +1695,7 @@ function renderDayPanel() {
   const d = ui.selDay || today(), t = today(), n = diffDays(d, t);
   const exams = rows(S.goals).filter((g) => g.due === d), ts = tasksOn(d).filter((x) => x.title);
   const ls = rows(S.logs).filter((l) => l.date === d && !l.taskId).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  const gs = gcalEventsOn(d), ms = rows(S.money).filter((x) => x.date === d && moneyShown(x));
+  const gs = gcalEventsOn(d), ms = rows(S.money).filter((x) => x.date === d && !x.recvOf && moneyShown(x));
   const pd = lottoVisible() && pointsLedger().day[d];
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출", move: "이체" };
   let h = `<div class="dp-head"><div><h3>${esc(prettyDate(d))}</h3><span class="muted small">${n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`}</span></div>${pd && pd.sum ? `<span class="dp-pts">+${pd.sum} ⭐</span>` : ""}</div>`;
@@ -1800,7 +1802,7 @@ function pointsLedger() {
   const day = {}, at = (d) => (day[d] ||= { sum: 0, min: 0, money: 0, salary: 0, lines: [] });
   S.logs.forEach((l) => { const m = Math.round(Number(l && l.minutes) || 0); if (l && l.date && m > 0 && !noPracLog(l)) { const x = at(l.date); x.min += m; x.sum += m; } });
   S.money.forEach((m) => {
-    if (!m || !m.date) return; const x = at(m.date);
+    if (!m || !m.date || m.recvOf) return; const x = at(m.date);   // 🤲 받을 돈 짝은 돈 기록 점수 안 줌 (한 번 적었으니 1점)
     if (m.kind === "income" && m.cat === "월급") { x.salary++; x.sum += 30; } else { x.money++; x.sum += 1; }
   });
   praises().forEach((p) => { const s = praiseState(p); if (s.st !== "got") return; const x = at(s.day); x.sum += p.pts; x.lines.push(p.pts < 0 ? ["😥", p.text || "감점", p.pts] : ["👏", p.text || "칭찬", p.pts]); });
@@ -2118,7 +2120,7 @@ function renderDaySide() {
   const gs = gcalEventsOn(d);
   $("dayGcalSec").hidden = !gs.length;
   $("dayGcal").innerHTML = gs.map((g) => `<div class="item"><span class="tag mono">${g.time || "종일"}</span><div class="body"><div class="title">${esc(g.title)}</div></div>${g.link ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("");
-  const ms = rows(S.money).filter((x) => x.date === d && moneyShown(x));
+  const ms = rows(S.money).filter((x) => x.date === d && !x.recvOf && moneyShown(x));
   $("dayMoneySec").hidden = !ms.length;
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출" };
   $("dayMoney").innerHTML = ms.map((x) => `<div class="item"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : "minus"}">${x.kind === "income" ? "+" : "-"}${amtText(x)}</span></div>`).join("");
@@ -3120,13 +3122,19 @@ setInterval(checkNewVersion, 10 * 60 * 1000);
 setTimeout(checkNewVersion, 5000);
 document.querySelectorAll(".brand").forEach((b) => b.addEventListener("click", (ev) => { ev.preventDefault(); hardReload(); }));
 
+// 🤲 받을 돈 (냐냐 가계부 recv.js 옮김: 기록 창 분류 칸 · 나눠 적기 · 자산 화면에서 받기)
+const rv = mountRecv({ $, S, esc, moneyCats, won, act, rid, toast, render, today, shortDate, balances, sortedAccts, acctOptsHtml, lastAcct, rememberAcct, kind: () => ui.kind, backend: () => backend });
+// 🔎 내역 표 정렬·거르기 (냐냐 가계부 txfilter.js 복사: 머리줄 클릭·오른쪽 클릭, 폰은 표 위 버튼)
+const tf = mountTxFilter({ $, esc, won, toast, render, shortDate, acctName, ccOf, cntAmt, recvName: (id) => rv.nameOf(id) });
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
 bindMoney({ $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
   commonOpen: () => commonOpen(),   // ❤️ 공통 탭이 열렸는지 (공개 전이면 숨김)
   commonMark: () => commonMine(),   // ❤️ 공통비용 체크 칸 (욱진이 기기 진짜 가계부만)
   commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null),   // 🏷 ❤️ 체크하면 분류 칸 = 공통 분류 (공통 저장소, 고치는 건 냐냐만)
   mineView: true,   // 💑 내 몫으로 보기 버튼 (공통비용 절반·정산 받은 돈 빼고, 기본 꺼짐 — settings.moneyMine). 관리자 기기엔 버튼 없고, 욱진이가 켠 그대로 보임
-  recSplit: mountRecSplit({ $, S, esc, won, amtVal, moneyCats, subOptions, commonCatName, commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null), kind: () => ui.kind, backend: () => backend }),   // ✂️ 기록 창 금액 나눠 적기
+  recSplit: mountRecSplit({ $, S, esc, won, amtVal, moneyCats, subOptions, commonCatName, commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null), kind: () => ui.kind, backend: () => backend, recv: () => rv }),   // ✂️ 기록 창 금액 나눠 적기
+  recv: rv,
+  txFilter: tf,
   onMoneySaved: (id) => { if (exView) exView.onSaved(id); },   // 🏥보험금 저장 → 🔗 병원비 고르는 창 (extras.js)
   catRank: true,   // 분류 색: 원형마다 금액 큰 8개가 서로 다른 색, 9번째부터 '그 밖' (냐냐 가계부와 같게)
   get backend() { return backend; }, get testMode() { return testMode; } });

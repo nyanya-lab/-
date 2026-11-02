@@ -616,7 +616,8 @@ export function acctPeriod(a, m) { return a && a.type === "card" && a.pay && a.p
 const ymdDot = (s) => `${s.slice(2, 4)}.${+s.slice(5, 7)}.${+s.slice(8)}`;   // 2026-10-01 → 26.10.1
 function renderAssets(all, bal) {
   // 냐냐: 🤝 공동 자산(accounts.joint, 데이트통장 등)은 내 자산·부채·합계에서 빼고 맨 아래 '🤝 공동' 묶음으로 따로 (기록 칸에선 그대로 고를 수 있음)
-  const accts = all.filter((a) => !a.joint), joints = all.filter((a) => a.joint);
+  // 🤲 받을 돈 자산은 잔액 0원이면 목록에서 숨김 (보고 있는 동안은 그대로, recv.js)
+  const accts = all.filter((a) => !a.joint && !(E.recv && a.id !== ui.asSel && E.recv.zero(a.id))), joints = all.filter((a) => a.joint);
   const fold = asFold(), sel = asSelected(), owedOf = (a) => Math.max(0, -(bal[a.id] || 0));
   const total = accts.reduce((s2, a) => s2 + (bal[a.id] || 0), 0);
   const owed = accts.filter((a) => a.type === "card").reduce((s2, a) => s2 + owedOf(a), 0);
@@ -696,6 +697,7 @@ function renderAssetDetail(id) {
     `<p class="small muted as-period">${payCard ? `<b>${+m.slice(5)}월 ${+p.date.slice(8)}일 결제</b> · 이용기간 ${ymdDot(p.from)} ~ ${ymdDot(p.to)}`
       : `기간 ${ymdDot(p.from)} ~ ${ymdDot(p.to)}${card ? ` · <button class="link-btn" type="button" data-act="editAcct" data-id="${esc(id)}">결제일을 정하면</button> 결제일 기준으로 보여요` : ""}`}</p>` +
     (a.number || a.memo ? `<p class="small as-info">${a.number ? `<span class="mono">${esc(a.number)}</span>` : ""}${a.number && a.memo ? " · " : ""}${a.memo ? `<span class="as-memo">📝 ${esc(a.memo)}</span>` : ""}</p>` : "") +   // 냐냐: 계좌번호 · 자산 메모 (가계부 설정 '자산 관리'에서)
+    (E.recv ? E.recv.panel(id) : "") +   // 🤲 받을 돈 자산이면 아직 안 받은 돈 목록 (recv.js)
     `<div class="as-stats">${payCard
       ? tile("결제할 돈", won(out), "minus") + tile("낸 돈", won(inn), "plus") + tile("남은 결제액", won(Math.max(0, out - inn)), out > inn ? "minus" : "") + tile("지금 카드값", won(Math.max(0, -run)))
       : tile(card ? "갚은 돈" : "입금", won(inn), "plus") + tile(card ? "쓴 돈" : "출금", won(out), "minus") + tile("합계", won(inn - out), inn - out < 0 ? "minus" : "plus") +
@@ -761,36 +763,42 @@ function drawChart(el) {
 // 이체(내 자산끼리)는 전체에서만 줄로 보이고 합계엔 안 들어감. 줄을 누르면 서랍 창에서 고치기, ☐로 골라 [선택 삭제]
 const TX_KINDS = [["all", "전체"], ["income", "수입"], ["expense", "지출"], ["transfer", "💝 준 돈"]];
 const txSel = new Set();
+// 🤲 받을 돈 짝(마이너스 줄)은 목록에서 빼고 실제 지출 한 줄로 보여 줌 (합계는 그대로 0, 자산 탭·보고서엔 그대로)
+const isRecvPair = (x) => !!x.recvOf && S.money.has(x.recvOf);
 function renderTx(m, r) {
-  const f = TX_KINDS.some(([k]) => k === ui.txKind) ? ui.txKind : "all", cnt = { all: r.items.length, income: 0, expense: 0, transfer: 0 };
-  r.items.forEach((x) => { const k = x.kind || "expense"; if (k in cnt && k !== "all") cnt[k]++; });
+  const list0 = r.items.filter((x) => !isRecvPair(x));
+  const f = TX_KINDS.some(([k]) => k === ui.txKind) ? ui.txKind : "all", cnt = { all: list0.length, income: 0, expense: 0, transfer: 0 };
+  list0.forEach((x) => { const k = x.kind || "expense"; if (k in cnt && k !== "all") cnt[k]++; });
   const sums = { all: r.inc - r.exp - r.out, income: r.inc, expense: r.exp, transfer: r.out };
   const lab = ui.txRange ? rangeLabel(ui.txRange.from, ui.txRange.to) : monthLabel(m);
   $("txMonth").textContent = lab;
   const mn = $("mineNote"); if (mn) { mn.hidden = !mineOn(); mn.textContent = mineOn() ? `💑 내 몫으로 보는 중 — 💙 공통비용은 절반만${r.settleIn ? ` · 💚 정산 받은 돈 ${won(r.settleIn)}은 수입에서 뺐어요` : ""}` : ""; }
   $("txSum").innerHTML = TX_KINDS.map(([k, l]) => `<button type="button" class="tx-k k-${k}" role="tab" data-act="txKind" data-k="${k}" aria-selected="${f === k}"><span>${l} (${cnt[k]})</span><b class="won${k === "all" ? (sums.all < 0 ? " minus" : " plus") : ""}"><span class="tx-l">${k === "all" ? won(sums[k]) : wonN(sums[k])}</span><span class="tx-short">${k !== "all" && sums[k] < 0 ? "-" : ""}${moneyShort(Math.abs(sums[k]))}</span></b></button>`).join("");
-  const items = r.items.filter((x) => f === "all" || (x.kind || "expense") === f).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const items0 = list0.filter((x) => f === "all" || (x.kind || "expense") === f).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const items = E.txFilter ? E.txFilter.apply(items0) : items0;   // 🔎 머리줄 클릭 정렬·오른쪽 클릭 거르기 (txfilter.js)
+  if (E.txFilter) E.txFilter.bar(items);
   [...txSel].forEach((id) => { if (!items.some((x) => x.id === id)) txSel.delete(id); });
   $("txSel").hidden = !txSel.size;
   $("txSel").innerHTML = txSel.size ? `<span><b>${txSel.size}개</b> 골랐어요</span><button class="btn small danger-txt ghost" type="button" data-act="txDel">선택 삭제</button><button class="btn small ghost" type="button" data-act="txSelNone">고르기 취소</button>` : "";
   const all = items.length && items.every((x) => txSel.has(x.id));
   $("txList").innerHTML = !S.loaded ? '<p class="muted small">불러오는 중…</p>'
+    : !items.length && items0.length ? '<p class="muted small" style="margin:8px 0">조건에 맞는 기록이 없어요. 위에서 조건을 풀어 보세요.</p>'
     : !items.length ? `<p class="muted small" style="margin:8px 0">${lab} ${f === "all" ? "" : TX_KINDS.find(([k]) => k === f)[1] + " "}기록이 없어요. 오른쪽 아래 ＋로 기록해요.</p>`
-    : `<div class="tx-row tx-th"><label class="tx-ck"><input type="checkbox" data-txall ${all ? "checked" : ""} aria-label="모두 고르기"></label><span>날짜</span><span>자산</span><span>분류</span><span>소분류</span><span class="tx-amt">금액</span><span>내용</span><span>메모</span></div>` +
+    : `<div class="tx-row tx-th"><label class="tx-ck"><input type="checkbox" data-txall ${all ? "checked" : ""} aria-label="모두 고르기"></label>${E.txFilter ? E.txFilter.head() : '<span>날짜</span><span>자산</span><span>분류</span><span>소분류</span><span class="tx-amt">금액</span><span>내용</span><span>메모</span>'}</div>` +
       items.map((x) => txRow(x, true)).join("");
 }
 // 내역 한 줄 (ck = ☐ 고르기 칸 같이) — 지출 탭 · 통계 탭이 같이 씀
 export function txRow(x, ck, o = {}) {   // o.d = 이 자산 쪽에서 본 +/− (자산 화면), o.bal = 금액 밑 그때 잔액
         const kind = x.kind || "expense", n = x.pics && typeof x.pics === "object" ? Object.keys(x.pics).length : 0;
         const where = kind === "move" ? `${esc(acctName(x.account))} → ${esc(acctName(x.toAccount))}` : esc(acctName(x.account));
-        const cat = kind === "move" ? '<span class="muted">이체</span>' : `${x.cat ? esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ' <span class="muted small">💝</span>' : ""}${x.common ? ' <span class="m-common-mark" title="공통비용">❤️</span>' : ""}`;   // 표·목록 줄엔 색 동그라미 없이 (색은 원형·그 옆 목록·예산·설정에만)
+        const cat = kind === "move" ? '<span class="muted">이체</span>' : `${x.recvTo || x.recvOf ? "🤲 받을 돈" : x.cat ? esc(x.cat) : esc(KIND_LABEL[kind])}${kind === "transfer" ? ' <span class="muted small">💝</span>' : ""}${x.common ? ' <span class="m-common-mark" title="공통비용">❤️</span>' : ""}`;   // 표·목록 줄엔 색 동그라미 없이 (색은 원형·그 옆 목록·예산·설정에만)
         return `<div class="tx-row k-${kind}${ck ? "" : " no-ck"}${ui.mEdit === x.id ? " cur" : ""}${ck && txSel.has(x.id) ? " sel" : ""}" data-act="editMoney" data-id="${esc(x.id)}" role="button" tabindex="0">` +
           (ck ? `<label class="tx-ck" data-noedit><input type="checkbox" data-txck="${esc(x.id)}" ${txSel.has(x.id) ? "checked" : ""} aria-label="고르기"></label>` : "") +
-          `<span class="tx-d mono">${shortDate(x.date)}</span><span class="tx-a">${where}</span><span class="tx-c">${cat}</span><span class="tx-s">${x.common && E.commonCats ? (() => { const o = ccOf(x); return esc(o.c + (o.s ? " · " + o.s : "")); })() : esc(x.sub || "")}</span>` +
+          `<span class="tx-d mono">${shortDate(x.date)}</span><span class="tx-a">${where}</span><span class="tx-c">${cat}</span><span class="tx-s">${(x.recvTo || x.recvOf) && E.recv ? esc(E.recv.nameOf(x.recvTo || x.account)) : x.common && E.commonCats ? (() => { const o = ccOf(x); return esc(o.c + (o.s ? " · " + o.s : "")); })() : esc(x.sub || "")}</span>` +
           (o.d != null ? `<span class="tx-amt won ${o.d > 0 ? "plus" : "minus"}">${Number(x.amount) < 0 ? "-" : ""}${won(Math.abs(o.d))}${o.bal ? `<small class="tx-bal">${o.bal}</small>` : ""}</span>`
             : (() => {   // 마이너스 금액(환불·취소)은 부호를 뒤집어 보여 줌 (냐냐 쪽에서 더함 — 편한가계부 가져온 환불 줄)
               const neg = Number(x.amount) < 0, plus = kind === "income" ? !neg : kind === "move" ? null : neg;
-              return `<span class="tx-amt won ${plus == null ? "" : plus ? "plus" : "minus"}">${amtText(x)}</span>`;   // 냐냐: +·- 기호 없이 색으로만, 직접 -로 적은 것만 -
+              return `<span class="tx-amt won ${x.recvTo || x.recvOf ? "tx-rv" : plus == null ? "" : plus ? "plus" : "minus"}">${amtText(x)}</span>`;   // 냐냐: +·- 기호 없이 색으로만, 직접 -로 적은 것만 -
             })()) +
           `<span class="tx-m">${esc(x.memo || "")}</span><span class="tx-n">${x.note ? esc(x.note) : ""}${n ? ` <span class="m-mark">📷${n > 1 ? n : ""}</span>` : ""}</span></div>`;
 }
@@ -819,12 +827,12 @@ function renderMCal(m, r) {
   }
   $("mcCal").innerHTML = h;
   // 고른 날: 수입 · 지출 + 내역 (누르면 서랍 창에서 고치기)
-  const its = items.filter((x) => x.date === sel && want(x)).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)), dv = day[sel] || { inc: 0, out: 0 };
+  const its = items.filter((x) => x.date === sel && want(x) && !isRecvPair(x)).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)), dv = day[sel] || { inc: 0, out: 0 };
   $("mcDay").innerHTML = `<div class="mc-dh"><b>${shortDate(sel)}</b><button class="btn small" type="button" data-act="mcAdd">＋ 내역 추가</button></div>` +
     `<div class="mc-ds"><span>수입<b class="won plus">${won(dv.inc)}</b></span><span>지출<b class="won minus">${won(dv.out)}</b></span></div>` +
     `<div class="mc-list">${its.map((x) => { const k = x.kind || "expense";
-      return `<button type="button" class="mc-it" data-act="editMoney" data-id="${esc(x.id)}"><span class="c">${x.cat ? esc(x.cat) : esc(KIND_LABEL[k])}${x.sub ? ` <span class="muted small">· ${esc(x.sub)}</span>` : ""}${k === "transfer" ? " 💝" : ""}</span>` +
-        `<span class="a won ${k === "income" ? "plus" : k === "transfer" ? "give" : "minus"}">${amtText(x)}</span><span class="m">${esc([x.memo, acctName(x.account)].filter(Boolean).join(" · "))}${memoMarks({ ...x, sub: null })}</span></button>`; }).join("") ||
+      return `<button type="button" class="mc-it" data-act="editMoney" data-id="${esc(x.id)}"><span class="c">${x.recvTo ? "🤲 받을 돈" : x.cat ? esc(x.cat) : esc(KIND_LABEL[k])}${x.sub ? ` <span class="muted small">· ${esc(x.sub)}</span>` : ""}${k === "transfer" ? " 💝" : ""}</span>` +
+        `<span class="a won ${x.recvTo ? "tx-rv" : k === "income" ? "plus" : k === "transfer" ? "give" : "minus"}">${amtText(x)}</span><span class="m">${esc([x.memo, acctName(x.account)].filter(Boolean).join(" · "))}${memoMarks({ ...x, sub: null })}</span></button>`; }).join("") ||
       '<p class="muted small" style="margin:0">이 날 기록이 없어요.</p>'}</div>`;
 }
 
@@ -870,7 +878,7 @@ function renderStats() {
     if (ui.stCc) { shown = shown.filter((x) => ccOf(x).c === ui.stCc); stot = g[ui.stCc]; }
   } else ui.stCc = null;
   if ($("stCcSub")) $("stCcSub").hidden = true;
-  $("stCats").innerHTML = `<button type="button" class="st-cat all${sel ? "" : " on"}" data-act="stCat" data-k=""><span>${label} 전체 <small>${recs.length}</small></span><b class="won">${wonN(total)}</b></button>` +
+  $("stCats").innerHTML = `<button type="button" class="st-cat all${sel ? "" : " on"}" data-act="stCat" data-k=""><span>${label} 전체 <small>${recs.filter((x) => !isRecvPair(x)).length}</small></span><b class="won">${wonN(total)}</b></button>` +
     cats.map(([c, v]) => `<button type="button" class="st-cat${sel === c ? " on" : ""}" data-act="stCat" data-k="${esc(c)}"><i class="st-pct" style="--c:${catVar(kind, c)}">${pct(v)}%</i><span>${catDot(kind, c)}${esc(c)}</span><b class="won">${wonN(v)}</b></button>` + (sel === c ? ccHtml : "")).join("");
   $("stHead").innerHTML = `<h3>${esc(sel ? sel + (ui.stCc ? " › " + ui.stCc : "") : label + " 전체")}</h3><b class="won">${wonN(stot)}</b>`;
   $("stChip").innerHTML = `<i class="st-pct" style="--c:${sel ? catVar(kind, sel) : "var(--coral)"}">${sel ? pct(stot) : 100}%</i> ${esc(sel || "전체")} <b class="won">${won(stot)}</b>`;
@@ -879,7 +887,7 @@ function renderStats() {
   if (p === "range") { const ms = []; for (let mm = cur.from.slice(0, 7); mm <= cur.to.slice(0, 7) && ms.length < 24; mm = shiftMonth(mm, 1)) ms.push(mm); pts = ms.map((mm) => { const v = sum(mm + "-01" < cur.from ? cur.from : mm + "-01", dayInMonth(mm, 31) > cur.to ? cur.to : dayInMonth(mm, 31)); return { lab: `${+mm.slice(5)}월`, v, on: false, tip: `${mm} ${won(v)}` }; }); }
   else pts = Array.from({ length: p === "year" ? 5 : 12 }, (_, i) => i - (p === "year" ? 4 : 11)).map((k) => { const r = stRange(p, st.anchor, k), v = sum(r.from, r.to); return { lab: r.lab, v, on: k === 0, tip: `${r.name} ${won(v)}` }; });
   setChart($("stChart"), { pts, label: `${label} 흐름` });
-  shown.sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  shown = shown.filter((x) => !isRecvPair(x)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
   $("stList").innerHTML = shown.length ? `<div class="tx-row tx-th no-ck"><span>날짜</span><span>자산</span><span>분류</span><span>소분류</span><span class="tx-amt">금액</span><span>내용</span><span>메모</span></div>` + shown.map((x) => txRow(x, false)).join("")
     : `<p class="muted small" style="margin:8px 0">${esc(cur.name)} ${esc(sel || label)} 기록이 없어요.</p>`;
 }
@@ -1070,7 +1078,8 @@ function mFormActive() { const p = $("moneyPanel"); return $("mDrawer").open || 
 
 // 자산 고르는 칸 (냐냐 쪽에서 더함, 편한가계부처럼): 자산 탭과 같은 순서로 현금 · 통장 · 카드 · 저축 묶음, 이름_계좌번호
 export const acctLabel = (a) => a.name + (a.number ? "_" + a.number : "");
-export function acctOptsHtml(list, cur) {
+export function acctOptsHtml(list, cur, keepRecv) {
+  if (E.recv && !keepRecv) list = list.filter((a) => a.id === cur || !E.recv.zero(a.id));   // 🤲 받을 돈 0원은 고르는 칸에서도 숨김
   return AS_GROUPS.map(([t, label]) => {
     const g = list.filter((a) => (ACCT_TYPES[a.type] ? a.type : "bank") === t); if (!g.length) return "";
     return `<optgroup label="${label}">${g.map((a) => `<option value="${esc(a.id)}"${a.id === cur ? " selected" : ""}>${esc(acctLabel(a))}</option>`).join("")}</optgroup>`;
@@ -1081,7 +1090,7 @@ export function acctOptions(sel, cur, kind) {
   const list = sortedAccts();
   // 수입은 카드로 받을 일이 없으니 카드 빼기
   const ok = list.filter((a) => !(kind === "income" && a.type === "card"));
-  sel.innerHTML = '<option value="">선택 안 함</option>' + acctOptsHtml(ok) +
+  sel.innerHTML = '<option value="">선택 안 함</option>' + acctOptsHtml(ok, cur, sel.id === "mTo") +   // 이체 받는 곳엔 남겨 둠 (돈을 빌려줄 때)
     (cur && !ok.some((a) => a.id === cur) ? `<option value="${esc(cur)}">${esc(acctName(cur))}</option>` : "");
   sel.value = cur || "";
 }
@@ -1106,7 +1115,8 @@ export function renderMoneyForm(fill) {
     mc.innerHTML = names.map((c) => `<option>${esc(c)}</option>`).join(""); if (want) mc.value = want;
     mc.dataset.cc = "1";
   } else {
-    const want = fill ? fill.cat : mc.dataset.cc === "1" ? "" : mc.value, list = moneyCats(k === "move" ? "expense" : k);
+    const rc = E.recv ? E.recv.cat : null, want0 = fill ? (fill.recvTo && rc ? rc : fill.cat) : mc.dataset.cc === "1" ? "" : mc.value;
+    const want = want0 === rc && k !== "expense" ? "" : want0, list = moneyCats(k === "move" ? "expense" : k).concat(k === "expense" && rc ? [rc] : []);   // 🤲 분류 칸에서 받을 돈 고르기 (recv.js, 지출만)
     if (want && !list.includes(want)) list.push(want);
     mc.innerHTML = list.map((c) => `<option>${esc(c)}</option>`).join("");
     if (want && list.includes(want)) mc.value = want;
@@ -1139,8 +1149,10 @@ export function renderMoneyForm(fill) {
   $("mSubmit").textContent = editing ? "고친 내용 저장" : { income: "수입 기록", expense: "지출 기록", transfer: "보낸 돈 기록", move: "이체 기록" }[k];
   if (!$("mDate").value) $("mDate").value = today();
   if (E.recSplit) E.recSplit.sync();
+  if (E.recv) E.recv.formSync(fill);   // 🤲 받을 돈 칸 (recv.js)
 }
 export function editMoney(id) {
+  const x0 = S.money.get(id); if (x0 && x0.recvOf && S.money.has(x0.recvOf)) id = x0.recvOf;   // 🤲 받을 돈 짝을 누르면 실제 지출을 고침
   const x = S.money.get(id); if (!x) return;
   ui.mEdit = id; ui.kind = x.kind || "expense";
   $("mAmount").value = commaNum(x.amount || ""); $("mDate").value = x.date || today(); $("mMemo").value = x.memo || "";
@@ -1152,6 +1164,7 @@ export function resetMoneyForm() {
   ui.mEdit = null; $("mAmount").value = ""; $("mMemo").value = ""; $("mDate").value = today();
   $("mSub").value = ""; $("mNote").value = ""; $("mCur").value = "원"; setMPics([]);
   if ($("mCommon")) $("mCommon").checked = false;
+  if (E.recv) E.recv.clear();
   closeDrawer();
   renderMoney();
 }
@@ -1169,6 +1182,7 @@ function drawerClosed() {
   if ($("mDrawer").open) return;   // 늦게 온 close 이벤트가 다시 연 창을 건드리지 않게
   if (drawerHome && $("moneyPanel").parentNode !== drawerHome) drawerHome.appendChild($("moneyPanel"));
   ui.asFor = null;
+  if (E.recv) E.recv.clear();   // 🤲 저장 안 하고 닫으면 다음 기록에 안 남게
   if (ui.mEdit) resetMoneyForm();
 }
 // 저장한 기록이 보이는 달: 보통은 그 날짜의 달. 자산 탭에서 결제일 정한 카드를 보는 중이면 결제 달
@@ -1378,6 +1392,8 @@ export function initMoney() {
     if (!(amount > 0)) { toast("금액을 적어 주세요."); return; }
     const sp = E.recSplit ? E.recSplit.collect(amount) : null;   // ✂️ 나눠 적기 → 이 기록은 나머지 금액, 나눈 줄은 새 기록으로
     if (sp && sp.error) { toast(sp.error); return; }
+    const rv = E.recv ? E.recv.collect() : null;   // 🤲 받을 돈 → 저장 뒤 짝 기록 (recv.js)
+    if (rv && rv.error) { toast(rv.error); return; }
     const date = $("mDate").value || today(), k = ui.kind;
     const account = $("mAcct").value || null, toAccount = k === "move" ? ($("mTo").value || null) : null;
     if (k === "move" && (!account || !toAccount)) { toast("이체는 보내는 곳과 받는 곳을 골라 주세요."); return; }
@@ -1387,6 +1403,7 @@ export function initMoney() {
     const doc = { kind: k, amount: sp ? sp.left : amount, date, cat: k === "move" ? null : $("mCat").value, sub: k === "move" || !$("mSub").value || $("mSub").value === "__add" ? null : $("mSub").value, cur,
       memo: $("mMemo").value.trim(), note: $("mNote").value.trim() || null, account, toAccount,
       common: k === "expense" && $("mCommon") && $("mCommon").checked ? true : null, ccat: null, csub: null };
+    if (E.recv) { doc.recvTo = rv; if (rv) { doc.cat = E.recv.storeCat(); doc.sub = null; } }
     if (k === "expense" && ccOn()) { doc.ccat = doc.cat; doc.csub = doc.sub; doc.cat = commonCatName(); doc.sub = null; }   // 🏷 공통 분류 → ccat·csub, 내 분류는 '💙 공통비용'
     rememberAcct(k, account); if (k === "move") rememberAcct("moveTo", toAccount);
     const editing = ui.mEdit && S.money.has(ui.mEdit), id0 = editing ? ui.mEdit : null, old = editing ? S.money.get(id0).pics || {} : {};
@@ -1412,12 +1429,13 @@ export function initMoney() {
       const id = editing ? (await E.backend.update("money", id0, doc), id0) : await E.backend.add("money", { ...doc, createdAt: Date.now() });
       savedId = id;
       if (sp) await E.recSplit.save(sp, doc, id0);
+      if (E.recv) await E.recv.sync(id, doc);
       if (doc.ccat && !moneyCats("expense").includes(doc.cat)) await E.backend.saveSettings({ moneyCats: { income: moneyCats("income"), expense: moneyCats("expense").concat(doc.cat), transfer: moneyCats("transfer") } });   // ❤️ 처음 적으면 내 지출 분류에 '💙 공통비용'도 더함
       for (const p of fresh) await E.backend.putPic(p.id, { full: p.full, thumb: p.thumb, money: id, kind: "money", title: doc.memo || doc.cat || "", date, at: Date.now() });
       for (const pid of gone) await E.backend.putPic(pid, null);
       if (wantSettle) await E.settleCommon(amount, id, { date, memo: doc.memo || doc.note || "이체", money: id });
       else if (wasSettle) await E.unsettleCommon(id);
-    })(), settle ? `💸 정산했어요. ${settle.rest}` : wasSettle && !wantSettle ? "정산 장부에서 뺐어요." : sp ? `✂️ ${sp.lines.length + 1}건으로 나눠 적었어요.` : editing ? "고쳤어요." : "기록했어요.")
+    })(), settle ? `💸 정산했어요. ${settle.rest}` : wasSettle && !wantSettle ? "정산 장부에서 뺐어요." : sp ? `✂️ ${sp.lines.length + 1}건으로 나눠 적었어요.` : rv ? "🤲 받을 돈으로 적었어요." : editing ? "고쳤어요." : "기록했어요.")
       .then(() => { const mm = shownMonth(doc); if (mm !== ui.month) ui.month = mm; resetMoneyForm(); if (E.onMoneySaved && savedId) E.onMoneySaved(savedId); }).catch(() => {});   // 🏥보험금 저장 → 병원비 고르는 창
   });
 
@@ -1523,8 +1541,8 @@ export function moneyAction(a, el, id, t) {
   if (a === "mDelete") {
     if (!ready() || !ui.mEdit) return true;
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 삭제?"; return true; }
-    const gone0 = ui.mEdit, wasS = !!(S.money.get(gone0) || {}).settle;
-    act(E.backend.remove("money", gone0).then(() => wasS && E.unsettleCommon ? E.unsettleCommon(gone0) : null), wasS ? "삭제했어요. 정산 장부에서도 뺐어요." : "삭제했어요.").then(resetMoneyForm).catch(() => {});
+    const gone0 = ui.mEdit, wasS = !!(S.money.get(gone0) || {}).settle, rvP = E.recv ? E.recv.partner(gone0) : null;
+    act(E.backend.remove("money", gone0).then(() => rvP ? E.backend.remove("money", rvP) : null).then(() => wasS && E.unsettleCommon ? E.unsettleCommon(gone0) : null), wasS ? "삭제했어요. 정산 장부에서도 뺐어요." : "삭제했어요.").then(resetMoneyForm).catch(() => {});
     return true;
   }
   if (a === "asSel") { ui.asSel = id; ui.asOpen = true; renderMoney(); if (window.matchMedia("(max-width: 1100px)").matches) $("asGrid").scrollIntoView({ block: "start" }); return true; }
@@ -1563,8 +1581,8 @@ export function moneyAction(a, el, id, t) {
   if (a === "txDel") {
     if (!ready() || !txSel.size) return true;
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.textContent = `정말 ${txSel.size}개 삭제?`; return true; }
-    const ids = [...txSel]; txSel.clear();
-    act((async () => { for (const k of ids) { const wasS = !!(S.money.get(k) || {}).settle; await E.backend.remove("money", k); if (wasS && E.unsettleCommon) await E.unsettleCommon(k); } })(), `${ids.length}개를 지웠어요. (↶로 되돌릴 수 있어요)`).catch(() => {});
+    const n0 = txSel.size, ids = [...new Set([...txSel].flatMap((k) => [k, E.recv && E.recv.partner(k)]).filter(Boolean))]; txSel.clear();   // 🤲 받을 돈 짝도 같이
+    act((async () => { for (const k of ids) { const wasS = !!(S.money.get(k) || {}).settle; await E.backend.remove("money", k); if (wasS && E.unsettleCommon) await E.unsettleCommon(k); } })(), `${n0}개를 지웠어요. (↶로 되돌릴 수 있어요)`).catch(() => {});
     return true;
   }
   if (a === "newAcct") { openAcct(null); return true; }

@@ -29,6 +29,8 @@ docs/summary.js        📝 가계부 이번 달 정리 (냐냐 가계부 summar
 docs/extras.js         🏥 보험금 챙기기 · 🎯 큰돈 모으기 · 🔗 보험금↔병원비 잇기(#insPick) · 못 받은 병원비 안내(#insSide·#insPhone) (냐냐 가계부 extras.js 옮김, 돌돌이 규칙 뺌). 병원비 = 분류·소분류에 병원·약국 (money/{id}/ins asked|got|skip, insBy·insFor), `settings.funds/{id}`
 docs/picker.js         🎀 고르는 칸(select) 둥근 창 (냐냐 가계부 picker.js 복사, 가계부 모드 + 마우스 기기만, 값을 바꿔 input·change를 보냄. CSS `.pk-`)
 docs/recsplit.js       ✂️ 기록 창 금액 나눠 적기 (냐냐 가계부 recsplit.js 복사, E.recSplit: reset·sync·collect·save, #mSplit). 위 칸 기록 = 나머지 금액, 나눈 줄 = 새 기록 (💙 공통비용 고르면 소분류 칸이 공통 분류, common·ccat·csub)
+docs/recv.js           🤲 받을 돈 (냐냐 가계부 recv.js 옮김, E.recv): 분류 칸 '🤲 받을 돈'(RECV_CAT, 진짜 분류 아님, 저장은 기타) → 이름 칸 #mRecvTo. 실제 지출 recvTo = 자산 id + 짝 money/{id}-rv {음수 금액, recvOf}, 받으면 짝·줄의 recvPaid = 이체 id. 자산 accounts.recv, 없으면 받기(이름) 저절로 만듦, 0원이면 목록·고르는 칸에서 숨김. 짝은 내역·달력·통계·보드 날짜 창·검색·포인트에서 뺌
+docs/txfilter.js       🔎 내역 표 정렬·거르기 (냐냐 가계부 복사, E.txFilter, #txBar): 머리줄 클릭 = 정렬, 오른쪽 클릭 = 거르기, 폰은 표 위 버튼. 저장 안 함
 docs/firebase-config.js  Firebase 웹 설정 (공개돼도 되는 값)
 docs/changes.js        업데이트 내역 CHANGES (설명서 탭 + 새 버전 알림)
 docs/lotto-presets.js  복권 추천 목록 (쿠폰 200 · 벌칙 50, 관리 창에서 한 번에 넣기)
