@@ -27,6 +27,7 @@ docs/money.html        가계부 짧은 주소 → index.html?app=money (가계�
 docs/calsum.js         📝 달력 아래 ○월 정리 (#calSum, renderCalendar가 calSummary(달, env)로 그림): 실천 시간 평소(앞 12달 평균)·지난달 비교 · 실천한 날 · 할 일 체크 · 주 목표·연속 · 많이 한 목표·일 · 놓친 할 일 · 포인트
 docs/summary.js        📝 가계부 이번 달 정리 (냐냐 가계부 summary.js 옮김): 예산 탭 #sumPanel 📅 오늘 쓸 수 있는 돈(줄 돈은 예산 밖) · 💰 저축 목표 `settings.saveGoals[월]` · 한 줄 + 📑 보고서 '월간 정리' 카드·화면(report.js env.summary). 욱진용 = 💝 준 돈 따로(남은 돈 = 수입 − 준 돈 − 지출), 관리자 기기는 안 보임
 docs/extras.js         🏥 보험금 챙기기 · 🎯 큰돈 모으기 · 🔗 보험금↔병원비 잇기(#insPick) · 못 받은 병원비 안내(#insSide·#insPhone) (냐냐 가계부 extras.js 옮김, 돌돌이 규칙 뺌). 병원비 = 분류·소분류에 병원·약국 (money/{id}/ins asked|got|skip, insBy·insFor), `settings.funds/{id}`
+docs/picker.js         🎀 고르는 칸(select) 둥근 창 (냐냐 가계부 picker.js 복사, 가계부 모드 + 마우스 기기만, 값을 바꿔 input·change를 보냄. CSS `.pk-`)
 docs/firebase-config.js  Firebase 웹 설정 (공개돼도 되는 값)
 docs/changes.js        업데이트 내역 CHANGES (설명서 탭 + 새 버전 알림)
 docs/lotto-presets.js  복권 추천 목록 (쿠폰 200 · 벌칙 50, 관리 창에서 한 번에 넣기)
