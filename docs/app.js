@@ -1,13 +1,14 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102a";
-import { CHANGES } from "./changes.js?v=20261102a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261102a";
-import { mountAcctSet } from "./acctset.js?v=20261102a";
-import { mountReport } from "./report.js?v=20261102a";
-import { mountSummary } from "./summary.js?v=20261102a";
-import { mountExtras } from "./extras.js?v=20261102a";
-import { mountBalance } from "./balance.js?v=20261102a";
-import { calSummary } from "./calsum.js?v=20261102a";
-import { firebaseConfig } from "./firebase-config.js?v=20261102a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102b";
+import { CHANGES } from "./changes.js?v=20261102b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261102b";
+import { mountAcctSet } from "./acctset.js?v=20261102b";
+import { mountReport } from "./report.js?v=20261102b";
+import { mountSummary } from "./summary.js?v=20261102b";
+import { mountPicker } from "./picker.js?v=20261102b";
+import { mountExtras } from "./extras.js?v=20261102b";
+import { mountBalance } from "./balance.js?v=20261102b";
+import { calSummary } from "./calsum.js?v=20261102b";
+import { firebaseConfig } from "./firebase-config.js?v=20261102b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -3161,6 +3162,7 @@ window.addEventListener("resize", fitPanels);
 document.addEventListener("click", (ev) => setTimeout(() => { fitPanels(); if (rptView && ev.target.closest && ev.target.closest('[data-act="mTab"]')) rptView.render(); if (smView && ev.target.closest && ev.target.closest('[data-act="month"], [data-act="histMonth"], [data-act="mcDay"], #mineBtn')) smView.render(); if (APP === "money" && exView) exView.renderBar(); }, 0));   // 탭을 바꾸면 (📑 보고서는 그 탭으로 올 때 그림)
 
 // ---------- 시작 ----------
+if (APP === "money") mountPicker();   // 🎀 고르는 칸을 둥근 창으로 (가계부 모드, 마우스 기기만)
 route();
 render();
 if (ADMIN_MONEY) {
