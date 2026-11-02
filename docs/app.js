@@ -1,17 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102d";
-import { CHANGES } from "./changes.js?v=20261102d";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261102d";
-import { mountAcctSet } from "./acctset.js?v=20261102d";
-import { mountReport } from "./report.js?v=20261102d";
-import { mountSummary } from "./summary.js?v=20261102d";
-import { mountPicker } from "./picker.js?v=20261102d";
-import { mountRecSplit } from "./recsplit.js?v=20261102d";
-import { mountRecv } from "./recv.js?v=20261102d";
-import { mountTxFilter } from "./txfilter.js?v=20261102d";
-import { mountExtras } from "./extras.js?v=20261102d";
-import { mountBalance } from "./balance.js?v=20261102d";
-import { calSummary } from "./calsum.js?v=20261102d";
-import { firebaseConfig } from "./firebase-config.js?v=20261102d";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102e";
+import { CHANGES } from "./changes.js?v=20261102e";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261102e";
+import { mountAcctSet } from "./acctset.js?v=20261102e";
+import { mountReport } from "./report.js?v=20261102e";
+import { mountSummary } from "./summary.js?v=20261102e";
+import { mountPicker } from "./picker.js?v=20261102e";
+import { mountDatePick } from "./datepick.js?v=20261102e";
+import { mountRecSplit } from "./recsplit.js?v=20261102e";
+import { mountRecv } from "./recv.js?v=20261102e";
+import { mountTxFilter } from "./txfilter.js?v=20261102e";
+import { mountExtras } from "./extras.js?v=20261102e";
+import { mountBalance } from "./balance.js?v=20261102e";
+import { calSummary } from "./calsum.js?v=20261102e";
+import { firebaseConfig } from "./firebase-config.js?v=20261102e";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -3172,7 +3173,7 @@ window.addEventListener("resize", fitPanels);
 document.addEventListener("click", (ev) => setTimeout(() => { fitPanels(); if (rptView && ev.target.closest && ev.target.closest('[data-act="mTab"]')) rptView.render(); if (smView && ev.target.closest && ev.target.closest('[data-act="month"], [data-act="histMonth"], [data-act="mcDay"], #mineBtn')) smView.render(); if (APP === "money" && exView) exView.renderBar(); }, 0));   // 탭을 바꾸면 (📑 보고서는 그 탭으로 올 때 그림)
 
 // ---------- 시작 ----------
-if (APP === "money") mountPicker();   // 🎀 고르는 칸을 둥근 창으로 (가계부 모드, 마우스 기기만)
+if (APP === "money") { mountPicker(); mountDatePick(); }   // 🎀 고르는 칸 · 📅 날짜 칸을 둥근 창으로 (가계부 모드, 마우스 기기만)
 route();
 render();
 if (ADMIN_MONEY) {
