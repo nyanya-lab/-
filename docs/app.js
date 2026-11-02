@@ -1,14 +1,15 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102b";
-import { CHANGES } from "./changes.js?v=20261102b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, MONEY_CATS } from "./money.js?v=20261102b";
-import { mountAcctSet } from "./acctset.js?v=20261102b";
-import { mountReport } from "./report.js?v=20261102b";
-import { mountSummary } from "./summary.js?v=20261102b";
-import { mountPicker } from "./picker.js?v=20261102b";
-import { mountExtras } from "./extras.js?v=20261102b";
-import { mountBalance } from "./balance.js?v=20261102b";
-import { calSummary } from "./calsum.js?v=20261102b";
-import { firebaseConfig } from "./firebase-config.js?v=20261102b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102c";
+import { CHANGES } from "./changes.js?v=20261102c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261102c";
+import { mountAcctSet } from "./acctset.js?v=20261102c";
+import { mountReport } from "./report.js?v=20261102c";
+import { mountSummary } from "./summary.js?v=20261102c";
+import { mountPicker } from "./picker.js?v=20261102c";
+import { mountRecSplit } from "./recsplit.js?v=20261102c";
+import { mountExtras } from "./extras.js?v=20261102c";
+import { mountBalance } from "./balance.js?v=20261102c";
+import { calSummary } from "./calsum.js?v=20261102c";
+import { firebaseConfig } from "./firebase-config.js?v=20261102c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -3125,6 +3126,7 @@ bindMoney({ $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, e
   commonMark: () => commonMine(),   // ❤️ 공통비용 체크 칸 (욱진이 기기 진짜 가계부만)
   commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null),   // 🏷 ❤️ 체크하면 분류 칸 = 공통 분류 (공통 저장소, 고치는 건 냐냐만)
   mineView: true,   // 💑 내 몫으로 보기 버튼 (공통비용 절반·정산 받은 돈 빼고, 기본 꺼짐 — settings.moneyMine). 관리자 기기엔 버튼 없고, 욱진이가 켠 그대로 보임
+  recSplit: mountRecSplit({ $, S, esc, won, amtVal, moneyCats, subOptions, commonCatName, commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null), kind: () => ui.kind, backend: () => backend }),   // ✂️ 기록 창 금액 나눠 적기
   onMoneySaved: (id) => { if (exView) exView.onSaved(id); },   // 🏥보험금 저장 → 🔗 병원비 고르는 창 (extras.js)
   catRank: true,   // 분류 색: 원형마다 금액 큰 8개가 서로 다른 색, 9번째부터 '그 밖' (냐냐 가계부와 같게)
   get backend() { return backend; }, get testMode() { return testMode; } });
