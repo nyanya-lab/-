@@ -1037,7 +1037,6 @@ tr.clickable:hover td { background: var(--sunk); }
 .ev.gev b { font-family: var(--f-mono); font-weight: 600; color: var(--muted); }
 .ev.gev.nya { background: var(--coral-soft); border-color: transparent; border-left-color: var(--coral); }
 .ev.gev.nya b { color: var(--coral); }
-.chip.nya-chip[aria-pressed="true"] { background: var(--coral); border-color: var(--coral); color: #fff; }
 .chip.gchip { border-color: var(--blue); color: var(--blue); }
 .chip.gchip.warn { border-color: var(--sun); color: var(--sun); }
 .ev.more { background: transparent; border-left: 0; color: var(--muted); padding-left: 2px; }
