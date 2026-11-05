@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261102e";
-import { CHANGES } from "./changes.js?v=20261102e";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261102e";
-import { mountAcctSet } from "./acctset.js?v=20261102e";
-import { mountReport } from "./report.js?v=20261102e";
-import { mountSummary } from "./summary.js?v=20261102e";
-import { mountPicker } from "./picker.js?v=20261102e";
-import { mountDatePick } from "./datepick.js?v=20261102e";
-import { mountRecSplit } from "./recsplit.js?v=20261102e";
-import { mountRecv } from "./recv.js?v=20261102e";
-import { mountTxFilter } from "./txfilter.js?v=20261102e";
-import { mountExtras } from "./extras.js?v=20261102e";
-import { mountBalance } from "./balance.js?v=20261102e";
-import { calSummary } from "./calsum.js?v=20261102e";
-import { firebaseConfig } from "./firebase-config.js?v=20261102e";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261105a";
+import { CHANGES } from "./changes.js?v=20261105a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261105a";
+import { mountAcctSet } from "./acctset.js?v=20261105a";
+import { mountReport } from "./report.js?v=20261105a";
+import { mountSummary } from "./summary.js?v=20261105a";
+import { mountPicker } from "./picker.js?v=20261105a";
+import { mountDatePick } from "./datepick.js?v=20261105a";
+import { mountRecSplit } from "./recsplit.js?v=20261105a";
+import { mountRecv } from "./recv.js?v=20261105a";
+import { mountTxFilter } from "./txfilter.js?v=20261105a";
+import { mountExtras } from "./extras.js?v=20261105a";
+import { mountBalance } from "./balance.js?v=20261105a";
+import { calSummary } from "./calsum.js?v=20261105a";
+import { firebaseConfig } from "./firebase-config.js?v=20261105a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -410,8 +410,12 @@ function showMode() {
 
 // ---------- 구글 캘린더 표시 ----------
 // 구글 캘린더: 욱진이 구글 계정의 Apps Script(docs/apps-script/Code.gs)가 동기화. 사이트는 보여 주기만
+// 💗 냐냐 캘린더 일정(nya:1)은 읽기만: 링크 없음, 달력 [💗 냐냐] 버튼으로 켜고 끔 (기기마다 localStorage ukjin-nya-cal, 기본 켬)
+function nyaCalOn() { try { return localStorage.getItem("ukjin-nya-cal") !== "0"; } catch { return true; } }
+function gevTitle(g) { return (g.nya ? "💗 " : "") + g.title; }
 function gcalEventsOn(d) {
-  return Object.values(S.gevents || {}).filter((e) => e && e.date && (e.end ? e.date <= d && d < e.end : e.date === d))
+  const nya = nyaCalOn();
+  return Object.values(S.gevents || {}).filter((e) => e && e.date && (nya || !e.nya) && (e.end ? e.date <= d && d < e.end : e.date === d))
     .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 }
 function gsyncState() {
@@ -602,6 +606,7 @@ function renderCalendar() {
   const lastDay = new Date(+p[0], +p[1], 0).getDate();
   const weeks = Math.ceil((first.getDay() + lastDay) / 7);
   $("calTitle").textContent = `${p[0]}년 ${+p[1]}월`;
+  const nyaBtn = $("nyaCalBtn"); if (nyaBtn) { nyaBtn.hidden = !Object.values(S.gevents || {}).some((e) => e && e.nya); nyaBtn.setAttribute("aria-pressed", String(nyaCalOn())); }
   const prac = practiceMinutes();
   const exams = {}; rows(S.goals).forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
   const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date && isWon(x)) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
@@ -635,7 +640,7 @@ function renderCalendar() {
     (logsByDay[d] || []).forEach((l) => evs.push(`<div class="ev log" data-act="editLog" data-id="${esc(l.id)}" title="실천한 일 · 글자를 누르면 편집">` +
       `<button type="button" class="log-fire" data-act="logFire" data-id="${esc(l.id)}" aria-label="실천한 일 편집·삭제">🔥</button>` +
       `<span>${esc([l.text || "", l.minutes ? fmtHM(l.minutes) : ""].filter(Boolean).join(" · ") || "기록")}</span></div>`));
-    gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev" title="${esc(g.title)}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(g.title)}</div>`));
+    gcalEventsOn(d).forEach((g) => evs.push(`<div class="ev gev${g.nya ? " nya" : ""}" title="${esc(gevTitle(g))}">${g.time ? `<b>${g.time}</b> ` : ""}${esc(gevTitle(g))}</div>`));
     // 💰 돈은 할 일 줄이 아니라 칸 왼쪽 아래 구석에 작게 (포인트는 오른쪽 아래)
     const mLines = (income[d] ? `<i class="dm-in">+${moneyShort(income[d])}</i>` : "") + (spent[d] ? `<i class="dm-out">-${moneyShort(spent[d])}</i>` : "");
     const shown = evs.slice(0, 4), more = evs.length - shown.length;
@@ -1705,7 +1710,7 @@ function renderDayPanel() {
   h += `<div class="dp-sec"><h4>할 일</h4>${ts.length ? `<div class="list">${ts.map((x) => taskItem(x, d)).join("")}</div>` : '<div class="small muted">이 날 할 일이 없어요.</div>'}</div>`;
   if (ls.length) h += `<div class="dp-sec"><h4>🔥 실천한 일</h4><div class="list">${ls.map((l) => `<div class="item"><button type="button" class="log-fire" data-act="logFire" data-id="${esc(l.id)}" aria-label="실천한 일 편집·삭제">🔥</button>` +
     `<div class="body" data-act="editLog" data-id="${esc(l.id)}" style="cursor:pointer"><div class="title">${esc(l.text || "기록")}</div><div class="meta"><span class="tag mono">${l.minutes ? fmtHM(l.minutes) : "-"}</span></div></div><div class="actions"></div></div>`).join("")}</div></div>`;
-  if (gs.length) h += `<div class="dp-sec"><h4>📅 구글 일정</h4><div class="list">${gs.map((g) => `<div class="item"><span class="tag mono">${esc(g.time || "종일")}</span><div class="body"><div class="title">${esc(g.title)}</div></div>${g.link ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("")}</div></div>`;
+  if (gs.length) h += `<div class="dp-sec"><h4>📅 구글 일정</h4><div class="list">${gs.map((g) => `<div class="item"><span class="tag mono">${esc(g.time || "종일")}</span><div class="body"><div class="title">${esc(gevTitle(g))}</div></div>${g.link && !g.nya ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("")}</div></div>`;
   if (ms.length) h += `<div class="dp-sec"><h4>💰 돈</h4><div class="list">${ms.map((x) => `<div class="item" data-act="searchMoney" data-id="${esc(x.id)}" style="cursor:pointer"><span class="tag">${esc(KIND[x.kind] || "")}</span><div class="body"><div class="title">${esc(x.memo || x.cat || "")}</div></div><span class="won ${x.kind === "income" ? "plus" : x.kind === "move" ? "" : "minus"}">${x.kind === "income" ? "+" : x.kind === "move" ? "" : "-"}${amtText(x)}</span></div>`).join("")}</div></div>`;
   h += `<div class="dp-btns"><button class="btn ghost small" type="button" data-act="dpAddTask" data-day="${d}">＋ 할 일</button><button class="btn ghost small" type="button" data-act="openDayLogs" data-day="${d}">＋ 실천한 일</button></div>`;
   box.innerHTML = h;
@@ -2120,7 +2125,7 @@ function renderDaySide() {
     `<div class="actions"><button class="icon-btn" type="button" data-act="del" data-col="logs" data-id="${esc(l.id)}">삭제</button></div></div>`).join("") : '<div class="empty">아직 기록이 없어요.</div>';
   const gs = gcalEventsOn(d);
   $("dayGcalSec").hidden = !gs.length;
-  $("dayGcal").innerHTML = gs.map((g) => `<div class="item"><span class="tag mono">${g.time || "종일"}</span><div class="body"><div class="title">${esc(g.title)}</div></div>${g.link ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("");
+  $("dayGcal").innerHTML = gs.map((g) => `<div class="item"><span class="tag mono">${g.time || "종일"}</span><div class="body"><div class="title">${esc(gevTitle(g))}</div></div>${g.link && !g.nya ? `<div class="actions"><a class="icon-btn" href="${esc(g.link)}" target="_blank" rel="noopener">열기</a></div>` : ""}</div>`).join("");
   const ms = rows(S.money).filter((x) => x.date === d && !x.recvOf && moneyShown(x));
   $("dayMoneySec").hidden = !ms.length;
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출" };
@@ -2700,6 +2705,7 @@ document.addEventListener("click", (ev) => {
   if (a === "gtRep") { gt.rep = el.dataset.k; renderGoalDlg(); return; }
   if (a === "gtDay") { const n = +el.dataset.d; if (gt.days.has(n)) gt.days.delete(n); else gt.days.add(n); renderGoalDlg(); return; }
   if (a === "calMonth") { ui.calMonth = shiftMonth(ui.calMonth, +el.dataset.d); renderCalendar(); return; }
+  if (a === "nyaCal") { try { localStorage.setItem("ukjin-nya-cal", nyaCalOn() ? "0" : "1"); } catch {} renderCalendar(); return; }
   if (a === "calToday") { ui.calMonth = today().slice(0, 7); ui.selDay = today(); renderCalendar(); return; }
   if (a === "reqArea") { ui.reqArea = el.dataset.k; renderRequests(); return; }
   if (a === "reqFilter") { ui.reqFilter = el.dataset.k; renderRequests(); return; }
