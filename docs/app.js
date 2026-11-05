@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261105c";
-import { CHANGES } from "./changes.js?v=20261105c";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261105c";
-import { mountAcctSet } from "./acctset.js?v=20261105c";
-import { mountReport } from "./report.js?v=20261105c";
-import { mountSummary } from "./summary.js?v=20261105c";
-import { mountPicker } from "./picker.js?v=20261105c";
-import { mountDatePick } from "./datepick.js?v=20261105c";
-import { mountRecSplit } from "./recsplit.js?v=20261105c";
-import { mountRecv } from "./recv.js?v=20261105c";
-import { mountTxFilter } from "./txfilter.js?v=20261105c";
-import { mountExtras } from "./extras.js?v=20261105c";
-import { mountBalance } from "./balance.js?v=20261105c";
-import { calSummary } from "./calsum.js?v=20261105c";
-import { firebaseConfig } from "./firebase-config.js?v=20261105c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261105d";
+import { CHANGES } from "./changes.js?v=20261105d";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261105d";
+import { mountAcctSet } from "./acctset.js?v=20261105d";
+import { mountReport } from "./report.js?v=20261105d";
+import { mountSummary } from "./summary.js?v=20261105d";
+import { mountPicker } from "./picker.js?v=20261105d";
+import { mountDatePick } from "./datepick.js?v=20261105d";
+import { mountRecSplit } from "./recsplit.js?v=20261105d";
+import { mountRecv } from "./recv.js?v=20261105d";
+import { mountTxFilter } from "./txfilter.js?v=20261105d";
+import { mountExtras } from "./extras.js?v=20261105d";
+import { mountBalance } from "./balance.js?v=20261105d";
+import { calSummary } from "./calsum.js?v=20261105d";
+import { firebaseConfig } from "./firebase-config.js?v=20261105d";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -615,7 +615,7 @@ function renderCalendar() {
   const lastDay = new Date(+p[0], +p[1], 0).getDate();
   const weeks = Math.ceil((first.getDay() + lastDay) / 7);
   $("calTitle").textContent = `${p[0]}년 ${+p[1]}월`;
-  const nyaBtn = $("nyaCalBtn"); if (nyaBtn) { nyaBtn.hidden = !Object.values(S.gevents || {}).some((e) => e && e.nya); nyaBtn.setAttribute("aria-pressed", String(nyaCalOn())); }
+  const nyaBtn = $("nyaCalBtn"); if (nyaBtn) { nyaBtn.hidden = !Object.values(S.gevents || {}).some((e) => e && e.nya); nyaBtn.classList.toggle("off", !nyaCalOn()); nyaBtn.title = nyaCalOn() ? "달력에서 냐냐 일정 숨기기" : "달력에 냐냐 일정 보이기 (보기만 돼요)"; }
   const prac = practiceMinutes();
   const exams = {}; rows(S.goals).forEach((g) => { if (g.due) (exams[g.due] ||= []).push(g); });
   const income = {}; S.money.forEach((x) => { if (x.kind === "income" && x.date && isWon(x)) income[x.date] = (income[x.date] || 0) + (Number(x.amount) || 0); });
