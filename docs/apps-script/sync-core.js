@@ -11,7 +11,7 @@
  *     → 기본 캘린더를 공유받은 사람에게 루틴·실천 기록은 안 보임 (예전에 기본 캘린더에 넣은 루틴·실천은 옮김)
  *   · 💗 욱진이가 공유받은 냐냐 캘린더 → 보드 달력에 같이 보내기 (읽기만, 냐냐 캘린더는 절대 안 고침)
  */
-const CORE_VERSION = "2026-11-05";
+const CORE_VERSION = "2026-11-05b";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
@@ -34,11 +34,12 @@ function ukjinSync(BOARD_PASSWORD) {
   const logs = getJson_(base + "/logs.json") || {};
   const res = pushToGoogle_(tasks, goals, logs);
   const gev = pullFromGoogle_();
-  pullNyanya_(gev);
+  const nya = pullNyanya_(gev);
   putJson_(base + "/gevents.json", gev);
   putJson_(base + "/gsync.json", {
     at: Date.now(), email: Session.getEffectiveUser().getEmail(),
-    added: res.added, updated: res.updated, deleted: res.deleted, cleaned: res.cleaned
+    added: res.added, updated: res.updated, deleted: res.deleted, cleaned: res.cleaned,
+    nya: nya, core: CORE_VERSION
   });
   Logger.log("동기화 코드 " + CORE_VERSION + " · 추가 " + res.added + " · 수정 " + res.updated + " · 삭제 " + res.deleted + " · 예전 일정 정리 " + res.cleaned);
 }
@@ -232,7 +233,7 @@ function pullFromGoogle_() {
 
 let _mineUids = {};   // 욱진이 캘린더에 이미 있는 일정 (둘 다 초대된 일정은 한 번만)
 // 💗 냐냐 캘린더 → out에 nya:1로 더함. 읽기(Events.list)만 하고 쓰기는 안 함. 링크도 안 보냄 (보드에서 못 고치게)
-// 공유 안 됐거나 못 읽으면 조용히 건너뜀 (욱진이 동기화는 그대로)
+// 공유 안 됐거나 못 읽으면 건너뜀 (욱진이 동기화는 그대로). 돌려주는 값 = gsync.nya: 일정 수 | "none"(목록에 없음) | "err: …" → 보드 ⚙ 설정에 보임
 function pullNyanya_(out) {
   try {
     let id = null, pageToken;
@@ -241,7 +242,7 @@ function pullNyanya_(out) {
       (r.items || []).forEach(function (x) { if (!id && hex_("nyanya-cal:" + String(x.id).toLowerCase()) === NYA_CAL_HASH) id = x.id; });
       pageToken = r.nextPageToken;
     } while (!id && pageToken);
-    if (!id) return;
+    if (!id) return "none";
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const to = new Date(now.getFullYear(), now.getMonth() + 4, 1);
@@ -257,7 +258,8 @@ function pullNyanya_(out) {
       }
       out["n" + (i++)] = e;
     });
-  } catch (err) { Logger.log("냐냐 캘린더를 못 읽었어요: " + err); }
+    return i;
+  } catch (err) { Logger.log("냐냐 캘린더를 못 읽었어요: " + err); return "err: " + String(err).slice(0, 200); }
 }
 function hex_(text) {
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8)
