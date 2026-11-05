@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261105a";
-import { CHANGES } from "./changes.js?v=20261105a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261105a";
-import { mountAcctSet } from "./acctset.js?v=20261105a";
-import { mountReport } from "./report.js?v=20261105a";
-import { mountSummary } from "./summary.js?v=20261105a";
-import { mountPicker } from "./picker.js?v=20261105a";
-import { mountDatePick } from "./datepick.js?v=20261105a";
-import { mountRecSplit } from "./recsplit.js?v=20261105a";
-import { mountRecv } from "./recv.js?v=20261105a";
-import { mountTxFilter } from "./txfilter.js?v=20261105a";
-import { mountExtras } from "./extras.js?v=20261105a";
-import { mountBalance } from "./balance.js?v=20261105a";
-import { calSummary } from "./calsum.js?v=20261105a";
-import { firebaseConfig } from "./firebase-config.js?v=20261105a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261105b";
+import { CHANGES } from "./changes.js?v=20261105b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261105b";
+import { mountAcctSet } from "./acctset.js?v=20261105b";
+import { mountReport } from "./report.js?v=20261105b";
+import { mountSummary } from "./summary.js?v=20261105b";
+import { mountPicker } from "./picker.js?v=20261105b";
+import { mountDatePick } from "./datepick.js?v=20261105b";
+import { mountRecSplit } from "./recsplit.js?v=20261105b";
+import { mountRecv } from "./recv.js?v=20261105b";
+import { mountTxFilter } from "./txfilter.js?v=20261105b";
+import { mountExtras } from "./extras.js?v=20261105b";
+import { mountBalance } from "./balance.js?v=20261105b";
+import { calSummary } from "./calsum.js?v=20261105b";
+import { firebaseConfig } from "./firebase-config.js?v=20261105b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
