@@ -9,8 +9,9 @@
  *   · 구글 캘린더 일정 → 보드 달력에 보이게 보내기
  *   · 캘린더 두 개로 나눔: 기본 캘린더 = 욱진 일정(한 번 하는 할 일·D-DAY) · 따로 만든 🔥 욱진 실천 = 루틴(반복하는 할 일)·실천 기록
  *     → 기본 캘린더를 공유받은 사람에게 루틴·실천 기록은 안 보임 (예전에 기본 캘린더에 넣은 루틴·실천은 옮김)
+ *   · 💗 욱진이가 공유받은 냐냐 캘린더 → 보드 달력에 같이 보내기 (읽기만, 냐냐 캘린더는 절대 안 고침)
  */
-const CORE_VERSION = "2026-10-27b";
+const CORE_VERSION = "2026-11-05";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
@@ -19,6 +20,8 @@ const LOG_CAL = { name: "욱진 실천", tag: "ukjin-board:log" };   // 루틴·
 const OLD_PLAN_TAG = "ukjin-board:plan";   // 10/27 잠깐 따로 만들었던 '욱진 일정' 캘린더 → 있으면 지움 (기본 캘린더로 돌아옴)
 const COLOR = { plan: "9", done: "5", check: "2", dday: "11", log: "5", miss: "8" };   // 구글 일정 색: 파랑, 노랑(시간과 같이 끝낸 일 = 실천), 초록(시간 없이 체크만), 빨강, 노랑, 회색(못 한 일)
 const DOW = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+// 💗 냐냐 캘린더: 공개 저장소라 메일 주소 대신 SHA-256("nyanya-cal:"+캘린더 ID)로 찾음
+const NYA_CAL_HASH = "99b84421709c703512b9deb552a70049003b38116f04ac78f5e04906178573cb";
 const MARK = { plan: "📌 ", done: "🔥 ", check: "✅ ", dday: "🎯 D-DAY ", log: "🔥 ", miss: "❌ " };   // 제목 앞 이모지. 시간과 같이 끝낸 할 일은 실천 🔥, 시간 없이 체크만 한 일은 ✅, 지난 날 못 한 일은 ❌
 
 function ukjinSync(BOARD_PASSWORD) {
@@ -30,7 +33,9 @@ function ukjinSync(BOARD_PASSWORD) {
   const goals = getJson_(base + "/goals.json") || {};
   const logs = getJson_(base + "/logs.json") || {};
   const res = pushToGoogle_(tasks, goals, logs);
-  putJson_(base + "/gevents.json", pullFromGoogle_());
+  const gev = pullFromGoogle_();
+  pullNyanya_(gev);
+  putJson_(base + "/gevents.json", gev);
   putJson_(base + "/gsync.json", {
     at: Date.now(), email: Session.getEffectiveUser().getEmail(),
     added: res.added, updated: res.updated, deleted: res.deleted, cleaned: res.cleaned
@@ -207,10 +212,12 @@ function pullFromGoogle_() {
   const to = new Date(now.getFullYear(), now.getMonth() + 4, 1);
   const out = {};
   let i = 0;
+  _mineUids = {};
   listAll_(CAL, { timeMin: from.toISOString(), timeMax: to.toISOString(), singleEvents: true, orderBy: "startTime" }).forEach(function (ev) {
     const p = ev.extendedProperties && ev.extendedProperties.private;
     if (ev.status === "cancelled" || (p && p.ukjinApp === "1")) return;      // 보드가 넣은 건 보드에 이미 있음
     if (/실천 보드$/.test(String(ev.description || "").trim())) return;
+    if (ev.iCalUID) _mineUids[ev.iCalUID] = true;
     const e = { title: ev.summary || "(제목 없음)", link: ev.htmlLink || "" };
     if (ev.start.date) { e.date = ev.start.date; e.end = ev.end.date; }
     else {
@@ -221,6 +228,40 @@ function pullFromGoogle_() {
     out["e" + (i++)] = e;
   });
   return out;
+}
+
+let _mineUids = {};   // 욱진이 캘린더에 이미 있는 일정 (둘 다 초대된 일정은 한 번만)
+// 💗 냐냐 캘린더 → out에 nya:1로 더함. 읽기(Events.list)만 하고 쓰기는 안 함. 링크도 안 보냄 (보드에서 못 고치게)
+// 공유 안 됐거나 못 읽으면 조용히 건너뜀 (욱진이 동기화는 그대로)
+function pullNyanya_(out) {
+  try {
+    let id = null, pageToken;
+    do {
+      const r = Calendar.CalendarList.list({ maxResults: 250, pageToken: pageToken });
+      (r.items || []).forEach(function (x) { if (!id && hex_("nyanya-cal:" + String(x.id).toLowerCase()) === NYA_CAL_HASH) id = x.id; });
+      pageToken = r.nextPageToken;
+    } while (!id && pageToken);
+    if (!id) return;
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + 4, 1);
+    let i = 0;
+    listAll_(id, { timeMin: from.toISOString(), timeMax: to.toISOString(), singleEvents: true, orderBy: "startTime" }).forEach(function (ev) {
+      if (ev.status === "cancelled" || (ev.iCalUID && _mineUids[ev.iCalUID])) return;
+      const e = { title: ev.summary || "바쁨", nya: 1 };
+      if (ev.start.date) { e.date = ev.start.date; e.end = ev.end.date; }
+      else {
+        const s = new Date(ev.start.dateTime);
+        e.date = Utilities.formatDate(s, TZ, "yyyy-MM-dd");
+        e.time = Utilities.formatDate(s, TZ, "HH:mm");
+      }
+      out["n" + (i++)] = e;
+    });
+  } catch (err) { Logger.log("냐냐 캘린더를 못 읽었어요: " + err); }
+}
+function hex_(text) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8)
+    .map(function (b) { return ("0" + (b & 0xff).toString(16)).slice(-2); }).join("");
 }
 
 // ---------- 도우미 ----------
