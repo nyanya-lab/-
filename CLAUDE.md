@@ -25,7 +25,7 @@ docs/range.js          📅 기간 고르기 창 (냐냐 가계부와 같은 파
 docs/money.js          💰 돈 관리(가계부) 코드: 예산·지출·자산·분류 색·원형·카드값·줄 돈 자동 (app.js가 import, 바뀌는 값은 E.backend·E.testMode)
 docs/money.html        가계부 짧은 주소 → index.html?app=money (가계부 모드, money.webmanifest)
 docs/calsum.js         📝 달력 아래 ○월 정리 (#calSum, renderCalendar가 calSummary(달, env)로 그림): 실천 시간 평소(앞 12달 평균)·지난달 비교 · 실천한 날 · 할 일 체크 · 주 목표·연속 · 많이 한 목표·일 · 놓친 할 일 · 포인트
-docs/summary.js        📝 가계부 이번 달 정리 (냐냐 가계부 summary.js 옮김): 예산 탭 #sumPanel 📅 오늘 쓸 수 있는 돈(줄 돈은 예산 밖) · 💰 저축 목표 `settings.saveGoals[월]` · 한 줄 + 📑 보고서 '월간 정리' 카드·화면(report.js env.summary). 욱진용 = 💝 준 돈 따로(남은 돈 = 수입 − 준 돈 − 지출), 관리자 기기는 안 보임
+docs/summary.js        📝 가계부 이번 달 정리 (냐냐 가계부 summary.js 옮김, b73251e까지): 비교 기준 칩 지난달·최근 6개월·최근 1년·작년 같은 달(localStorage ukjin-sm-cmp) · 분류 표 + 차이 막대(BAR_MAX 100만, 폰은 표만) · ▸ 소분류 · 🧾 내역 창 #smPop(env.editMoney) · 예산 탭 #sumPanel 📅 오늘 쓸 수 있는 돈(줄 돈은 예산 밖) · 💰 저축 목표 `settings.saveGoals[월]` · 한 줄 + 📑 보고서 '월간 정리' 카드·화면(report.js env.summary). 욱진용 = 💝 준 돈 따로(남은 돈 = 수입 − 준 돈 − 지출), 관리자 기기는 안 보임
 docs/extras.js         🏥 보험금 챙기기 · 🎯 큰돈 모으기 · 🔗 보험금↔병원비 잇기(#insPick) · 못 받은 병원비 안내(#insSide·#insPhone) (냐냐 가계부 extras.js 옮김, 돌돌이 규칙 뺌). 병원비 = 분류·소분류에 병원·약국 (money/{id}/ins asked|got|skip, insBy·insFor), `settings.funds/{id}`
 docs/picker.js         🎀 고르는 칸(select) 둥근 창 (냐냐 가계부 picker.js 복사, 가계부 모드 + 마우스 기기만, 값을 바꿔 input·change를 보냄. CSS `.pk-`)
 docs/recsplit.js       ✂️ 기록 창 금액 나눠 적기 (냐냐 가계부 recsplit.js 복사, E.recSplit: reset·sync·collect·save, #mSplit). 위 칸 기록 = 나머지 금액, 나눈 줄 = 새 기록 (💙 공통비용 고르면 소분류 칸이 공통 분류, common·ccat·csub)
