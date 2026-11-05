@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261105b";
-import { CHANGES } from "./changes.js?v=20261105b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261105b";
-import { mountAcctSet } from "./acctset.js?v=20261105b";
-import { mountReport } from "./report.js?v=20261105b";
-import { mountSummary } from "./summary.js?v=20261105b";
-import { mountPicker } from "./picker.js?v=20261105b";
-import { mountDatePick } from "./datepick.js?v=20261105b";
-import { mountRecSplit } from "./recsplit.js?v=20261105b";
-import { mountRecv } from "./recv.js?v=20261105b";
-import { mountTxFilter } from "./txfilter.js?v=20261105b";
-import { mountExtras } from "./extras.js?v=20261105b";
-import { mountBalance } from "./balance.js?v=20261105b";
-import { calSummary } from "./calsum.js?v=20261105b";
-import { firebaseConfig } from "./firebase-config.js?v=20261105b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261105c";
+import { CHANGES } from "./changes.js?v=20261105c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261105c";
+import { mountAcctSet } from "./acctset.js?v=20261105c";
+import { mountReport } from "./report.js?v=20261105c";
+import { mountSummary } from "./summary.js?v=20261105c";
+import { mountPicker } from "./picker.js?v=20261105c";
+import { mountDatePick } from "./datepick.js?v=20261105c";
+import { mountRecSplit } from "./recsplit.js?v=20261105c";
+import { mountRecv } from "./recv.js?v=20261105c";
+import { mountTxFilter } from "./txfilter.js?v=20261105c";
+import { mountExtras } from "./extras.js?v=20261105c";
+import { mountBalance } from "./balance.js?v=20261105c";
+import { calSummary } from "./calsum.js?v=20261105c";
+import { firebaseConfig } from "./firebase-config.js?v=20261105c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -430,6 +430,14 @@ function renderGcalChip() {
   c.textContent = st === "ok" ? `구글 동기화 ${fmtTime(S.gsync.at).split(" ")[1]}` : st === "stale" ? "구글 동기화 멈춤" : "구글 캘린더 연결";
   c.classList.toggle("warn", st !== "ok");
 }
+// 💗 냐냐 캘린더를 찾았는지 (sync-core가 gsync.nya에 적음: 일정 수 | "none" | "err: …", 없으면 아직 예전 동기화 코드)
+function nyaCalLine(g) {
+  const n = g.nya;
+  if (n == null) return '<p class="small muted">💗 냐냐 캘린더: 동기화 코드가 아직 새 버전을 안 받았어요 (최대 15분).</p>';
+  if (n === "none") return '<p class="small" style="color:var(--danger)">💗 냐냐 캘린더를 못 찾았어요. 욱진이 구글 캘린더 왼쪽 [다른 캘린더]에 냐냐 캘린더가 있어야 해요 (공유 메일의 링크로 추가).</p>';
+  if (typeof n === "string") return `<p class="small" style="color:var(--danger)">💗 냐냐 캘린더를 못 읽었어요: ${esc(n.replace(/^err: /, ""))}</p>`;
+  return `<p class="small muted">💗 냐냐 캘린더: 일정 ${n}개 가져옴 (보기만)</p>`;
+}
 function renderGcalBox() {
   const box = $("gcalBox"), st = gsyncState(), g = S.gsync;
   if (st === "none") {
@@ -439,6 +447,7 @@ function renderGcalBox() {
   }
   box.innerHTML = `<p class="sync-line"><span class="sync-dot" data-state="${st === "ok" ? "ok" : "off"}"></span><span>${esc(g.email || "구글 계정")} 캘린더와 자동 동기화${st === "ok" ? " 중" : ""}</span></p>` +
     `<p class="small muted">마지막으로 맞춘 때: ${fmtTime(g.at)} · 추가 ${g.added || 0} · 수정 ${g.updated || 0} · 삭제 ${g.deleted || 0}${g.cleaned ? ` · 예전 일정 정리 ${g.cleaned}` : ""}</p>` +
+    nyaCalLine(g) +
     (st === "stale" ? '<p class="small" style="color:var(--danger)">20분 넘게 소식이 없어요. 스크립트가 멈췄을 수 있어요. 설정 방법 페이지의 \'문제 해결\'을 봐 주세요.</p>' : "") +
     '<p class="small muted">보드에서 바꾸면 5분 안에 구글 캘린더에 반영돼요. 구글에서는 📌 할 일 · 🔥 실천(시간 있음) · ✅ 체크만 · 🎯 D-DAY로 보여요.</p>' +
     '<div><a class="btn ghost small" href="google-sync.html" target="_blank" rel="noopener">설정 방법 다시 보기</a></div>';
