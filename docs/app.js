@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261106a";
-import { CHANGES } from "./changes.js?v=20261106a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261106a";
-import { mountAcctSet } from "./acctset.js?v=20261106a";
-import { mountReport } from "./report.js?v=20261106a";
-import { mountSummary } from "./summary.js?v=20261106a";
-import { mountPicker } from "./picker.js?v=20261106a";
-import { mountDatePick } from "./datepick.js?v=20261106a";
-import { mountRecSplit } from "./recsplit.js?v=20261106a";
-import { mountRecv } from "./recv.js?v=20261106a";
-import { mountTxFilter } from "./txfilter.js?v=20261106a";
-import { mountExtras } from "./extras.js?v=20261106a";
-import { mountBalance } from "./balance.js?v=20261106a";
-import { calSummary } from "./calsum.js?v=20261106a";
-import { firebaseConfig } from "./firebase-config.js?v=20261106a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261106c";
+import { CHANGES } from "./changes.js?v=20261106c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261106c";
+import { mountAcctSet } from "./acctset.js?v=20261106c";
+import { mountReport } from "./report.js?v=20261106c";
+import { mountSummary } from "./summary.js?v=20261106c";
+import { mountPicker } from "./picker.js?v=20261106c";
+import { mountDatePick } from "./datepick.js?v=20261106c";
+import { mountRecSplit } from "./recsplit.js?v=20261106c";
+import { mountRecv } from "./recv.js?v=20261106c";
+import { mountTxFilter } from "./txfilter.js?v=20261106c";
+import { mountExtras } from "./extras.js?v=20261106c";
+import { mountBalance } from "./balance.js?v=20261106c";
+import { calSummary } from "./calsum.js?v=20261106c";
+import { firebaseConfig } from "./firebase-config.js?v=20261106c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -126,14 +126,16 @@ function activeOn(x, d) {
   if (x.repeat === "nweek") return nweekOn(x, d);
   return x.repeat === "daily" || (x.days || []).includes(parseYmd(d).getDay());
 }
-// 주 N번: 한 주(일~토)에 times번 체크하면 그 주 남은 날엔 안 보임. 오늘부터 남은 날마다 체크박스.
+// 주 N번: 한 주(일~토)에 times번 체크하면 그 주 남은 날엔 안 보임 (오늘만 '덤'으로 남아서 더 할 수 있음, 2026-11-06). 오늘부터 남은 날마다 체크박스.
 // 지난 날 안 한 날은 ❌ 안 함 — 주가 끝났는데 못 채웠으면 그 주 마지막 날(토요일·끝나는 날)에만 ❌ 한 번
 const nweekNeed = (x) => Math.max(1, Number(x.times) || 1);
 function nweekCount(x, d) { const ws = sundayOf(d), dd = x.doneDates || {}; let n = 0; for (let i = 0; i < 7; i++) if (dd[addDays(ws, i)]) n++; return n; }
+const nweekExtra = (x, d) => x.repeat === "nweek" && !isDone(x, d) && nweekCount(x, d) >= nweekNeed(x);   // 이번 주 다 채우고 오늘 남은 '덤' (안 해도 ❌·📌 아님)
 function nweekOn(x, d) {
   if ((x.doneDates || {})[d]) return true;
-  if (nweekCount(x, d) >= nweekNeed(x)) return false;
-  const t = today(); if (d >= t) return true;
+  const t = today();
+  if (nweekCount(x, d) >= nweekNeed(x)) return d === t;   // 다 채웠어도 오늘은 더 할 수 있게
+ if (d >= t) return true;
   const sat = addDays(sundayOf(d), 6), last = x.end && x.end < sat ? x.end : sat;
   return last < t && d === last;
 }
@@ -539,7 +541,7 @@ function todayTasks() {
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
 function taskItem(x, day, upcoming, hideGoal) {
   const done = isDone(x, day), g = x.goalId && !hideGoal ? S.goals.get(x.goalId) : null, meta = [];
-  if (isRep(x)) meta.push(`<span class="tag daily">${esc(repeatLabel(x))}${x.repeat === "nweek" ? ` · 이번 주 ${nweekCount(x, day)}/${nweekNeed(x)}` : ""}</span>`);
+  if (isRep(x)) meta.push(`<span class="tag daily">${esc(repeatLabel(x))}${x.repeat === "nweek" ? ` · 이번 주 ${nweekCount(x, day)}/${nweekNeed(x)}${nweekExtra(x, day) ? " 다 채움 · 더 하면 덤" : ""}` : ""}</span>`);
   if (g) meta.push(`<span class="tag cat ${catCls(x.goalId)}">${esc(g.title)}</span>`);
   const tm = done && !x.noPractice ? taskMinutes(x.id, isRep(x) ? day : x.doneDate) : 0;   // 예산·수입 같은 실천 아닌 할 일엔 시간 안 보임
   if (tm) meta.push(`<span class="tag mono">⏱ ${fmtHM(tm)}</span>`);
@@ -661,7 +663,7 @@ function renderCalendar() {
     // 칸 안에 체크 버튼이 들어가서 칸 자체는 button 대신 role=button
     const pts = ptsDay && ptsDay[d] && ptsDay[d].sum;
     // 폰 칸: 대표 아이콘 두 개까지 (🎯 > 🎟️ > ✅ 끝낸 할 일 > 🔥 실천 기록 > ❌ > 📌 > 📅 > 💰) + 남은 할 일 수
-    const dayTs = rows(S.tasks).filter((x) => x.title && activeOn(x, d)), doneN = dayTs.filter((x) => isDone(x, d)).length, openN = dayTs.length - doneN;
+    const dayTs = rows(S.tasks).filter((x) => x.title && activeOn(x, d)), doneN = dayTs.filter((x) => isDone(x, d)).length, openN = dayTs.filter((x) => !isDone(x, d) && !nweekExtra(x, d)).length;
     const ics = [];
     if ((exams[d] || []).length) ics.push("🎯");
     if (cpDue.length) ics.push("🎟️");
@@ -681,7 +683,7 @@ function renderCalendar() {
   renderGcalChip();
   renderDaySide(); renderDayPanel();
   // 📝 그 달 정리 (calsum.js)
-  $("calSum").innerHTML = calSummary(m, { S, esc, fmtHM, today, addDays, rows, boardStart, noPracLog, practiceMinutes, practiced, weekRuns, streak, WEEK_GOAL, activeOn, isDone, isRep, lottoVisible, pointsLedger, PT_TICKET });
+  $("calSum").innerHTML = calSummary(m, { S, esc, fmtHM, today, addDays, rows, boardStart, noPracLog, practiceMinutes, practiced, weekRuns, streak, WEEK_GOAL, activeOn, nweekExtra, isDone, isRep, lottoVisible, pointsLedger, PT_TICKET });
 }
 // 🟩 주 도장판 (달력 줄 위 띠): 목표 5칸 ■ + 보너스 2칸 ★ (6일째 +15 · 7일째 🏆 +30) · 오른쪽 🔥 연속 ○주 (+그 주에 받은 연속 보너스)
 function weekBar(w) {
@@ -2120,7 +2122,7 @@ function renderDayForm() {
   $("dtDays").hidden = dt.rep !== "weekly";
   $("dtDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button class="chip" type="button" data-act="dtDay" data-d="${n}" aria-pressed="${dt.days.has(n)}">${DOW[n]}</button>`).join("");
   $("dtTimes").hidden = dt.rep !== "nweek"; $("dtTimes").innerHTML = `${[1, 2, 3, 4, 5, 6].map((n) => `<button class="chip" type="button" data-act="dtTimes" data-n="${n}" aria-pressed="${dt.times === n}">${n}번</button>`).join("")}`;
-  $("dtHint").textContent = dt.rep === "none" ? "" : dt.rep === "nweek" ? `${shortDate(ui.selDay)}부터 한 주(일~토)에 ${dt.times}번, 아무 요일이나 하면 돼요. ${dt.times}번 체크하면 그 주 남은 날엔 안 보여요.` : `${shortDate(ui.selDay)}부터 ${dt.rep === "daily" ? "매일" : "고른 요일마다"} 반복해요. 목표에 시험일이 있으면 그날까지만 반복해요.`;
+  $("dtHint").textContent = dt.rep === "none" ? "" : dt.rep === "nweek" ? `${shortDate(ui.selDay)}부터 한 주(일~토)에 ${dt.times}번, 아무 요일이나 하면 돼요. ${dt.times}번 채우면 그 주 남은 날엔 안 보이고, 더 하고 싶으면 그날 체크하면 돼요.` : `${shortDate(ui.selDay)}부터 ${dt.rep === "daily" ? "매일" : "고른 요일마다"} 반복해요. 목표에 시험일이 있으면 그날까지만 반복해요.`;
   const sel = $("dtGoal"), cur = sel.value;
   sel.innerHTML = '<option value="">없음</option>' + rows(S.goals).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
   if (cur && S.goals.has(cur)) sel.value = cur;
