@@ -46,7 +46,7 @@ export function calSummary(m, env) {
   let all = 0, done = 0; const miss = {};
   const tasks = rows(S.tasks).filter((x) => x.title);
   dayList.forEach((d) => tasks.forEach((x) => {
-    if (!env.activeOn(x, d)) return; all++;
+    if (!env.activeOn(x, d) || env.nweekExtra(x, d)) return; all++;   // 주 N번 다 채운 뒤 오늘 남은 덤은 안 셈
     if (env.isDone(x, d)) done++; else if (d < t) miss[x.title] = (miss[x.title] || 0) + 1;
   }));
   tasks.forEach((x) => { if (!env.isRep(x) && x.lateFrom && x.lateFrom >= me.from && x.lateFrom <= me.to) miss[x.title] = (miss[x.title] || 0) + 1; });
