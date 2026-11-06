@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261105e";
-import { CHANGES } from "./changes.js?v=20261105e";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261105e";
-import { mountAcctSet } from "./acctset.js?v=20261105e";
-import { mountReport } from "./report.js?v=20261105e";
-import { mountSummary } from "./summary.js?v=20261105e";
-import { mountPicker } from "./picker.js?v=20261105e";
-import { mountDatePick } from "./datepick.js?v=20261105e";
-import { mountRecSplit } from "./recsplit.js?v=20261105e";
-import { mountRecv } from "./recv.js?v=20261105e";
-import { mountTxFilter } from "./txfilter.js?v=20261105e";
-import { mountExtras } from "./extras.js?v=20261105e";
-import { mountBalance } from "./balance.js?v=20261105e";
-import { calSummary } from "./calsum.js?v=20261105e";
-import { firebaseConfig } from "./firebase-config.js?v=20261105e";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261106a";
+import { CHANGES } from "./changes.js?v=20261106a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261106a";
+import { mountAcctSet } from "./acctset.js?v=20261106a";
+import { mountReport } from "./report.js?v=20261106a";
+import { mountSummary } from "./summary.js?v=20261106a";
+import { mountPicker } from "./picker.js?v=20261106a";
+import { mountDatePick } from "./datepick.js?v=20261106a";
+import { mountRecSplit } from "./recsplit.js?v=20261106a";
+import { mountRecv } from "./recv.js?v=20261106a";
+import { mountTxFilter } from "./txfilter.js?v=20261106a";
+import { mountExtras } from "./extras.js?v=20261106a";
+import { mountBalance } from "./balance.js?v=20261106a";
+import { calSummary } from "./calsum.js?v=20261106a";
+import { firebaseConfig } from "./firebase-config.js?v=20261106a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1696,11 +1696,19 @@ function renderSideReqs(me) {
     items.slice(0, MAX).map(([a, ic, t]) => `<button type="button" data-act="${a}" title="${esc(t)}"><span>${ic}</span><span class="t">${esc(t)}</span></button>`).join("") +
     (items.length > MAX ? `<small>+${items.length - MAX}개 더</small>` : "");
 }
+// 💌 냐냐 알림함: 욱진이 기기에서 요청을 보내면 notify/{id} = {k req|coupon, text, at}만 따로 적음 (사진·다른 데이터 없이 가벼운 칸).
+// 냐냐 보드 Apps Script가 5분마다 이것만 읽어서 냐냐 보드 할 일·구글 캘린더에 올림. 관리자 기기·테스트 모드에선 안 적음
+function notifyNyanya(k, text) {
+  if (isAdminDevice() || testMode || !backend) return;
+  const id = "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  backend.rootUpdate({ ["notify/" + id]: { k, text: String(text).slice(0, 120), at: Date.now() } }).catch(() => {});
+}
 $("cpReqForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
   const text = $("cpReqText").value.trim(); if (!text) { toast("어떤 쿠폰이면 좋겠는지 적어 주세요."); return; }
   const id = "q" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   saveLotto({ reqs: { [id]: { text, at: Date.now(), status: "new" } } }, "💌 쿠폰 요청을 보냈어요!").then(() => { $("cpReqText").value = ""; });
+  notifyNyanya("coupon", text);
 });
 
 // ---------- 📱 폰: 달력 아래 고른 날 자세히 (처음엔 오늘) ----------
@@ -2941,6 +2949,7 @@ $("reqForm").addEventListener("submit", (ev) => {
   if (reqPics.length) doc.images = reqPics.slice();
   act(backend.add("requests", doc), "요청을 남겼어요.")
     .then(() => { $("reqText").value = ""; reqPics = []; renderReqPics(); ui.reqFilter = "open"; }).catch(() => {});
+  notifyNyanya("req", text);
 });
 // 메모·답변은 입력을 멈추면 저장
 let reqNoteTimer = null;
