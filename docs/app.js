@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261110b";
-import { CHANGES } from "./changes.js?v=20261110b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261110b";
-import { mountAcctSet } from "./acctset.js?v=20261110b";
-import { mountReport } from "./report.js?v=20261110b";
-import { mountSummary } from "./summary.js?v=20261110b";
-import { mountPicker } from "./picker.js?v=20261110b";
-import { mountDatePick } from "./datepick.js?v=20261110b";
-import { mountRecSplit } from "./recsplit.js?v=20261110b";
-import { mountRecv } from "./recv.js?v=20261110b";
-import { mountTxFilter } from "./txfilter.js?v=20261110b";
-import { mountExtras } from "./extras.js?v=20261110b";
-import { mountBalance } from "./balance.js?v=20261110b";
-import { calSummary } from "./calsum.js?v=20261110b";
-import { firebaseConfig } from "./firebase-config.js?v=20261110b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261110c";
+import { CHANGES } from "./changes.js?v=20261110c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261110c";
+import { mountAcctSet } from "./acctset.js?v=20261110c";
+import { mountReport } from "./report.js?v=20261110c";
+import { mountSummary } from "./summary.js?v=20261110c";
+import { mountPicker } from "./picker.js?v=20261110c";
+import { mountDatePick } from "./datepick.js?v=20261110c";
+import { mountRecSplit } from "./recsplit.js?v=20261110c";
+import { mountRecv } from "./recv.js?v=20261110c";
+import { mountTxFilter } from "./txfilter.js?v=20261110c";
+import { mountExtras } from "./extras.js?v=20261110c";
+import { mountBalance } from "./balance.js?v=20261110c";
+import { calSummary } from "./calsum.js?v=20261110c";
+import { firebaseConfig } from "./firebase-config.js?v=20261110c";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -3154,7 +3154,7 @@ const rv = mountRecv({ $, S, esc, moneyCats, won, act, rid, toast, render, today
 // 🔎 내역 표 정렬·거르기 (냐냐 가계부 txfilter.js 복사: 머리줄 클릭·오른쪽 클릭, 폰은 표 위 버튼)
 const tf = mountTxFilter({ $, esc, won, toast, render, shortDate, acctName, ccOf, cntAmt, recvName: (id) => rv.nameOf(id) });
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
-bindMoney({ $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
+bindMoney({ ls: "ukjin", repeatBuiltin: true, addCommonCat: true, $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
   commonOpen: () => commonOpen(),   // ❤️ 공통 탭이 열렸는지 (공개 전이면 숨김)
   commonMark: () => commonMine(),   // ❤️ 공통비용 체크 칸 (욱진이 기기 진짜 가계부만)
   commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null),   // 🏷 ❤️ 체크하면 분류 칸 = 공통 분류 (공통 저장소, 고치는 건 냐냐만)

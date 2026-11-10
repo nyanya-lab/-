@@ -1,6 +1,9 @@
+// ★ 두 가계부(냐냐·욱진)가 같이 쓰는 파일 — 원본은 냐냐 보드 docs/money/, 욱진 보드 docs/는 글자 하나까지 같은 복사본. 한쪽만 고치지 말고, 보드마다 달라야 하는 건 env로 가르기.
 // 💰 돈 관리 (가계부) — 보드(index.html)와 가계부 모드(money.html → index.html?app=money)가 같이 쓰는 코드
-//   냐냐 가계부(냐냐 보드 docs/money/money.js)는 이 파일의 복사본(짝 코드). 2026-10-22 냐냐 쪽 고침을 한꺼번에 가져옴 (BC카드 엑셀 업로드만 빼고).
-//   냐냐 전용 칸은 env로 켬: mineView(내 몫으로 보기) · pieFull(꽉 찬 원형) · settleCommon(정산 장부) · saveCommonCats(공통 분류 고치기) — 욱진 보드는 안 켬
+//   2026-11-10부터 냐냐 가계부·욱진 가계부가 이 파일 하나를 같이 씀 (그 전엔 서로 복사본이라 손으로 옮겼음).
+//   냐냐 전용 칸은 env로 켬: mineView(내 몫으로 보기) · pieFull(꽉 찬 원형) · settleCommon(정산 장부) · saveCommonCats(공통 분류 고치기)
+//   보드마다 다른 것도 env로: ls(기기 기억 이름 앞말 "nyanya"/"ukjin") · commonOpen·commonMark(❤️ 공통 탭·체크 칸이 보이는지) · give === false(💝 줄 돈 숨김, 냐냐) · defaultCats(기본 분류 바꾸기, 냐냐)
+//   · repeatBuiltin(🔁 매월 반복을 이 파일 것으로, 욱진 — 냐냐는 repeat.js가 같은 #repeatPanel을 맡음) · addCommonCat(❤️ 처음 적으면 내 지출 분류에 '💙 공통비용' 더함, 욱진)
 // 한 달 예산 · 지출 기록 · 자산(통장·카드·현금, 카드 결제일) · 분류·색·원형 그래프 · 줄 돈 15일 자동 · 카드값 할 일 · 연습 데이터
 // 화면 마크업은 index.html의 #moneyPage(⚙ 설정 탭 #catEditor·#curEditor 포함) · #acctDlg · #mDrawer · #bulkDlg. 보드 쪽 공통 함수·상태는 시작할 때 bindMoney(env)로 받음
 // (따로 떼어 새 가계부를 만들 땐: 이 파일 + index.html의 위 마크업 + env로 넘기는 공통 함수(저장소·$·toast 등)만 가져가면 됨)
@@ -12,9 +15,11 @@ import { openRangePicker, rangeLabel, shiftRange, wholeMonth } from "./range.js?
 // (따로 떼어 새 가계부를 만들 땐: 이 파일 + index.html의 위 마크업 + env로 넘기는 공통 함수(저장소·$·toast 등)만 가져가면 됨)
 
 let E = null;   // 보드 쪽 환경 (값이 바뀌는 backend·testMode·realBackend 는 E.이름 으로 읽음)
+const lsKey = (k) => `${(E && E.ls) || "nyanya"}-${k}`;   // 이 기기에 기억하는 이름 (localStorage): 냐냐 nyanya-…, 욱진 ukjin-…
 let $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won;
 export function bindMoney(env) {
   E = env;
+  if (env.defaultCats) Object.assign(MONEY_CATS, env.defaultCats);   // 냐냐: 기본 분류가 조금 다름
   ({ $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won } = env);
 }
 
@@ -255,7 +260,7 @@ export function syncGive() {
 export let repeatSyncing = false;
 const repeatRules = () => Object.entries(S.settings.moneyRepeat || {}).filter(([, r]) => r && r.amount && r.from && r.account && (r.kind !== "move" || r.toAccount));
 export function syncRepeat() {
-  if (repeatSyncing || !E.backend || !S.loaded || E.testMode) return;
+  if (!E.repeatBuiltin || repeatSyncing || !E.backend || !S.loaded || E.testMode) return;
   const t = today(), tm = t.slice(0, 7), jobs = [], made = {};
   repeatRules().forEach(([id, r]) => {
     for (let m = r.from, n = 0; m <= tm && n < 240; m = shiftMonth(m, 1), n++) {
@@ -491,16 +496,17 @@ export const ACCT_ICON = { bank: "🏦", card: "💳", cash: "💵", save: "🐷
 
 // 관리자(여자친구) 기기에선 지출·자산은 안 보이게 (예산 금액 · 수입 · 보낸 돈만). 화면에서만 숨김
 export function moneyAdminView() { return isAdminDevice(); }
+export const curMonth = () => ui.month;   // 📝 이번 달 정리(summary.js)가 예산 탭에서 고른 달을 읽음
 export function moneyShown(x) { return !moneyAdminView() || x.kind === "income" || x.kind === "transfer"; }   // 달력 날짜·검색에서도 같게
 // 돈 관리 탭: 예산 · 지출 · 자산 · 통계 (이 기기에 기억). 관리자 기기는 자산 탭 없음, 지출 탭은 '내역'(수입·보낸 돈 목록만)
-export function mTab() { let v = "budget"; try { v = localStorage.getItem("ukjin-mtab") || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "report", "settings", "common"].includes(v) ||   /* 📑 report = 보고서 탭 (냐냐 가계부 report.js 복사) */ (v === "common" && !(E.commonOpen && E.commonOpen())) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
-export function setMTab(k) { try { localStorage.setItem("ukjin-mtab", k); } catch (e) { /* 무시 */ } if (k === "assets") { ui.asSel = null; ui.asOpen = false; } renderMoney(); }
+export function mTab() { let v = "budget"; try { v = localStorage.getItem(lsKey("mtab")) || "budget"; } catch (e) { /* 무시 */ } if (!["budget", "spend", "cal", "assets", "stats", "report", "settings", "common"].includes(v) ||   /* 📑 report = 보고서 탭 (냐냐 가계부 report.js 복사) */ (v === "common" && !(E.commonOpen && E.commonOpen())) || ((v === "assets" || v === "settings" || v === "cal") && moneyAdminView())) v = "budget"; return v; }
+export function setMTab(k) { try { localStorage.setItem(lsKey("mtab"), k); } catch (e) { /* 무시 */ } if (k === "assets") { ui.asSel = null; ui.asOpen = false; } renderMoney(); }
 // 관리자 보드 '예산' 안 작은 탭: plan 한 달 예산 / hist 달마다 표 (이 기기에 기억). 욱진이 가계부엔 탭도 달마다 표도 없음 (냐냐 가계부 예산 탭처럼 한 달 예산만)
-function planTab() { try { return localStorage.getItem("ukjin-plan-tab") === "hist" ? "hist" : "plan"; } catch (e) { return "plan"; } }
-function setPlanTab(k) { try { localStorage.setItem("ukjin-plan-tab", k); } catch (e) { /* 무시 */ } }
+function planTab() { try { return localStorage.getItem(lsKey("plan-tab")) === "hist" ? "hist" : "plan"; } catch (e) { return "plan"; } }
+function setPlanTab(k) { try { localStorage.setItem(lsKey("plan-tab"), k); } catch (e) { /* 무시 */ } }
 export function renderMTabs() {
   const adm = moneyAdminView(), tab = adm ? "stats" : mTab(), pt = adm ? planTab() : "";
-  $("planTabs").hidden = !adm;
+  if ($("planTabs")) $("planTabs").hidden = !adm;   // 관리자 보드(욱진)에만 있는 작은 탭
   document.querySelectorAll("#planTabs button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === pt)));
   $("mTabs").hidden = adm;
   // 가계부 모드: 옆 메뉴(PC)·아래 메뉴(폰)의 예산·지출·자산·통계 / 제목: 관리자 보드는 '예산', 그 외 '가계부'
@@ -520,7 +526,7 @@ export function renderMTabs() {
   document.querySelector("#moneyPage .page-head").hidden = appMoney && !adm && tab !== "budget";
   const mb = $("mineBtn"); if (mb) { mb.hidden = !E.mineView || adm || !["budget", "spend", "cal", "stats", "report"].includes(tab); mb.setAttribute("aria-pressed", String(mineOn())); }   // 💑 내 몫으로 보기 (냐냐)
   if (tab === "settings" && !$("catEditor").contains(document.activeElement)) { renderCatEditor(); renderCurEditor(); }
-  if (tab === "settings") renderRepeat();
+  if (tab === "settings" && E.repeatBuiltin) renderRepeat();
 }
 export function renderMoney() {
   const m = ui.month, r = monthTotals(m), bal = balances(), adm = moneyAdminView();
@@ -596,7 +602,7 @@ export function renderMoney() {
 const AS_GROUPS = [["cash", "현금"], ["bank", "통장"], ["card", "카드"], ["save", "저축"]];
 function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 무시 */ } }
-function asFold() { try { return JSON.parse(lsGet("ukjin-as-fold") || "{}") || {}; } catch (e) { return {}; } }
+function asFold() { try { return JSON.parse(lsGet(lsKey("as-fold")) || "{}") || {}; } catch (e) { return {}; } }
 // 고른 자산: 탭에 처음 들어오면 '전체'(__all = 자산·부채·합계 한눈에)
 export function asSelected() { return S.accounts.has(ui.asSel) ? ui.asSel : "__all"; }
 // 이 자산에 들고 난 돈 (d: + 들어옴 / − 나감), 날짜 → 넣은 순서
@@ -1095,8 +1101,8 @@ export function acctOptions(sel, cur, kind) {
     (cur && !ok.some((a) => a.id === cur) ? `<option value="${esc(cur)}">${esc(acctName(cur))}</option>` : "");
   sel.value = cur || "";
 }
-export function lastAcct(kind) { try { return localStorage.getItem("ukjin-lastacct-" + kind) || ""; } catch (e) { return ""; } }
-export function rememberAcct(kind, id) { try { localStorage.setItem("ukjin-lastacct-" + kind, id || ""); } catch (e) { /* 무시 */ } }
+export function lastAcct(kind) { try { return localStorage.getItem(lsKey("lastacct-") + kind) || ""; } catch (e) { return ""; } }
+export function rememberAcct(kind, id) { try { localStorage.setItem(lsKey("lastacct-") + kind, id || ""); } catch (e) { /* 무시 */ } }
 const CAT_BLANK = '<option value="" hidden>분류 선택</option>';   // 기본 분류 없음, 새 기록은 빈칸에서 시작 (안 고르면 저장 안 됨, 이체 빼고)
 export function renderMoneyForm(fill) {
   const k = ui.kind, editing = ui.mEdit && S.money.get(ui.mEdit);
@@ -1444,7 +1450,7 @@ export function initMoney() {
       savedId = id;
       if (sp) await E.recSplit.save(sp, doc, id0);
       if (E.recv) await E.recv.sync(id, doc);
-      if (doc.ccat && !moneyCats("expense").includes(doc.cat)) await E.backend.saveSettings({ moneyCats: { income: moneyCats("income"), expense: moneyCats("expense").concat(doc.cat), transfer: moneyCats("transfer") } });   // ❤️ 처음 적으면 내 지출 분류에 '💙 공통비용'도 더함
+      if (E.addCommonCat && doc.ccat && !moneyCats("expense").includes(doc.cat)) await E.backend.saveSettings({ moneyCats: { income: moneyCats("income"), expense: moneyCats("expense").concat(doc.cat), transfer: moneyCats("transfer") } });   // ❤️ 처음 적으면 내 지출 분류에 '💙 공통비용'도 더함
       for (const p of fresh) await E.backend.putPic(p.id, { full: p.full, thumb: p.thumb, money: id, kind: "money", title: doc.memo || doc.cat || "", date, at: Date.now() });
       for (const pid of gone) await E.backend.putPic(pid, null);
       if (wantSettle) await E.settleCommon(amount, id, { date, memo: doc.memo || doc.note || "이체", money: id });
@@ -1492,13 +1498,13 @@ export function initMoney() {
     list.push(v); saveCats(k, list);
   });
 
-  // 🔁 매월 반복 칸 입력
-  $("repeatPanel").addEventListener("input", (ev) => {
+  // 🔁 매월 반복 칸 입력 (E.repeatBuiltin일 때만 — 냐냐는 repeat.js가 같은 칸을 맡음)
+  if (E.repeatBuiltin) $("repeatPanel").addEventListener("input", (ev) => {
     const k = ev.target.dataset.rp; if (!k) return;
     if (k === "amount") { rpf.amount = commaNum(ev.target.value, true); ev.target.value = rpf.amount; }   // 앞에 - = 마이너스(환불처럼)
     else if (k === "day" || k === "memo" || k === "from") rpf[k] = ev.target.value;
   });
-  $("repeatPanel").addEventListener("change", (ev) => {
+  if (E.repeatBuiltin) $("repeatPanel").addEventListener("change", (ev) => {
     const k = ev.target.dataset.rp; if (!k || !/^(kind|account|toAccount|cat|sub)$/.test(k)) return;
     rpf[k] = ev.target.value;
     if (k === "kind") { rpf.cat = ""; rpf.sub = ""; rpf.toAccount = ""; } if (k === "cat") rpf.sub = ""; if (k === "account" && rpf.toAccount === rpf.account) rpf.toAccount = "";
@@ -1562,7 +1568,7 @@ export function moneyAction(a, el, id, t) {
   if (a === "asSel") { ui.asSel = id; ui.asOpen = true; renderMoney(); if (window.matchMedia("(max-width: 1100px)").matches) $("asGrid").scrollIntoView({ block: "start" }); return true; }
   if (a === "asBack") { ui.asOpen = false; renderMoney(); $("asGrid").scrollIntoView({ block: "start" }); return true; }
   if (a === "cardPayNow") { payCardNow(id); return true; }
-  if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet("ukjin-as-fold", JSON.stringify(f)); renderMoney(); return true; }
+  if (a === "asFold") { const f = asFold(); if (f[el.dataset.k]) delete f[el.dataset.k]; else f[el.dataset.k] = 1; lsSet(lsKey("as-fold"), JSON.stringify(f)); renderMoney(); return true; }
   if (a === "mcKind") { ui.mcKind = el.dataset.k; renderMoney(); return true; }
   if (a === "mcDay") { ui.mcDay = el.dataset.day; if (ui.mcDay.slice(0, 7) !== ui.month) ui.month = ui.mcDay.slice(0, 7); renderMoney(); if (window.matchMedia("(max-width: 1100px)").matches) $("mcDay").scrollIntoView({ behavior: "smooth", block: "nearest" }); return true; }
   if (a === "mcAdd") { const d = ui.mcDay && ui.mcDay.slice(0, 7) === ui.month ? ui.mcDay : today().slice(0, 7) === ui.month ? today() : `${ui.month}-01`; txAdd(); $("mDate").value = d; return true; }
