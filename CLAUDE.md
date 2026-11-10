@@ -11,6 +11,7 @@
 - 정적 파일을 바꾸면 `docs/index.html`·`docs/app.js`·`docs/google-sync.html` 안의 `?v=날짜문자` 값을 같이 올리기 (브라우저 캐시 때문).
 - 빌드 도구 없음. 순수 HTML/CSS/JS (ES 모듈). 로컬 확인은 `cd docs && python -m http.server` → http://localhost:8000
   (모듈이라 파일을 더블클릭해서 열면 안 됨)
+- 🔒 **화면 확인 = 로컬 확인 모드** (2026-11-11, 냐냐 보드와 같은 방식): `python tools/snapshot.py`(진짜 데이터 사본 → `docs/_local/snapshot.json`, .gitignore, uriPw·adminHash·사진은 뺌) → `.claude/launch.json`의 `docs`(8000번)를 띄우고 http://localhost:8000/?local (실천 보드) · http://localhost:8000/index.html?app=money&local (가계부). 로그인 없이 진짜 숫자, 욱진이 기기처럼 보임. 메모리 보드(`localStart` → `testBackend`)라 뭘 눌러도 서버에 안 쓰고 Firebase도 안 불러옴, 새로고침하면 사본으로. `window.__local` = {S, render}로 가짜 기록 넣어 보기. 데이터를 고친 뒤엔 사본 다시 받기. 진짜 사이트에 비밀번호를 넣는 건 Claude가 안 함(주인이 직접). 서버 데이터 읽기는 `python tools/db.py get <경로>`.
 - 비밀번호·API 키 같은 비밀값은 저장소(공개)에 절대 넣지 않기.
 - 욱진이가 보는 걸 바꾸면 `docs/changes.js` 맨 위(오늘 날짜 묶음)에 쉬운 말로 한 줄 추가하기 → 사이트 '설명서 → 업데이트 내역'과 새 버전 알림 창에 보임.
   쓰는 법이 바뀌면 `docs/index.html`의 사용 설명서(`#helpGuide`, 주제 탭마다 `data-help` 묶음)도 같이 고치기.
