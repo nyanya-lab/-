@@ -1,12 +1,14 @@
-// 🏥 보험금 챙기기 · 🎯 큰돈 모으기 — 냐냐 가계부 docs/money/extras.js를 옮김 (2026-11-01, 돌돌이 규칙은 뺌) — 📑 보고서 첫 화면 카드 → 화면 (report.js가 그려 줌)
-// 🏥 병원비(지출, 분류나 소분류에 병원·약국, ❤️ 공통 빼고) 마다 money/{id}/ins = "asked"(청구함) | "got"(받음) | "skip"(청구 안 함), 없으면 아직 표시 안 함. 금액은 안 바꿈.
+// ★ 두 가계부(냐냐·욱진)가 같이 쓰는 파일 — 원본은 냐냐 보드 docs/money/, 욱진 보드 docs/는 글자 하나까지 같은 복사본. 한쪽만 고치지 말고, 보드마다 달라야 하는 건 env로 가르기.
+// 🏥 보험금 챙기기 · 🎯 큰돈 모으기 (2026-10-31 냐냐 가계부에서 시작) — 📑 보고서 첫 화면 카드 → 화면 (report.js가 그려 줌)
+// 보드마다 다른 것 (env): claimCat = true(욱진)면 분류 이름에 병원·약국이 있어도 병원비 · dogIns = true(냐냐)면 보험금 소분류 돌돌이/실손에 따라 병원비를 먼저 걸러 보여 줌
+// 🏥 병원비(지출, 소분류에 병원·약국, ❤️ 공통 빼고) 마다 money/{id}/ins = "asked"(청구함) | "got"(받음) | "skip"(청구 안 함), 없으면 아직 표시 안 함. 금액은 안 바꿈.
 // 🔗 보험금 ↔ 병원비 잇기 (2026-11-01 냐냐 요청): 🏥보험금 수입을 저장하면 고르는 창 #insPick → 수입 money/{id}/insFor/{병원비 id} = true, 병원비 money/{id}/insBy/{수입 id} = true + ins "got".
 //    한 보험금에 병원비 여러 건, 병원비 하나에 보험금 여러 건(중복) 다 됨. 이어진 보험금을 지우면 그 병원비는 다시 '청구 전'으로 보임(statusOf). 금액은 안 바꿈.
 // 🔔 못 받은 병원비: 최근 3달 청구 전·청구함이 있으면 왼쪽 메뉴 '가계부 설정' 아래 #insSide, 폰은 예산 탭 맨 위 #insPhone (떠 있는 알림이 내용을 가려서 2026-11-01 옮김).
 // 🎯 settings.funds/{id} = {name, goal, saved, date(목표일, 없어도 됨), at} — 통장 잔액과 상관없는 '봉투' 메모. 기록·잔액은 안 건드림.
 const ST = { asked: "청구함", got: "받음", skip: "청구 안 함" };
 export function mountExtras(env) {
-  const { esc, won, S } = env;
+  const { esc, won, S } = env, CLAIM_CAT = !!env.claimCat, DOG = !!env.dogIns;
   const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const ui = { per: 3, show: "" };   // 🏥 몇 달 · 보는 상태 ("" = 청구 전, "in" = 들어온 보험금)
   // 상태: 이어진 보험금이 살아 있으면 받음. 이어졌던 보험금을 다 지웠으면 표시 없음으로
@@ -15,7 +17,7 @@ export function mountExtras(env) {
   const isIns = (x) => x && x.kind === "income" && /보험금/.test(x.cat || "");
   const md = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
   const fromOf = (n) => { const d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth() - n + 1, 1)); };
-  const isClaim = (x) => x && (x.kind === "expense" || !x.kind) && !x.common && !x.recvTo && !/공통비용/.test(x.cat || "") && /병원|약국/.test(`${x.cat || ""} ${x.sub || ""}`) && (Number(x.amount) || 0) > 0;
+  const isClaim = (x) => x && (x.kind === "expense" || !x.kind) && !x.common && !x.recvTo && !/공통비용/.test(x.cat || "") && /병원|약국/.test(`${CLAIM_CAT ? x.cat || "" : ""} ${x.sub || ""}`) && (Number(x.amount) || 0) > 0;
   function claims(from) {
     const out = []; S.money.forEach((x, id) => { if (isClaim(x) && env.isWon(x) && x.date >= from) out.push({ ...x, id }); });
     return out.sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -106,13 +108,14 @@ export function mountExtras(env) {
   // ---------- 🔗 병원비 고르는 창 ----------
   let dlg = null, pk = null;   // pk = { id(보험금), sel:Set, all(이미 받은 것도 보기) }
   function pickHtml() {
-    const inc = S.money.get(pk.id), from = fromOf(pk.per), l = claims(from);
+    const inc = S.money.get(pk.id), wantDog = DOG && /돌돌이/.test(inc.sub || ""), wantMe = DOG && /실손/.test(inc.sub || "");
+    const from = fromOf(pk.per), l = claims(from).filter((x) => pk.any || !(wantDog || wantMe) || (wantDog ? /돌돌이/.test(x.cat || "") : !/돌돌이/.test(x.cat || "")) || pk.sel.has(x.id));
     const open = l.filter((x) => ["", "asked"].includes(statusOf(x)) || pk.sel.has(x.id)), done = l.filter((x) => !open.includes(x));
     const row = (x) => { const by = liveBy(x).filter((i) => i !== pk.id); return `<label class="ex-pk"><input type="checkbox" data-pk="${esc(x.id)}"${pk.sel.has(x.id) ? " checked" : ""}><span class="ex-main"><b>${esc(x.note || x.memo || x.sub || x.cat)}</b><span class="muted small">${md(x.date)} · ${esc(x.cat || "")}${by.length ? ` · 이미 보험금 ${by.length}건 이어짐` : ""}</span></span><b class="won">${won(x.amount)}</b></label>`; };
     const sum = claims("2000-01-01").filter((x) => pk.sel.has(x.id)).reduce((t, x) => t + (Number(x.amount) || 0), 0), amt = Number(inc.amount) || 0;
     return `<div class="dlg-head"><h3>🔗 어떤 병원비의 보험금이에요?</h3></div>
       <div class="rpt-ed-body"><div class="rpt-es"><p class="small" style="margin:0">${md(inc.date)} ${esc(inc.sub || "보험금")} <b class="won plus">${won(amt)}</b> · 여러 건 고를 수 있고, 이미 받은 병원비도 또 고를 수 있어요.</p>
-        <div class="rpt-chips">${[3, 6, 12, 36].map((n) => `<button type="button" class="rpt-chip${pk.per === n ? " on" : ""}" data-pkp="${n}">최근 ${n}달</button>`).join("")}</div></div>
+        <div class="rpt-chips">${[3, 6, 12, 36].map((n) => `<button type="button" class="rpt-chip${pk.per === n ? " on" : ""}" data-pkp="${n}">최근 ${n}달</button>`).join("")}${wantDog || wantMe ? `<button type="button" class="rpt-chip${pk.any ? " on" : ""}" data-pka="1">${wantDog ? "돌돌이" : "내"} 것만 말고 다 보기</button>` : ""}</div></div>
         <div class="rpt-es"><h4>아직 못 받은 것 (${open.length})</h4><div class="ex-list">${open.map(row).join("") || `<p class="muted small" style="margin:0">없어요.</p>`}</div></div>
         ${done.length ? `<div class="rpt-es"><h4>이미 받았거나 청구 안 한 것 (${done.length})</h4><div class="ex-list">${done.map(row).join("")}</div></div>` : ""}</div>
       <div class="dlg-foot rpt-ed-foot"><span class="small">고른 병원비 ${pk.sel.size}건 <b class="won">${won(sum)}</b>${sum ? ` <span class="muted">· 돌려받은 비율 ${Math.round(amt / sum * 100)}%</span>` : ""}</span><span class="rpt-ed-btns"><button type="button" class="btn ghost" data-pkc="1">건너뛰기</button><button type="button" class="btn" data-pks="1">🔗 잇기</button></span></div>`;
@@ -125,12 +128,13 @@ export function mountExtras(env) {
       dlg.addEventListener("click", (e) => {
         const b = e.target.closest("button"); if (!b) return;
         if (b.dataset.pkp) { pk.per = Number(b.dataset.pkp); draw(); }
+        else if (b.dataset.pka) { pk.any = !pk.any; draw(); }
         else if (b.dataset.pkc) dlg.close();
         else if (b.dataset.pks) savePick();
       });
     }
     const sel = new Set(Object.keys(inc.insFor || {}).filter((x) => S.money.has(x)));
-    pk = { id, sel, was: new Set(sel), per: 6 };
+    pk = { id, sel, was: new Set(sel), per: 6, any: false };
     draw(); dlg.showModal();
   }
   function draw() { const top = dlg.querySelector(".rpt-ed-body"), y = top ? top.scrollTop : 0; dlg.innerHTML = pickHtml(); const t = dlg.querySelector(".rpt-ed-body"); if (t) t.scrollTop = y; }

@@ -15,7 +15,7 @@
 - 욱진이가 보는 걸 바꾸면 `docs/changes.js` 맨 위(오늘 날짜 묶음)에 쉬운 말로 한 줄 추가하기 → 사이트 '설명서 → 업데이트 내역'과 새 버전 알림 창에 보임.
   쓰는 법이 바뀌면 `docs/index.html`의 사용 설명서(`#helpGuide`, 주제 탭마다 `data-help` 묶음)도 같이 고치기.
 - 🧩 **가계부 코드 하나로 합치는 중 (2026-11-10 시작, 원본 = 냐냐 보드 `../nyanya-board/docs/money/`)**: 맨 위에 `// ★ 두 가계부…` 줄이 있는 파일은 두 저장소에 **글자 하나까지 같은 복사본** — 한쪽만 고치지 말고 냐냐 쪽을 고친 뒤 그대로 복사, 보드마다 달라야 하는 건 env로 가르기(예: `env.ls` = 기기 기억 이름 앞말 "ukjin"/"nyanya"). 확인: `cmp docs/파일 ../nyanya-board/docs/money/파일`.
-  ① 끝 (2026-11-10): range·picker·datepick·recsplit·txfilter·balance·acctset·recv·report ② 남음: extras·summary ③ money.js ④ 욱진 보드가 냐냐 보드 파일을 불러 쓰고 복사본 지우기.
+  ① ② 끝 (2026-11-10): range·picker·datepick·recsplit·txfilter·balance·acctset·recv·report · extras(env.claimCat 욱진 / dogIns 냐냐)·summary(env.give·adminView 욱진, ls) ③ 남음: money.js ④ 욱진 보드가 냐냐 보드 파일을 불러 쓰고 복사본 지우기.
   ⚠️ 같은 파일을 `?v=`가 다른 주소로 두 번 불러오면 따로 두 벌이 뜸 → `app.js`의 `./recv.js?v=`는 `acctset.js` 안의 것과 **같은 값**이어야 함 (`?v=` 한꺼번에 올릴 때 `acctset.js` 안도 같이, 냐냐 쪽 `app.js`·`cardimport.js`도).
 
 ## 파일

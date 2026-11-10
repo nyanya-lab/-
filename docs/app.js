@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261110a";
-import { CHANGES } from "./changes.js?v=20261110a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261110a";
-import { mountAcctSet } from "./acctset.js?v=20261110a";
-import { mountReport } from "./report.js?v=20261110a";
-import { mountSummary } from "./summary.js?v=20261110a";
-import { mountPicker } from "./picker.js?v=20261110a";
-import { mountDatePick } from "./datepick.js?v=20261110a";
-import { mountRecSplit } from "./recsplit.js?v=20261110a";
-import { mountRecv } from "./recv.js?v=20261110a";
-import { mountTxFilter } from "./txfilter.js?v=20261110a";
-import { mountExtras } from "./extras.js?v=20261110a";
-import { mountBalance } from "./balance.js?v=20261110a";
-import { calSummary } from "./calsum.js?v=20261110a";
-import { firebaseConfig } from "./firebase-config.js?v=20261110a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261110b";
+import { CHANGES } from "./changes.js?v=20261110b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261110b";
+import { mountAcctSet } from "./acctset.js?v=20261110b";
+import { mountReport } from "./report.js?v=20261110b";
+import { mountSummary } from "./summary.js?v=20261110b";
+import { mountPicker } from "./picker.js?v=20261110b";
+import { mountDatePick } from "./datepick.js?v=20261110b";
+import { mountRecSplit } from "./recsplit.js?v=20261110b";
+import { mountRecv } from "./recv.js?v=20261110b";
+import { mountTxFilter } from "./txfilter.js?v=20261110b";
+import { mountExtras } from "./extras.js?v=20261110b";
+import { mountBalance } from "./balance.js?v=20261110b";
+import { calSummary } from "./calsum.js?v=20261110b";
+import { firebaseConfig } from "./firebase-config.js?v=20261110b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -3170,9 +3170,9 @@ initMoney();
 var acctSet = mountAcctSet($("acctSetPanel"), { S, backend: () => backend, toast, act, esc, rows });
 // 📝 이번 달 정리 (냐냐 가계부 summary.js 옮김) — 예산 탭엔 한 줄 + [자세히 ›] → 📑 보고서 '월간 정리' 화면 (관리자 기기는 안 보임)
 // 🏥 보험금 챙기기 · 🎯 큰돈 모으기 (보고서 카드, 냐냐 가계부 extras.js 옮김) + 🔗 보험금 저장하면 병원비 고르기 + 못 받은 병원비 안내
-var exView = mountExtras({ S, esc, won, isWon, toast, backend: () => backend, editMoney,
+var exView = mountExtras({ claimCat: true, S, esc, won, isWon, toast, backend: () => backend, editMoney,
   openClaims: () => { setMTab("report"); rptView.openClaims(); } });
-var smView = mountSummary($("sumPanel"), { S, esc, won, isWon, ccOf, editMoney, mineOn, cntAmt, monthTotals, planOf, partner, adminView: moneyAdminView, month: () => ui.month, balances, sortedAccts, toast, backend: () => backend,
+var smView = mountSummary($("sumPanel"), { ls: "ukjin", give: true, S, esc, won, isWon, ccOf, editMoney, mineOn, cntAmt, monthTotals, planOf, partner, adminView: moneyAdminView, month: () => ui.month, balances, sortedAccts, toast, backend: () => backend,
   openReport: (m) => { setMTab("report"); rptView.openMonth(m); }, rerender: () => rptView.render() });
 // 📑 보고서 탭 (냐냐 가계부 report.js 복사): 저장한 보고서는 settings.reports (rootUpdate)
 var rptView = mountReport($("reportRoot"), { ls: "ukjin", S, backend: () => backend, summary: smView, extras: exView, toast, esc, won, isWon, acctName, subs: moneySubsOf, chart: setChart, pie: pieHtml, txRow: (x) => txRow(x, false), mineOn, cntAmt, isSettleIn,
