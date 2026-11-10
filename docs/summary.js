@@ -1,11 +1,12 @@
-// 📝 이번 달 정리 — 냐냐 가계부 docs/money/summary.js를 옮김 (2026-10-29, 비교 기준·표·내역 창은 b73251e까지 2026-11-05). 예산 탭 '한 달 예산' 아래 #sumPanel 한 줄 + 📑 보고서 '월간 정리' 카드·화면. API 없이 가계부 숫자로 문장을 만듦
+// ★ 두 가계부(냐냐·욱진)가 같이 쓰는 파일 — 원본은 냐냐 보드 docs/money/, 욱진 보드 docs/는 글자 하나까지 같은 복사본. 한쪽만 고치지 말고, 보드마다 달라야 하는 건 env로 가르기.
+// 📝 이번 달 정리 (2026-10-29 냐냐 가계부에서 시작, 비교 기준·표·내역 창 2026-11-05). 예산 탭 '한 달 예산' 아래 #sumPanel 한 줄 + 📑 보고서 '월간 정리' 카드·화면. API 없이 가계부 숫자로 문장을 만듦
 // 둘 다 씀: 예산 탭 '한 달 예산' 아래 #sumPanel = 한 줄 + [자세히 ›](env.openReport) · 📑 보고서 탭 '📝 월간 정리' 카드·화면 = full(m)·card(m)
-// 고른 달(예산 탭 달 넘기기)을 지난달과 비교 (2026-11-05 전엔 평소 = 앞 12달 평균도). 이번 달이면 오늘 날짜까지만, 지난달도 같은 날짜까지.
+// 고른 달(예산 탭 달 넘기기)을 고른 비교 기준(지난달·최근 6개월·최근 1년·작년 같은 달)과 비교. 이번 달이면 오늘 날짜까지만, 비교하는 달도 같은 날짜까지.
 // 화면: 쓴 돈 칸 4개 → 한 줄 → 왼쪽 분류별 차이 막대(diverge) · 오른쪽 예산·큰 지출·외식·택시·저축·순자산 (폰은 위아래)
-// 욱진: 💝 줄 돈(transfer)은 쓴 돈이 아니라 따로 (남은 돈 = 들어온 돈 − 준 돈 − 쓴 돈). 예산 금액은 planOf items.amount. 관리자 기기(지출 숨김)에선 안 보임.
+// 보드마다 다른 것 (env): ls = 기기 기억 이름 앞말("nyanya"/"ukjin") · adminView() = 관리자 기기면 안 보임(욱진) · give = true(욱진)면 💝 줄 돈(transfer)은 쓴 돈이 아니라 따로 (남은 돈 = 들어온 돈 − 준 돈 − 쓴 돈). 예산 금액은 planOf items.amount. 관리자 기기(지출 숨김)에선 안 보임.
 // 💑 내 몫 보기면 money.js monthTotals와 같게 공통비용 절반·욱진입금 뺌 (env.cntAmt). 데이터는 안 바꿈.
 export function mountSummary(root, env) {
-  const { esc, won, S } = env;
+  const { esc, won, S } = env, GIVE = !!env.give, LS_CMP = (env.ls || "nyanya") + "-sm-cmp", adminView = () => !!(env.adminView && env.adminView());
   const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const shift = (m, k) => { const [y, mo] = m.split("-").map(Number), d = new Date(y, mo - 1 + k, 1); return ymd(d).slice(0, 7); };
   const lastDay = (m) => { const [y, mo] = m.split("-").map(Number); return new Date(y, mo, 0).getDate(); };
@@ -38,7 +39,7 @@ export function mountSummary(root, env) {
       }
     });
     list.sort((a, b) => b.amt - a.amt);
-    return { exp: r.exp, inc: r.inc, out: r.out, byCat: r.byCat, bySub, list, save, food, foodN, taxi, taxiN };
+    return { exp: r.exp, inc: r.inc, out: GIVE ? r.out || 0 : 0, byCat: r.byCat, bySub, list, save, food, foodN, taxi, taxiN };
   }
 
   function build(m) {
@@ -63,12 +64,12 @@ export function mountSummary(root, env) {
     const pl = env.planOf(m), over = pl.items.map((v) => ({ c: v.cat, amt: v.show, used: me.byCat[v.cat] || 0 })).filter((v) => v.used > v.amt && v.amt > 0).sort((a, b) => (b.used - b.amt) - (a.used - a.amt));
     return { m, now, day, me, prev, cmp, rows, pl, over, range: rangeOf(m, day) };
   }
-  // 🔀 비교 기준 (2026-11-05 냐냐: 지난달 · 최근 6개월 · 최근 1년 · 1년 전 같은 달) — 이 기기에만 기억 (localStorage ukjin-sm-cmp)
+  // 🔀 비교 기준 (2026-11-05 냐냐: 지난달 · 최근 6개월 · 최근 1년 · 1년 전 같은 달) — 이 기기에만 기억 (localStorage {env.ls}-sm-cmp)
   const BAR_MAX = 1000000;   // 차이 막대 고정 눈금 (원)
   const openCats = new Set();   // 월간 정리 표에서 펼친 분류 (메모리에만)
   const CMPS = { prev: "지난달", m6: "최근 6개월", y1: "최근 1년", ly: "작년 같은 달" };
-  function getCmp() { try { const v = localStorage.getItem("ukjin-sm-cmp"); return CMPS[v] ? v : "prev"; } catch (e) { return "prev"; } }
-  function setCmp(v) { try { localStorage.setItem("ukjin-sm-cmp", v); } catch (e) { /* 무시 */ } }
+  function getCmp() { try { const v = localStorage.getItem(LS_CMP); return CMPS[v] ? v : "prev"; } catch (e) { return "prev"; } }
+  function setCmp(v) { try { localStorage.setItem(LS_CMP, v); } catch (e) { /* 무시 */ } }
   // 비교할 숫자: 지난달·작년 같은 달은 그 달, 6개월·1년은 기록 있는 달만 평균 (이번 달이면 모두 같은 날짜까지)
   // name = 문장에 쓰는 이름, col = 표 머리줄
   function baseOf(m, day, cmp) {
@@ -102,7 +103,7 @@ export function mountSummary(root, env) {
     const d = s.me.exp - b.exp;
     return Math.abs(d) < 10000 ? `${b.name}이랑 비슷하게 썼어요.` : d < 0 ? `${b.name}보다 <b class="sm-good">${man(d)} 덜</b> 썼어요 👍` : `${b.name}보다 <b class="sm-bad">${man(d)} 더</b> 썼어요.`;
   };
-  const subOf = (s) => { const mon = Number(s.m.slice(5)); return [s.now ? `${mon}월 1일~${s.day}일 · 비교하는 달도 ${s.day}일까지` : "", s.prev.avg ? `기록 있는 ${s.prev.n}달 평균` : "", env.mineOn() ? "💑 내 몫 기준" : ""].filter(Boolean).join(" · "); };   // 욱진: 지난달 비교일 때 끝에 ' · '가 남던 것 고침
+  const subOf = (s) => { const mon = Number(s.m.slice(5)); return [s.now ? `${mon}월 1일~${s.day}일 · 비교하는 달도 ${s.day}일까지` : "", s.prev.avg ? `기록 있는 ${s.prev.n}달 평균` : "", env.mineOn() ? "💑 내 몫 기준" : ""].filter(Boolean).join(" · "); };   // 지난달 비교일 때 끝에 ' · '가 남던 것 고침
   const val = (n) => (n < 0 ? "−" : "") + man(n);
   const cnt = (n) => `${Math.round(n * 10) / 10}번`;
   const vsB = (s, t) => `<span class="muted">· ${s.prev.name} ${t}</span>`;
@@ -154,7 +155,7 @@ export function mountSummary(root, env) {
 
   // 📑 보고서 화면 (월간 정리)
   let shown = null;   // 지금 화면에 그린 월간 정리 (내역 창이 씀)
-  function full(m) { if (env.adminView()) { shown = null; return `<p class="muted">관리자 기기에선 지출을 안 보여서 정리도 안 보여요.</p>`; } const s = build(m); shown = s.empty ? null : s; return s.empty ? `<p class="muted">${esc(s.empty)}</p>` : html(s); }
+  function full(m) { if (adminView()) { shown = null; return `<p class="muted">관리자 기기에선 지출을 안 보여서 정리도 안 보여요.</p>`; } const s = build(m); shown = s.empty ? null : s; return s.empty ? `<p class="muted">${esc(s.empty)}</p>` : html(s); }
   // 🧾 내역 창: 분류(›소분류)의 이번 달 기록 + 비교 달 기록(지난달·작년 같은 달일 때, 평균이면 이번 달만). 줄을 누르면 그 기록 고치기
   function recPop(c, sub) {
     const s = shown; if (!s) return;
@@ -169,7 +170,7 @@ export function mountSummary(root, env) {
     if (!dl.open) dl.showModal();
   }
   // 📑 보고서 첫 화면 카드: 쓴 돈 + 한 줄 (관리자 기기는 카드 없음)
-  function card(m) { if (env.adminView()) return null; const s = build(m); return s.empty ? { exp: 0, line: s.empty } : { exp: s.me.exp, line: headline(s).replace(/<[^>]+>/g, "") }; }
+  function card(m) { if (adminView()) return null; const s = build(m); return s.empty ? { exp: 0, line: s.empty } : { exp: s.me.exp, line: headline(s).replace(/<[^>]+>/g, "") }; }
   // 💰 저축 목표: settings.saveGoals[월] = 금액, 안 정한 달은 그 전 가장 가까운 달 것 (예산처럼 이어짐)
   function goalOf(m) {
     const all = S.settings.saveGoals || {}, ks = Object.keys(all).filter((k) => k <= m && all[k] != null).sort();
@@ -179,12 +180,12 @@ export function mountSummary(root, env) {
     const goal = goalOf(m), t = ymd(new Date()), now = m === t.slice(0, 7);
     if (m > t.slice(0, 7) && !goal) return `<div class="sm-goal"><b class="sm-t">💰 저축 목표</b><input type="text" inputmode="numeric" id="smGoal" placeholder="금액 (원)" aria-label="저축 목표"></div>`;
     const moved = m > t.slice(0, 7) ? 0 : take(rangeOf(m, now ? Number(t.slice(8)) : 31)).save, pct = goal ? Math.max(0, Math.min(100, Math.round(moved / goal * 100))) : 0;
-    const inc = env.planOf(m), rest = inc.income - inc.total - (inc.give || 0) - goal;   // 💝 줄 돈도 빼고
+    const inc = env.planOf(m), rest = inc.income - inc.total - (GIVE ? inc.give || 0 : 0) - goal;   // 욱진: 💝 줄 돈도 빼고
     return `<div class="sm-goal"><b class="sm-t">💰 저축 목표</b><input type="text" inputmode="numeric" id="smGoal" value="${goal ? goal.toLocaleString() : ""}" placeholder="금액 (원)" aria-label="저축 목표">` +
-      `<span class="sm-txt">${esc(String(Number(m.slice(5))))}월에 넘긴 돈 <b>${moved < 0 ? "−" : ""}${won(moved)}</b>${goal ? ` · ${moved >= goal ? `<b class="sm-good">목표 달성 🎉</b>` : `${man(goal - moved)} 남음`}` : ""}${goal && inc.items.length ? ` <span class="muted">· 예산대로 쓰고 💝 줄 돈·저축까지 하면 ${rest < 0 ? `<span class="sm-bad">${man(rest)} 모자라요</span>` : `${man(rest)} 남아요`}</span>` : ""}</span>` +
+      `<span class="sm-txt">${esc(String(Number(m.slice(5))))}월에 넘긴 돈 <b>${moved < 0 ? "−" : ""}${won(moved)}</b>${goal ? ` · ${moved >= goal ? `<b class="sm-good">목표 달성 🎉</b>` : `${man(goal - moved)} 남음`}` : ""}${goal && inc.items.length ? ` <span class="muted">· 예산대로 쓰고 ${GIVE ? "💝 줄 돈·저축까지 하면" : "저축하면"} ${rest < 0 ? `<span class="sm-bad">${man(rest)} 모자라요</span>` : `${man(rest)} 남아요`}</span>` : ""}</span>` +
       (goal ? `<div class="bar sm-bar"><i style="width:${pct}%"></i></div>` : "") + `</div>`;
   }
-  // 📅 오늘 쓸 수 있는 돈 (이번 달·예산 있을 때만): (예산 − 예산 분류에 쓴 돈 − 아직 안 나간 고정비) ÷ 남은 날(오늘 포함). 💝 줄 돈은 예산 밖이라 계산에 안 들어감
+  // 📅 오늘 쓸 수 있는 돈 (이번 달·예산 있을 때만): (예산 − 예산 분류에 쓴 돈 − 아직 안 나간 고정비) ÷ 남은 날(오늘 포함). (욱진) 💝 줄 돈은 예산 밖이라 계산에 안 들어감
   // 고정비 = 🔁 매월 반복 중 이번 달 아직 안 만들어진 지출(예산 분류만) + 지난달 소분류 '이자' 중 이번 달 아직 없는 것
   function pendingFixed(m, planned) {
     let t = 0; const day = Number(ymd(new Date()).slice(8));
@@ -201,7 +202,7 @@ export function mountSummary(root, env) {
   // 💰 예산 탭: 오늘 쓸 돈 · 저축 목표 · 한 줄 + 자세히 ›
   function render() {
     const m = env.month();
-    if (!m || !S.loaded || env.adminView()) return;   // 탭마다 보이기·숨기기는 money.js(data-mtab), 관리자 기기는 .no-admin
+    if (!m || !S.loaded || adminView()) return;   // 탭마다 보이기·숨기기는 money.js(data-mtab), 관리자 기기는 .no-admin
     const s = build(m), mon = Number(m.slice(5));
     let line = s.empty ? esc(s.empty) : headline(s);
     if (!s.empty && s.pl.items.length) line += ` <span class="muted">· 예산 ${s.pl.total ? Math.round(s.me.exp / s.pl.total * 100) : 0}% 씀${s.over.length ? ` · <span class="sm-bad">${s.over.length}개 분류 초과</span>` : ""}</span>`;
