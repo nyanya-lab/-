@@ -1,18 +1,18 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261106c";
-import { CHANGES } from "./changes.js?v=20261106c";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261106c";
-import { mountAcctSet } from "./acctset.js?v=20261106c";
-import { mountReport } from "./report.js?v=20261106c";
-import { mountSummary } from "./summary.js?v=20261106c";
-import { mountPicker } from "./picker.js?v=20261106c";
-import { mountDatePick } from "./datepick.js?v=20261106c";
-import { mountRecSplit } from "./recsplit.js?v=20261106c";
-import { mountRecv } from "./recv.js?v=20261106c";
-import { mountTxFilter } from "./txfilter.js?v=20261106c";
-import { mountExtras } from "./extras.js?v=20261106c";
-import { mountBalance } from "./balance.js?v=20261106c";
-import { calSummary } from "./calsum.js?v=20261106c";
-import { firebaseConfig } from "./firebase-config.js?v=20261106c";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261110a";
+import { CHANGES } from "./changes.js?v=20261110a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261110a";
+import { mountAcctSet } from "./acctset.js?v=20261110a";
+import { mountReport } from "./report.js?v=20261110a";
+import { mountSummary } from "./summary.js?v=20261110a";
+import { mountPicker } from "./picker.js?v=20261110a";
+import { mountDatePick } from "./datepick.js?v=20261110a";
+import { mountRecSplit } from "./recsplit.js?v=20261110a";
+import { mountRecv } from "./recv.js?v=20261110a";
+import { mountTxFilter } from "./txfilter.js?v=20261110a";
+import { mountExtras } from "./extras.js?v=20261110a";
+import { mountBalance } from "./balance.js?v=20261110a";
+import { calSummary } from "./calsum.js?v=20261110a";
+import { firebaseConfig } from "./firebase-config.js?v=20261110a";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -3175,7 +3175,7 @@ var exView = mountExtras({ S, esc, won, isWon, toast, backend: () => backend, ed
 var smView = mountSummary($("sumPanel"), { S, esc, won, isWon, ccOf, editMoney, mineOn, cntAmt, monthTotals, planOf, partner, adminView: moneyAdminView, month: () => ui.month, balances, sortedAccts, toast, backend: () => backend,
   openReport: (m) => { setMTab("report"); rptView.openMonth(m); }, rerender: () => rptView.render() });
 // 📑 보고서 탭 (냐냐 가계부 report.js 복사): 저장한 보고서는 settings.reports (rootUpdate)
-var rptView = mountReport($("reportRoot"), { S, backend: () => backend, summary: smView, extras: exView, toast, esc, won, isWon, acctName, subs: moneySubsOf, chart: setChart, pie: pieHtml, txRow: (x) => txRow(x, false), mineOn, cntAmt, isSettleIn,
+var rptView = mountReport($("reportRoot"), { ls: "ukjin", S, backend: () => backend, summary: smView, extras: exView, toast, esc, won, isWon, acctName, subs: moneySubsOf, chart: setChart, pie: pieHtml, txRow: (x) => txRow(x, false), mineOn, cntAmt, isSettleIn,
   accts: () => sortedAccts(), cats: (k) => { const c = (S.settings.moneyCats || {})[k]; return (c && c.length ? c : MONEY_CATS[k] || []).slice(); } });
 var balPanel = mountBalance($("balPanel"), { S, backend: () => backend, toast, act, esc, won: wonS, rows, balances });
 // ⚙ 가계부 설정 탭 안 작은 탭: 분류 · 자산 · 반복 · 화폐 (이 기기에 기억)
