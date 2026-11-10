@@ -1,18 +1,19 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261111a";
-import { CHANGES } from "./changes.js?v=20261111a";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, syncRepeat, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261111a";
-import { mountAcctSet } from "./acctset.js?v=20261111a";
-import { mountReport } from "./report.js?v=20261111a";
-import { mountSummary } from "./summary.js?v=20261111a";
-import { mountPicker } from "./picker.js?v=20261111a";
-import { mountDatePick } from "./datepick.js?v=20261111a";
-import { mountRecSplit } from "./recsplit.js?v=20261111a";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261111b";
+import { CHANGES } from "./changes.js?v=20261111b";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261111b";
+import { mountRepeat } from "./repeat.js?v=20261111b";
+import { mountAcctSet } from "./acctset.js?v=20261111b";
+import { mountReport } from "./report.js?v=20261111b";
+import { mountSummary } from "./summary.js?v=20261111b";
+import { mountPicker } from "./picker.js?v=20261111b";
+import { mountDatePick } from "./datepick.js?v=20261111b";
+import { mountRecSplit } from "./recsplit.js?v=20261111b";
 import { mountRecv } from "./recv.js?v=20261110c";
-import { mountTxFilter } from "./txfilter.js?v=20261111a";
-import { mountExtras } from "./extras.js?v=20261111a";
-import { mountBalance } from "./balance.js?v=20261111a";
-import { calSummary } from "./calsum.js?v=20261111a";
-import { firebaseConfig } from "./firebase-config.js?v=20261111a";
+import { mountTxFilter } from "./txfilter.js?v=20261111b";
+import { mountExtras } from "./extras.js?v=20261111b";
+import { mountBalance } from "./balance.js?v=20261111b";
+import { calSummary } from "./calsum.js?v=20261111b";
+import { firebaseConfig } from "./firebase-config.js?v=20261111b";
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -2450,7 +2451,7 @@ function render() {
   refreshGoalColors(); renderHeader(); renderTimerBar(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons();
   // 저절로 고치는 일들(벌칙·돈 할 일·카드값·줄 돈): 관리자 기기가 테스트 모드로 바뀌기 직전엔 진짜 보드에 쓰지 않게 건너뜀
-  if (!(APP === "board" && !testMode && isAdminDevice() && !sessionReal())) { sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); syncRepeat(); reviewTask(); }
+  if (!(APP === "board" && !testMode && isAdminDevice() && !sessionReal())) { sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); if (!testMode && rpPanel) rpPanel.run(); reviewTask(); }
   renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   maybePraise();
@@ -2466,7 +2467,7 @@ function render() {
   if (S.loaded && ui.page === "coupons" && !lottoVisible()) { location.hash = "#calendar"; }   // 공개 전엔 쿠폰함 주소로 와도 달력으로 if (!$("searchResults").hidden) renderSearch();
   if (S.loaded && uriNewsReady && !newsChecked) { newsChecked = true; maybeShowNews(); }   // 우리 탭 내역까지 받은 뒤에
   if ($("settingsDlg").open) renderGcalBox();
-  if (APP === "money" || ui.page === "money") { if (acctSet) acctSet.render(); if (balPanel) balPanel.render(); fitPanels(); }
+  if (APP === "money" || ui.page === "money") { if (acctSet) acctSet.render(); if (balPanel) balPanel.render(); if (rpPanel) rpPanel.render(); fitPanels(); }
   if (APP === "money") { renderCommon(); if (rptView) rptView.render(); if (smView) smView.render(); if (exView) exView.renderBar(); }   // ⚙ 가계부 설정 '자산' 칸 · 📌 PC 내역·통계·자산 목록만 스크롤
 }
 
@@ -3168,7 +3169,7 @@ const rv = mountRecv({ $, S, esc, moneyCats, won, act, rid, toast, render, today
 // 🔎 내역 표 정렬·거르기 (냐냐 가계부 txfilter.js 복사: 머리줄 클릭·오른쪽 클릭, 폰은 표 위 버튼)
 const tf = mountTxFilter({ $, esc, won, toast, render, shortDate, acctName, ccOf, cntAmt, recvName: (id) => rv.nameOf(id) });
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
-bindMoney({ ls: "ukjin", repeatBuiltin: true, addCommonCat: true, $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
+bindMoney({ ls: "ukjin", addCommonCat: true, $, DEFAULTS, S, act, amtVal, clone, closeDlg, commaNum, deepMerge, esc, isAdminDevice, moneyShort, monthLabel, openDlg, pad, partner, quietly, ready, render, rid, rows, shiftMonth, shortDate, shrinkPic, statTile, toast, today, ui, viewPic, won,
   commonOpen: () => commonOpen(),   // ❤️ 공통 탭이 열렸는지 (공개 전이면 숨김)
   commonMark: () => commonMine(),   // ❤️ 공통비용 체크 칸 (욱진이 기기 진짜 가계부만)
   commonCats: () => (uriApi && uriApi.cats ? uriApi.cats() : null),   // 🏷 ❤️ 체크하면 분류 칸 = 공통 분류 (공통 저장소, 고치는 건 냐냐만)
@@ -3182,6 +3183,10 @@ bindMoney({ ls: "ukjin", repeatBuiltin: true, addCommonCat: true, $, DEFAULTS, S
 initMoney();
 // 🏦 자산 관리(이름·계좌번호·메모·🙈 숨기기) · 🧮 실제 잔액 맞추기 — 가계부 설정 '자산' 작은 탭 (냐냐 가계부 acctset.js·balance.js 복사)
 var acctSet = mountAcctSet($("acctSetPanel"), { S, backend: () => backend, toast, act, esc, rows });
+// 🔁 매월 반복 (가계부 설정 '반복' 작은 탭) — 냐냐 가계부와 같은 repeat.js. 날짜가 된 기록 만들기(run)는 render에서 욱진이 기기일 때만 부름
+var rpPanel = mountRepeat($("repeatPanel"), { S, backend: () => backend, toast, act, esc, won, rows, today, rid, btnSm: "small", amtHint: "금액 (앞에 - = 마이너스)",
+  amtHtml: (r) => { if (r.kind === "move") return `<b class="won">${won(r.amount)}</b>`; const up = (r.kind === "income") !== (r.amount < 0); return `<b class="won ${up ? "plus" : "minus"}">${up ? "+" : "-"}${won(Math.abs(r.amount))}</b>`; },
+  cats: (k) => { const c = (S.settings.moneyCats || {})[k]; return (c && c.length ? c : MONEY_CATS[k] || []).slice(); }, subs: moneySubsOf, acctOpts: acctOptsHtml });
 // 📝 이번 달 정리 (냐냐 가계부 summary.js 옮김) — 예산 탭엔 한 줄 + [자세히 ›] → 📑 보고서 '월간 정리' 화면 (관리자 기기는 안 보임)
 // 🏥 보험금 챙기기 · 🎯 큰돈 모으기 (보고서 카드, 냐냐 가계부 extras.js 옮김) + 🔗 보험금 저장하면 병원비 고르기 + 못 받은 병원비 안내
 var exView = mountExtras({ claimCat: true, S, esc, won, isWon, toast, backend: () => backend, editMoney,

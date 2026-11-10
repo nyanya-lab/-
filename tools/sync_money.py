@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 UK = os.path.join(HERE, "..", "docs")
 NY = os.path.join(HERE, "..", "..", "nyanya-board", "docs", "money")
 FILES = ["money.js", "summary.js", "extras.js", "report.js", "recv.js", "recsplit.js", "txfilter.js",
-         "range.js", "picker.js", "datepick.js", "acctset.js", "balance.js"]
+         "repeat.js", "range.js", "picker.js", "datepick.js", "acctset.js", "balance.js"]
 
 
 def read(path):
