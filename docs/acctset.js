@@ -1,10 +1,11 @@
-// 🏦 자산 관리 (가계부 설정 '자산' 작은 탭) — 냐냐 가계부 docs/money/acctset.js를 그대로 복사 (고치면 냐냐 쪽도 같이 볼지 생각하기)
+// ★ 두 가계부(냐냐·욱진)가 같이 쓰는 파일 — 원본은 냐냐 보드 docs/money/, 욱진 보드 docs/는 글자 하나까지 같은 복사본. 한쪽만 고치지 말고, 보드마다 달라야 하는 건 env로 가르기.
+// 🏦 자산 관리 (가계부 설정 '자산' 작은 탭)
 // 자산마다 이름 · 계좌번호(accounts.number) · 메모(accounts.memo) · 🤝 공동(accounts.joint) · 🙈 숨기기(accounts.hidden)를 한곳에서 고침.
-// 🤝 공동 = 둘이 같이 쓰는 통장(데이트통장, 결혼 후 합친 통장): 이 자산으로 적은 ❤️ 공통비용은 '같이 냄'(정산할 돈에서 빠짐 — 욱진 보드는 app.js renderCommon, 날짜 기준 없이 전부: 욱진 쪽엔 그 전 ❤️ 기록이 없었음)
+// 🤝 공동 = 둘이 같이 쓰는 통장(데이트통장, 결혼 후 합친 통장): 이 자산으로 적은 ❤️ 공통비용은 '같이 냄'(정산할 돈에서 빠짐 — 냐냐: app.js mirrorCommon, 2026-10-26부터 적은 것만 / 욱진: app.js renderCommon, 날짜 기준 없이 전부)
 // 칸에서 나가면(change) 그 칸만 저장. 계좌번호·메모는 자산 목록·자산별 보기에 보임 (money.js).
 // 숨긴 자산도 여기엔 다 보임 (흐리게) → 다시 보이게 할 수 있음.
 
-import { isRecvAcct } from "./recv.js?v=20261106c";
+import { isRecvAcct } from "./recv.js?v=20261110a";
 const ICON = { cash: "💵", bank: "🏦", card: "💳", save: "🐷" };
 const GROUPS = [["cash", "현금"], ["bank", "통장"], ["card", "카드"], ["save", "저축·투자"]];
 

@@ -1,5 +1,6 @@
-// 🤲 받을 돈 — 냐냐 가계부 docs/money/recv.js 옮김 (2026-11-02, 커밋 c9bd248까지): 남의 몫을 내가 대신 낸 돈을 체크 하나로 적고, 받을 때는 목록에서 골라 이체 한 번으로.
-// 기록 방식: 실제 지출(카드 31,500) + 받을 돈 자산에 같은 금액 마이너스 지출(짝) → 내 지출은 0, 받을 돈만 자산에 남음.
+// ★ 두 가계부(냐냐·욱진)가 같이 쓰는 파일 — 원본은 냐냐 보드 docs/money/, 욱진 보드 docs/는 글자 하나까지 같은 복사본. 한쪽만 고치지 말고, 보드마다 달라야 하는 건 env로 가르기.
+// 🤲 받을 돈 (2026-11-02 냐냐 요청): 욱진·친구 몫을 내가 대신 낸 돈을 체크 하나로 적고, 받을 때는 목록에서 골라 이체 한 번으로.
+// 냐냐가 편한가계부 때부터 적던 방식 그대로: 실제 지출(BC 31,500) + 받을 돈 자산에 같은 금액 마이너스 지출(짝) → 내 지출은 0, 받을 돈만 자산에 남음.
 // 기록: 실제 지출 recvTo = 받을 돈 자산 id / 짝 money/{id}-rv = { amount -금액, account 받을 돈 자산, recvOf 실제 지출 id } (날짜·분류·내용은 실제 지출과 같음)
 // 받았을 때: 받을 돈 자산 → 통장 이체 한 건 + 고른 줄마다 recvPaid = 이체 id. 그 이체를 지우면 다시 안 받은 돈으로 돌아옴.
 // 받을 돈 자산 = accounts.recv (안 정했으면 이름에 빌려준·받기·받을). 자산 관리 🤲에서 켜고 끔.
@@ -68,7 +69,7 @@ export function mountRecv(env) {
     if (!doc.recvTo) { if (S.money.has(pid)) await be.remove("money", pid); return; }
     await ensure(doc.recvTo);
     const had = S.money.get(pid), d = recvPair(id, doc, doc.recvTo, had ? had.createdAt : Date.now());
-    if (had) await be.update("money", pid, d); else await be.set("money", pid, d);   // 욱진: 로컬·테스트 저장소의 update는 없는 칸을 안 만들어서 새 짝은 set
+    if (had) await be.update("money", pid, d); else await be.set("money", pid, d);   // 욱진 보드의 로컬·테스트 저장소 update는 없는 칸을 안 만들어서 새 짝은 set
   }
 
   // ── 자산 화면: 아직 안 받은 돈 ──
