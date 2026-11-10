@@ -15,7 +15,8 @@
 - 욱진이가 보는 걸 바꾸면 `docs/changes.js` 맨 위(오늘 날짜 묶음)에 쉬운 말로 한 줄 추가하기 → 사이트 '설명서 → 업데이트 내역'과 새 버전 알림 창에 보임.
   쓰는 법이 바뀌면 `docs/index.html`의 사용 설명서(`#helpGuide`, 주제 탭마다 `data-help` 묶음)도 같이 고치기.
 - 🧩 **가계부 코드 하나로 합치는 중 (2026-11-10 시작, 원본 = 냐냐 보드 `../nyanya-board/docs/money/`)**: 맨 위에 `// ★ 두 가계부…` 줄이 있는 파일은 두 저장소에 **글자 하나까지 같은 복사본** — 한쪽만 고치지 말고 냐냐 쪽을 고친 뒤 그대로 복사, 보드마다 달라야 하는 건 env로 가르기(예: `env.ls` = 기기 기억 이름 앞말 "ukjin"/"nyanya"). 확인: `cmp docs/파일 ../nyanya-board/docs/money/파일`.
-  ① ② 끝 (2026-11-10): range·picker·datepick·recsplit·txfilter·balance·acctset·recv·report · extras(env.claimCat 욱진 / dogIns 냐냐)·summary(env.give·adminView 욱진, ls) ③ 끝 (2026-11-10): money.js — 욱진 보드는 bindMoney에 `ls: "ukjin"`, `repeatBuiltin: true`(🔁 매월 반복을 money.js 것으로, 냐냐는 repeat.js — 아직 두 벌), `addCommonCat: true`, `commonOpen`·`commonMark` ④ 남음: 욱진 보드가 냐냐 보드 파일을 불러 쓰고 복사본 지우기.
+  ① ② 끝 (2026-11-10): range·picker·datepick·recsplit·txfilter·balance·acctset·recv·report · extras(env.claimCat 욱진 / dogIns 냐냐)·summary(env.give·adminView 욱진, ls) ③ 끝 (2026-11-10): money.js — 욱진 보드는 bindMoney에 `ls: "ukjin"`, `repeatBuiltin: true`(🔁 매월 반복을 money.js 것으로, 냐냐는 repeat.js — 아직 두 벌), `addCommonCat: true`, `commonOpen`·`commonMark` ④ **`python tools/sync_money.py`** = 냐냐 보드 것을 그대로 복사(`--check` = 다른지 보기만). 가계부를 고칠 땐 냐냐 쪽을 고치고 → 이 명령 → 화면 조각(index.html)·꾸밈(style.css)·env가 새로 필요하면 여기도 넣기 → `?v=` → 확인.
+  (미룸) 욱진 보드가 냐냐 보드 파일을 사이트에서 바로 불러 쓰기: 화면 조각·꾸밈은 아직 보드마다 따로라, 냐냐 쪽에서 새 칸을 쓰는 코드가 올라가면 욱진 보드가 확인 없이 깨질 수 있어서 안 함. 하려면 화면 조각·꾸밈부터 같이 쓰게 만들기.
   단계마다 고치기 전 버전과 화면 HTML을 통째로 비교해서 올림 (가짜 데이터: 로컬 저장소 `ukjin-board-v1`, 탭·기록 창·달 넘기기 등 20~30개 화면).
   ⚠️ 같은 파일을 `?v=`가 다른 주소로 두 번 불러오면 따로 두 벌이 뜸 → `app.js`의 `./recv.js?v=`는 `acctset.js` 안의 것과 **같은 값**이어야 함 (`?v=` 한꺼번에 올릴 때 `acctset.js` 안도 같이, 냐냐 쪽 `app.js`·`cardimport.js`도).
 
