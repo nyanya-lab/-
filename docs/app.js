@@ -1,19 +1,23 @@
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261111b";
-import { CHANGES } from "./changes.js?v=20261111b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS } from "./money.js?v=20261111b";
-import { mountRepeat } from "./repeat.js?v=20261111b";
-import { mountAcctSet } from "./acctset.js?v=20261111b";
-import { mountReport } from "./report.js?v=20261111b";
-import { mountSummary } from "./summary.js?v=20261111b";
-import { mountPicker } from "./picker.js?v=20261111b";
-import { mountDatePick } from "./datepick.js?v=20261111b";
-import { mountRecSplit } from "./recsplit.js?v=20261111b";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261111c";
+import { CHANGES } from "./changes.js?v=20261111c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS, cardPayPlan } from "./money.js?v=20261111c";
+import { mountRepeat, duePatch, repeatDate } from "./repeat.js?v=20261111c";
+import { mountAcctSet } from "./acctset.js?v=20261111c";
+import { mountReport } from "./report.js?v=20261111c";
+import { mountSummary } from "./summary.js?v=20261111c";
+import { mountPicker } from "./picker.js?v=20261111c";
+import { mountDatePick } from "./datepick.js?v=20261111c";
+import { mountRecSplit } from "./recsplit.js?v=20261111c";
 import { mountRecv } from "./recv.js?v=20261110c";
-import { mountTxFilter } from "./txfilter.js?v=20261111b";
-import { mountExtras } from "./extras.js?v=20261111b";
-import { mountBalance } from "./balance.js?v=20261111b";
-import { calSummary } from "./calsum.js?v=20261111b";
-import { firebaseConfig } from "./firebase-config.js?v=20261111b";
+import { mountTxFilter } from "./txfilter.js?v=20261111c";
+import { mountExtras } from "./extras.js?v=20261111c";
+import { mountBalance } from "./balance.js?v=20261111c";
+import { calSummary } from "./calsum.js?v=20261111c";
+import { firebaseConfig } from "./firebase-config.js?v=20261111c";
+// 🔒 로컬 확인 모드에서만: ?today=2026-11-11 로 오늘을 바꿔 보기 · ?local=test 면 자동 점검(tests/tests.js)이 날짜를 바꿔 가며 계산을 확인
+const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("local");
+const TEST_RUN = LOCAL && new URLSearchParams(location.search).get("local") === "test";
+let TEST_TODAY = LOCAL && /^\d{4}-\d\d-\d\d$/.test(new URLSearchParams(location.search).get("today") || "") ? new URLSearchParams(location.search).get("today") : null;
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -81,8 +85,7 @@ const APP = new URLSearchParams(location.search).get("app") === "money" ? "money
 const ADMIN_MONEY = APP === "money" && (() => { try { return localStorage.getItem("ukjin-admin") === "1"; } catch (e) { return false; } })();
 if (ADMIN_MONEY) location.replace("./#money");
 // 🔒 로컬 확인 모드 (이 컴퓨터에서만: http://localhost:8000/?local · 가계부는 /index.html?app=money&local)
-// 로그인 없이 _local/snapshot.json(= python tools/snapshot.py 로 받은 진짜 데이터 사본, 깃에 안 올라감)을 메모리 보드로 띄움 — 뭘 눌러도 서버에 안 씀
-const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("local");
+// 로그인 없이 _local/snapshot.json(= python tools/snapshot.py 로 받은 진짜 데이터 사본, 깃에 안 올라감)을 메모리 보드로 띄움 — 뭘 눌러도 서버에 안 씀 (LOCAL은 파일 위쪽에서 정함)
 
 // 저장 상태: 서버에 아직 안 올라간 쓰기 수 + 연결 여부. 옆 메뉴 점과 설정 창에 표시
 const sync = { pending: 0, connected: true };
@@ -111,7 +114,7 @@ function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + p
 function parseYmd(s) { const p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
 function addDays(s, n) { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); }
 function diffDays(a, b) { return Math.round((parseYmd(a) - parseYmd(b)) / 86400000); }
-function today() { return ymd(new Date()); }
+function today() { return TEST_TODAY || ymd(new Date()); }
 function sundayOf(s) { const d = parseYmd(s); d.setDate(d.getDate() - d.getDay()); return ymd(d); }   // 달력 줄 = 일~토
 function mondayOf(s) { const d = parseYmd(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); }
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
@@ -1119,6 +1122,7 @@ function testBackend(snapshot) {
 }
 // 🔒 로컬 확인 모드: 사본을 메모리 보드(testBackend)로 — 욱진이 기기처럼 보임(관리자 표시 없음), 저장은 메모리에만. window.__local = { S, render } 로 가짜 기록을 넣어 볼 수 있음
 async function localStart() {
+  if (TEST_RUN) return runTests();
   let snap = null;
   try { snap = await (await fetch("_local/snapshot.json", { cache: "no-store" })).json(); } catch (e) { snap = null; }
   if (!snap) { showNote("🔒 로컬 확인 모드: 사본이 없어요. 먼저 python tools/snapshot.py 를 돌려 주세요.", true); return; }
@@ -1127,6 +1131,23 @@ async function localStart() {
   window.__local = { S, render };
   showNote(`🔒 로컬 확인 모드 · 진짜 데이터 사본 ${snap.at || ""} · 뭘 눌러도 서버에 저장 안 돼요 (새로고침하면 사본으로 돌아가요)`);
   render();
+}
+// ✅ 자동 점검 (http://localhost:8000/?local=test): 가짜 기록을 넣고 오늘 날짜를 바꿔 가며 포인트·연속·주 N번·돈 계산이 규칙대로인지 확인 → 화면에 결과 + window.__testResult
+// 점검 목록은 tests/tests.js. 계산 규칙을 고치면 여기 점검도 같이 고치기 (CLAUDE.md)
+async function runTests() {
+  const load = (snap = {}, day = null) => { TEST_TODAY = day; backend = wrapHistory(testBackend({ ...snap })); };
+  load({}, "2026-11-11");
+  const calc = { pointsLedger, practiceMinutes, weekRuns, streak, activeOn, isDone, nweekCount, nweekExtra, dayExtra, weekExtra, weekStreakBonus, streakBonus, monthTotals, balances, planOf, cardPayPlan, duePatch, repeatDate, mineOn, today };
+  let res;
+  try { res = await (await import("./tests/tests.js?v=" + Date.now())).run({ S, load, calc }); }
+  catch (e) { res = { pass: 0, fail: 1, fails: [{ name: "점검 파일을 못 돌렸어요", msg: String(e && e.stack || e) }], names: [] }; }
+  window.__testResult = res;
+  const box = document.createElement("div");
+  box.id = "testResult"; box.style.cssText = "position:fixed;inset:12px;z-index:9999;overflow:auto;padding:18px;border-radius:16px;background:var(--card,#fff);color:var(--text,#111);box-shadow:0 8px 40px rgba(0,0,0,.35);font-size:14px;line-height:1.6";
+  box.innerHTML = `<h2 style="margin:0 0 8px">${res.fail ? "❌" : "✅"} 자동 점검: ${res.pass}개 통과${res.fail ? ` · ${res.fail}개 실패` : ""}</h2>` +
+    res.fails.map((f) => `<p style="margin:6px 0;color:var(--danger,#c00)"><b>${esc(f.name)}</b><br>${esc(f.msg)}</p>`).join("") +
+    `<ol style="margin:8px 0 0;padding-left:22px">${res.names.map((n) => `<li>${esc(n)}</li>`).join("")}</ol>`;
+  document.body.appendChild(box);
 }
 // 🧪 테스트 모드에서도 기능 요청(requests)은 진짜 보드에 같이 저장 — 상태 바꾸기·메모·추가·삭제 (2026-10-27 냐냐: 테스트 모드에서 '완료' 눌렀는데 다시 풀려 있었음)
 function realRequests(b) {
@@ -2451,7 +2472,7 @@ function render() {
   refreshGoalColors(); renderHeader(); renderTimerBar(); renderCalendar(); renderToday(); renderGoals(); renderMoney(); renderCerts(); renderRequests(); renderGoalDlg(); renderOrphanNote(); showMode(); setSync();
   renderHelp(); renderHist(); renderPoints(); renderNags(); renderAdminUi(); renderLottoAdmin(); renderCoupons();
   // 저절로 고치는 일들(벌칙·돈 할 일·카드값·줄 돈): 관리자 기기가 테스트 모드로 바뀌기 직전엔 진짜 보드에 쓰지 않게 건너뜀
-  if (!(APP === "board" && !testMode && isAdminDevice() && !sessionReal())) { sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); if (!testMode && rpPanel) rpPanel.run(); reviewTask(); }
+  if (!TEST_RUN && !(APP === "board" && !testMode && isAdminDevice() && !sessionReal())) { sweepPens(); syncPenTasks(); syncMoneyTasks(); syncCardPays(); syncGive(); if (!testMode && rpPanel) rpPanel.run(); reviewTask(); }
   renderCouponReqs(); renderAdminN();
   if (S.loaded && $("newsDlg").open === false) maybeLottoIntro();
   maybePraise();
