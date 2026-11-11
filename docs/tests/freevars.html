@@ -1,0 +1,72 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>안 정한 이름 찾기</title>
+<!-- 🔎 파일을 나눈 뒤 빠뜨린 이름 찾기: 어디서도 정하지 않고(선언·import·넘겨받기 없이) 쓰는 이름을 파일마다 보여 줌.
+     쓰는 법: cd docs && python -m http.server → http://localhost:8000/tests/freevars.html?f=app.js,lotto.js  (결과는 화면과 window.__free) -->
+<pre id="out">읽는 중…</pre>
+<script src="https://cdn.jsdelivr.net/npm/acorn@8.11.3/dist/acorn.js"></script>
+<script>
+function freeVars(code) {
+  const ast = acorn.parse(code, { ecmaVersion: "latest", sourceType: "module" });
+  const free = new Map();
+  const scope = (parent) => ({ names: new Set(), parent });
+  const has = (s, n) => { for (; s; s = s.parent) if (s.names.has(n)) return true; return false; };
+  const pat = (p, s) => {   // 선언하는 쪽 이름 모으기
+    if (!p) return;
+    if (p.type === "Identifier") s.names.add(p.name);
+    else if (p.type === "ObjectPattern") p.properties.forEach((q) => pat(q.type === "RestElement" ? q.argument : q.value, s));
+    else if (p.type === "ArrayPattern") p.elements.forEach((q) => pat(q, s));
+    else if (p.type === "AssignmentPattern") pat(p.left, s);
+    else if (p.type === "RestElement") pat(p.argument, s);
+  };
+  const patRefs = (p, s) => {   // 선언 안의 기본값·계산된 키는 쓰는 쪽
+    if (!p) return;
+    if (p.type === "ObjectPattern") p.properties.forEach((q) => { if (q.type === "RestElement") return patRefs(q.argument, s); if (q.computed) walk(q.key, s); patRefs(q.value, s); });
+    else if (p.type === "ArrayPattern") p.elements.forEach((q) => patRefs(q, s));
+    else if (p.type === "AssignmentPattern") { patRefs(p.left, s); walk(p.right, s); }
+    else if (p.type === "RestElement") patRefs(p.argument, s);
+  };
+  const hoist = (body, s) => (Array.isArray(body) ? body : [body]).forEach((n) => {   // 그 칸에서 정한 이름을 먼저 (뒤에 정한 함수도 앞에서 쓸 수 있으니)
+    if (!n) return;
+    const d = /^Export(Named|Default)Declaration$/.test(n.type) && n.declaration ? n.declaration : n;
+    if (d.type === "VariableDeclaration") d.declarations.forEach((v) => pat(v.id, s));
+    else if ((d.type === "FunctionDeclaration" || d.type === "ClassDeclaration") && d.id) s.names.add(d.id.name);
+    else if (d.type === "ImportDeclaration") d.specifiers.forEach((sp) => s.names.add(sp.local.name));
+  });
+  const fn = (n, s) => {
+    const f = scope(s);
+    if (n.type === "FunctionExpression" && n.id) f.names.add(n.id.name);
+    n.params.forEach((p) => pat(p, f)); n.params.forEach((p) => patRefs(p, f));
+    if (n.body.type === "BlockStatement") { hoist(n.body.body, f); n.body.body.forEach((x) => walk(x, f)); } else walk(n.body, f);
+  };
+  function walk(n, s) {
+    if (!n || typeof n.type !== "string") return;
+    switch (n.type) {
+      case "Identifier": if (!has(s, n.name)) free.set(n.name, (free.get(n.name) || 0) + 1); return;
+      case "FunctionDeclaration": case "FunctionExpression": case "ArrowFunctionExpression": return fn(n, s);
+      case "VariableDeclaration": n.declarations.forEach((v) => { patRefs(v.id, s); walk(v.init, s); }); return;
+      case "BlockStatement": case "Program": case "StaticBlock": { const b = scope(s); hoist(n.body, b); n.body.forEach((x) => walk(x, b)); return; }
+      case "ForStatement": { const b = scope(s); if (n.init) hoist(n.init, b); walk(n.init, b); walk(n.test, b); walk(n.update, b); walk(n.body, b); return; }
+      case "ForInStatement": case "ForOfStatement": { const b = scope(s); hoist(n.left, b); if (n.left.type === "VariableDeclaration") n.left.declarations.forEach((v) => patRefs(v.id, b)); else walk(n.left, b); walk(n.right, b); walk(n.body, b); return; }
+      case "SwitchStatement": { walk(n.discriminant, s); const b = scope(s); n.cases.forEach((c) => hoist(c.consequent, b)); n.cases.forEach((c) => { walk(c.test, b); c.consequent.forEach((x) => walk(x, b)); }); return; }
+      case "CatchClause": { const b = scope(s); pat(n.param, b); hoist(n.body.body, b); n.body.body.forEach((x) => walk(x, b)); return; }
+      case "MemberExpression": walk(n.object, s); if (n.computed) walk(n.property, s); return;
+      case "Property": case "PropertyDefinition": case "MethodDefinition": if (n.computed) walk(n.key, s); walk(n.value, s); return;
+      case "LabeledStatement": walk(n.body, s); return;
+      case "BreakStatement": case "ContinueStatement": case "MetaProperty": case "ImportDeclaration": return;
+      case "ExportNamedDeclaration": if (n.declaration) walk(n.declaration, s); else if (!n.source) n.specifiers.forEach((sp) => walk(sp.local, s)); return;
+      case "ClassDeclaration": case "ClassExpression": walk(n.superClass, s); n.body.body.forEach((x) => walk(x, s)); return;
+    }
+    for (const k in n) { if (k === "type" || k === "start" || k === "end") continue; const v = n[k]; if (Array.isArray(v)) v.forEach((x) => walk(x, s)); else if (v && typeof v.type === "string") walk(v, s); }
+  }
+  walk(ast, null);
+  const all = [...free.keys()].filter((k) => k !== "undefined" && k !== "arguments").sort();
+  return { miss: all.filter((k) => !(k in window)), win: all.filter((k) => k in window) };   // win = 브라우저에 원래 있는 이름 (document·localStorage 같은 것)
+}
+(async () => {
+  const files = (new URLSearchParams(location.search).get("f") || "app.js").split(","), res = {};
+  for (const f of files) { try { res[f] = freeVars(await (await fetch("../" + f, { cache: "reload" })).text()); } catch (e) { res[f] = "⚠️ " + e.message; } }
+  window.__free = res;
+  document.getElementById("out").textContent = Object.entries(res).map(([f, v]) => f + ": " + (v.miss ? (v.miss.length ? "안 정한 이름 " + v.miss.length + "개\n  " + v.miss.join(", ") : "모두 정해져 있어요 ✅") + "\n  (브라우저 것: " + v.win.join(", ") + ")" : v)).join("\n\n");
+})();
+</script>
