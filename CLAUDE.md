@@ -31,6 +31,7 @@ docs/index.html        화면 마크업 + 작은 창(dialog)들
 docs/style.css         색 토큰(밝은 타일 색: 파랑·코랄·민트·노랑·보라), 다크 모드
 docs/app.js            보드 화면 로직 (상태 S, 저장소 backend, render 함수들, 시작할 때 money.js에 bindMoney(env)로 공통 함수 넘김, 복권은 lotto.js에 bindLotto(env))
 docs/lotto.js          🎟️ 복권·쿠폰함 (2026-11-11 app.js에서 떼어 냄): 복권 관리·칭찬·긁기·🛡️ 채우기·인증샷·벌칙 할 일·쿠폰함·쿠폰 요청·타이밍 게임·복권 그림. 버튼은 app.js 클릭 처리 → `lottoAction`, 화면 칸에 거는 건 `initLotto()`. 바뀌는 값은 E.backend·E.testMode·E.realBackend. 포인트 계산(`pointsLedger`)은 app.js
+docs/pages.js          📖 설명서(주제 탭·검색·업데이트 내역·새 버전 알림 창) · 🛠️ 기능 요청(목록·상태·메모·사진·복사) · 🔎 자격증 찾기(CERTS 목록) (2026-11-12 app.js에서 떼어 냄, `bindPages`·`initPages`·`pagesAction`). CHANGES는 app.js가 넘겨주고 우리 탭 내역 섞기(`mergeChanges`)·목표로 추가(`addCert`)는 app.js
 docs/tests/freevars.html  🔎 파일을 나눈 뒤 빠뜨린 이름 찾기 (http://localhost:8000/tests/freevars.html?f=app.js,lotto.js → 안 정한 이름 0개여야 함, `window.__free`)
 docs/range.js          📅 기간 고르기 창 (냐냐 가계부와 같은 파일을 복사, CSS 안에 있음 rg-). 내역 탭 달 이름·[이번 달] → ui.txRange (txPick·txShift)
 docs/money.js          💰 돈 관리(가계부) 코드: 예산·지출·자산·분류 색·원형·카드값·줄 돈 자동 (app.js가 import, 바뀌는 값은 E.backend·E.testMode)
