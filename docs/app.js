@@ -1,23 +1,25 @@
-import { bindLotto, initLotto, lottoAction, PT_TICKET, LOTTO_STAGES, PRAISE_DAYS, clearFill, couponReqs, laTab, lottoStage, markCreqSeen, maybeLottoIntro, maybePraise, openScratch, openWin, paintTicket, penDone, pendingPraises, praiseState, praises, renderCouponReqs, renderCoupons, renderLottoAdmin, sweepPens, syncPenTasks, ticketsLeft, untilText, viewPic } from "./lotto.js?v=20261111d";
-import { CHANGES } from "./changes.js?v=20261111d";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS, cardPayPlan } from "./money.js?v=20261111d";
-import { mountRepeat, duePatch, repeatDate } from "./repeat.js?v=20261111d";
-import { mountAcctSet } from "./acctset.js?v=20261111d";
-import { mountReport } from "./report.js?v=20261111d";
-import { mountSummary } from "./summary.js?v=20261111d";
-import { mountPicker } from "./picker.js?v=20261111d";
-import { mountDatePick } from "./datepick.js?v=20261111d";
-import { mountRecSplit } from "./recsplit.js?v=20261111d";
+import { bindLotto, initLotto, lottoAction, PT_TICKET, LOTTO_STAGES, PRAISE_DAYS, clearFill, couponReqs, laTab, lottoStage, markCreqSeen, maybeLottoIntro, maybePraise, openScratch, openWin, paintTicket, penDone, pendingPraises, praiseState, praises, renderCouponReqs, renderCoupons, renderLottoAdmin, sweepPens, syncPenTasks, ticketsLeft, untilText, viewPic } from "./lotto.js?v=20261112a";
+import { CHANGES } from "./changes.js?v=20261112a";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS, cardPayPlan } from "./money.js?v=20261112a";
+import { mountRepeat, duePatch, repeatDate } from "./repeat.js?v=20261112a";
+import { mountAcctSet } from "./acctset.js?v=20261112a";
+import { mountReport } from "./report.js?v=20261112a";
+import { mountSummary } from "./summary.js?v=20261112a";
+import { mountPicker } from "./picker.js?v=20261112a";
+import { mountDatePick } from "./datepick.js?v=20261112a";
+import { mountRecSplit } from "./recsplit.js?v=20261112a";
 import { mountRecv } from "./recv.js?v=20261110c";
-import { mountTxFilter } from "./txfilter.js?v=20261111d";
-import { mountExtras } from "./extras.js?v=20261111d";
-import { mountBalance } from "./balance.js?v=20261111d";
-import { calSummary } from "./calsum.js?v=20261111d";
-import { firebaseConfig } from "./firebase-config.js?v=20261111d";
+import { mountTxFilter } from "./txfilter.js?v=20261112a";
+import { mountExtras } from "./extras.js?v=20261112a";
+import { mountBalance } from "./balance.js?v=20261112a";
+import { calSummary } from "./calsum.js?v=20261112a";
+import { firebaseConfig } from "./firebase-config.js?v=20261112a";
 // 🔒 로컬 확인 모드에서만: ?today=2026-11-11 로 오늘을 바꿔 보기 · ?local=test 면 자동 점검(tests/tests.js)이 날짜를 바꿔 가며 계산을 확인
 const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("local");
+// 🧪 연습판 (올라간 사이트에서도: 주소 끝에 ?demo · 가계부는 index.html?app=money&demo): 비밀번호 없이 demo/snapshot.json(지어낸 예시, tools/make_demo.py)을 메모리 보드로 — 저장 안 됨
+const DEMO = !LOCAL && new URLSearchParams(location.search).has("demo");
 const TEST_RUN = LOCAL && new URLSearchParams(location.search).get("local") === "test";
-let TEST_TODAY = LOCAL && /^\d{4}-\d\d-\d\d$/.test(new URLSearchParams(location.search).get("today") || "") ? new URLSearchParams(location.search).get("today") : null;
+let TEST_TODAY = (LOCAL || DEMO) && /^\d{4}-\d\d-\d\d$/.test(new URLSearchParams(location.search).get("today") || "") ? new URLSearchParams(location.search).get("today") : null;
 
 const FB_VER = "10.12.2";
 const COLS = ["goals", "tasks", "logs", "money", "accounts", "requests", "wins"];   // wins = 긁은 복권 결과
@@ -1124,12 +1126,13 @@ function testBackend(snapshot) {
 async function localStart() {
   if (TEST_RUN) return runTests();
   let snap = null;
-  try { snap = await (await fetch("_local/snapshot.json", { cache: "no-store" })).json(); } catch (e) { snap = null; }
-  if (!snap) { showNote("🔒 로컬 확인 모드: 사본이 없어요. 먼저 python tools/snapshot.py 를 돌려 주세요.", true); return; }
+  try { snap = await (await fetch(DEMO ? "demo/snapshot.json" : "_local/snapshot.json", { cache: "no-store" })).json(); } catch (e) { snap = null; }
+  if (!snap) { showNote(DEMO ? "🧪 연습판 예시를 불러오지 못했어요. 새로고침해 주세요." : "🔒 로컬 확인 모드: 사본이 없어요. 먼저 python tools/snapshot.py 를 돌려 주세요.", true); return; }
+  if (DEMO && !TEST_TODAY && snap.today) { TEST_TODAY = snap.today; lastDay = snap.today; $("mDate").value = snap.today; Object.assign(ui, { calMonth: snap.today.slice(0, 7), selDay: snap.today, month: snap.today.slice(0, 7) }); }   // 연습판의 '오늘'은 예시를 만든 날로 고정
   S.gevents = snap.gevents || {};
   backend = wrapHistory(testBackend(snap));
   window.__local = { S, render };
-  showNote(`🔒 로컬 확인 모드 · 진짜 데이터 사본 ${snap.at || ""} · 뭘 눌러도 서버에 저장 안 돼요 (새로고침하면 사본으로 돌아가요)`);
+  showNote(DEMO ? `🧪 연습판 · 지어낸 예시예요 (오늘 = ${today()}) · 뭘 눌러도 저장 안 돼요 (새로고침하면 처음으로)` : `🔒 로컬 확인 모드 · 진짜 데이터 사본 ${snap.at || ""} · 뭘 눌러도 서버에 저장 안 돼요 (새로고침하면 사본으로 돌아가요)`);
   render();
 }
 // ✅ 자동 점검 (http://localhost:8000/?local=test): 가짜 기록을 넣고 오늘 날짜를 바꿔 가며 포인트·연속·주 N번·돈 계산이 규칙대로인지 확인 → 화면에 결과 + window.__testResult
@@ -1280,7 +1283,7 @@ function renderDayPanel() {
   const gs = gcalEventsOn(d), ms = rows(S.money).filter((x) => x.date === d && !x.recvOf && moneyShown(x));
   const pd = lottoVisible() && pointsLedger().day[d];
   const KIND = { income: "수입", transfer: partner() + "에게", expense: "지출", move: "이체" };
-  let h = `<div class="dp-head"><div><h3>${esc(prettyDate(d))}</h3><span class="muted small">${n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`}</span></div>${pd && pd.sum ? `<span class="dp-pts">+${pd.sum} ⭐</span>` : ""}</div>`;
+  let h = `<div class="dp-head"><div><h3>${esc(prettyDate(d))}</h3><span class="muted small">${n === 0 ? "오늘" : n > 0 ? `${n}일 뒤` : `${-n}일 전`}</span></div>${pd && pd.sum ? `<span class="dp-pts">${sgn(pd.sum)} ⭐</span>` : ""}</div>`;
   if (exams.length) h += `<div class="dp-sec">${exams.map((g) => `<div class="item"><span class="tag cat c-coral">🎯 D-DAY</span><div class="body"><div class="title">${esc(g.title)}</div></div></div>`).join("")}</div>`;
   const extra = dayExtraItems(d); if (extra) h += `<div class="dp-sec"><div class="list">${extra}</div></div>`;
   h += `<div class="dp-sec"><h4>할 일</h4>${ts.length ? `<div class="list">${ts.map((x) => taskItem(x, d)).join("")}</div>` : '<div class="small muted">이 날 할 일이 없어요.</div>'}</div>`;
@@ -1926,7 +1929,7 @@ function mountUriTab() {
 //   → uri.js setMirror로 공통 저장소 costs/ukjin-{가계부 id}에 저절로 복사 (고치면 고쳐지고, ❤️ 빼거나 지우면 지워짐, 원화만).
 //   냐냐 보드 uri/changes.js의 URI_HOLD가 true면(공개 전) ❤️ 칸·공통 탭 숨김. 관리자 기기·테스트 모드에선 복사 안 함
 let uriHold = null, uriApi = null, uriPwUsed = null;
-const commonOpen = () => APP === "money" && uriHold === false;   // ❤️ 공통 탭
+const commonOpen = () => !DEMO && APP === "money" && uriHold === false;   // ❤️ 공통 탭
 const commonMine = () => commonOpen() && !testMode && !isAdminDevice();   // ❤️ 체크 칸 · 공통으로 복사는 욱진이 기기만
 function mountUriMoney() {
   if (uriApi || !commonOpen()) return;
@@ -2586,7 +2589,7 @@ route();
 render();
 if (ADMIN_MONEY) {
   /* 보드 '예산'으로 넘어가는 중: 진짜 데이터를 안 엶 */
-} else if (LOCAL) {
+} else if (LOCAL || DEMO) {
   localStart();
 } else if (firebaseConfig && firebaseConfig.databaseURL) {
   $("mainView").hidden = true;

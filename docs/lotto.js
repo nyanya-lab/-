@@ -2,7 +2,7 @@
 //   📝 복권 관리(관리자) · 👏 칭찬·감점 · 🪙 긁기 · 🛡️ 연속 채우기 · 📸 인증샷·추억 · 😈 벌칙 할 일 · 쿠폰함 · 💌 쿠폰 요청 · 🎯 타이밍 게임 · 복권 그림
 //   포인트 계산(pointsLedger)과 달력 쪽 표시는 app.js에 그대로. 화면 마크업은 index.html (#couponsPage·#lottoPage·작은 창들)
 //   버튼(data-act)은 app.js 클릭 처리에서 lottoAction(a, el, id, t)으로 넘어옴. 화면 칸에 거는 것(폼·긁기 등)은 initLotto()에서 한 번
-import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261111d";
+import { PRESET_COUPONS, PRESET_PENS, PRESET_RENAMES } from "./lotto-presets.js?v=20261112a";
 
 let E = null;
 let $, APP, PRACTICE_MIN, S, WEEK_GOAL, WEEK_RULE_FROM, act, addDays, boardStart, clone, closeDlg, closeSettings, diffDays, esc, fmtTime, isAdminDevice, lottoOn, lsGet, lsSet, notifyNyanya, openDlg, pointsLedger, practiceMinutes, practiced, quietly, ready, renderAdminN, rid, rows, shieldOpen, shortDate, shrinkPic, streak, sundayOf, toast, today, ui, weekRuns, yDate;
