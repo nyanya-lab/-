@@ -9,7 +9,7 @@
 - PR은 **물어보지 말고 만든 뒤 바로 합치기** (주인이 요청함).
 - 고칠 때마다 브라우저(Playwright 등)로 PC·폰 너비 둘 다 확인하고, 확인한 것과 못 한 것을 솔직히 말하기.
 - 정적 파일을 바꾸면 `docs/index.html`·`docs/app.js`·`docs/google-sync.html` 안의 `?v=날짜문자` 값을 같이 올리기 (브라우저 캐시 때문) `docs/lotto.js` 안의 `lotto-presets.js?v=`도 같이.
-- ✂️ **app.js 나누는 중** (2026-11-11~, 화면은 그대로): 떼어 낸 파일은 money.js처럼 `bindXxx(env)`로 보드 쪽 함수·상태를 받음. 코드를 옮기면 ① `tests/freevars.html`로 빠뜨린 이름 0개 ② `?local=test` 점검 ③ 고치기 전 버전과 화면 통째 비교(PC·관리자·폰) 뒤에 올리기. 떼어 낸 파일에서 새로 app.js 함수를 쓰면 env에 넣고, app.js에서 그 파일 함수를 쓰면 맨 아래 `export { … }`와 app.js import에 넣기.
+- ✂️ **app.js 나누기** (2026-11-11~12, 3,262줄 → 2,183줄: lotto·pages·undo·timer.js로. 남은 건 달력·할 일·목표·저장소처럼 서로 얽힌 중심 코드라 더 안 나눔. 화면은 그대로): 떼어 낸 파일은 money.js처럼 `bindXxx(env)`로 보드 쪽 함수·상태를 받음. 코드를 옮기면 ① `tests/freevars.html`로 빠뜨린 이름 0개 ② `?local=test` 점검 ③ 고치기 전 버전과 화면 통째 비교(PC·관리자·폰) 뒤에 올리기. 떼어 낸 파일에서 새로 app.js 함수를 쓰면 env에 넣고, app.js에서 그 파일 함수를 쓰면 맨 아래 `export { … }`와 app.js import에 넣기.
 - 빌드 도구 없음. 순수 HTML/CSS/JS (ES 모듈). 로컬 확인은 `cd docs && python -m http.server` → http://localhost:8000
   (모듈이라 파일을 더블클릭해서 열면 안 됨)
 - 🔒 **화면 확인 = 로컬 확인 모드** (2026-11-11, 냐냐 보드와 같은 방식): `python tools/snapshot.py`(진짜 데이터 사본 → `docs/_local/snapshot.json`, .gitignore, uriPw·adminHash·사진은 뺌) → `.claude/launch.json`의 `docs`(8000번)를 띄우고 http://localhost:8000/?local (실천 보드) · http://localhost:8000/index.html?app=money&local (가계부). 로그인 없이 진짜 숫자, 욱진이 기기처럼 보임. 메모리 보드(`localStart` → `testBackend`)라 뭘 눌러도 서버에 안 쓰고 Firebase도 안 불러옴, 새로고침하면 사본으로. `window.__local` = {S, render}로 가짜 기록 넣어 보기. 데이터를 고친 뒤엔 사본 다시 받기. 진짜 사이트에 비밀번호를 넣는 건 Claude가 안 함(주인이 직접). 서버 데이터 읽기는 `python tools/db.py get <경로>`.
@@ -32,6 +32,8 @@ docs/style.css         색 토큰(밝은 타일 색: 파랑·코랄·민트·노
 docs/app.js            보드 화면 로직 (상태 S, 저장소 backend, render 함수들, 시작할 때 money.js에 bindMoney(env)로 공통 함수 넘김, 복권은 lotto.js에 bindLotto(env))
 docs/lotto.js          🎟️ 복권·쿠폰함 (2026-11-11 app.js에서 떼어 냄): 복권 관리·칭찬·긁기·🛡️ 채우기·인증샷·벌칙 할 일·쿠폰함·쿠폰 요청·타이밍 게임·복권 그림. 버튼은 app.js 클릭 처리 → `lottoAction`, 화면 칸에 거는 건 `initLotto()`. 바뀌는 값은 E.backend·E.testMode·E.realBackend. 포인트 계산(`pointsLedger`)은 app.js
 docs/pages.js          📖 설명서(주제 탭·검색·업데이트 내역·새 버전 알림 창) · 🛠️ 기능 요청(목록·상태·메모·사진·복사) · 🔎 자격증 찾기(CERTS 목록) (2026-11-12 app.js에서 떼어 냄, `bindPages`·`initPages`·`pagesAction`). CHANGES는 app.js가 넘겨주고 우리 탭 내역 섞기(`mergeChanges`)·목표로 추가(`addCert`)는 app.js
+docs/undo.js           ↶↷ 되돌리기·다시 하기 (2026-11-12 app.js에서 떼어 냄): `wrapHistory(저장소)`가 저장 때마다 전·후를 모아 `S.history`에, `quietly(fn)` = 기록에 안 남기고 저장, `renderHist`, 버튼은 `undoAction`
+docs/timer.js          ⏱ 할 일 타이머 (2026-11-12 app.js에서 떼어 냄): 맨 위 띠 `renderTimerBar`, `timerStart(id)`, 끝낼 때 확인 창·기록하고 체크, 버튼은 `timerAction`
 docs/tests/freevars.html  🔎 파일을 나눈 뒤 빠뜨린 이름 찾기 (http://localhost:8000/tests/freevars.html?f=app.js,lotto.js → 안 정한 이름 0개여야 함, `window.__free`)
 docs/range.js          📅 기간 고르기 창 (냐냐 가계부와 같은 파일을 복사, CSS 안에 있음 rg-). 내역 탭 달 이름·[이번 달] → ui.txRange (txPick·txShift)
 docs/money.js          💰 돈 관리(가계부) 코드: 예산·지출·자산·분류 색·원형·카드값·줄 돈 자동 (app.js가 import, 바뀌는 값은 E.backend·E.testMode)

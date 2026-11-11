@@ -1,20 +1,22 @@
-import { bindPages, initPages, pagesAction, CERTS, maybeShowNews, renderCerts, renderHelp, renderRequests } from "./pages.js?v=20261112b";
-import { bindLotto, initLotto, lottoAction, PT_TICKET, LOTTO_STAGES, PRAISE_DAYS, clearFill, couponReqs, laTab, lottoStage, markCreqSeen, maybeLottoIntro, maybePraise, openScratch, openWin, paintTicket, penDone, pendingPraises, praiseState, praises, renderCouponReqs, renderCoupons, renderLottoAdmin, sweepPens, syncPenTasks, ticketsLeft, untilText, viewPic } from "./lotto.js?v=20261112b";
-import { CHANGES } from "./changes.js?v=20261112b";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS, cardPayPlan } from "./money.js?v=20261112b";
-import { mountRepeat, duePatch, repeatDate } from "./repeat.js?v=20261112b";
-import { mountAcctSet } from "./acctset.js?v=20261112b";
-import { mountReport } from "./report.js?v=20261112b";
-import { mountSummary } from "./summary.js?v=20261112b";
-import { mountPicker } from "./picker.js?v=20261112b";
-import { mountDatePick } from "./datepick.js?v=20261112b";
-import { mountRecSplit } from "./recsplit.js?v=20261112b";
+import { bindTimer, initTimer, timerAction, canTime, renderTimerBar, timerNow, timerStart } from "./timer.js?v=20261112c";
+import { bindUndo, initUndo, undoAction, clearHist, quietly, renderHist, wrapHistory } from "./undo.js?v=20261112c";
+import { bindPages, initPages, pagesAction, CERTS, maybeShowNews, renderCerts, renderHelp, renderRequests } from "./pages.js?v=20261112c";
+import { bindLotto, initLotto, lottoAction, PT_TICKET, LOTTO_STAGES, PRAISE_DAYS, clearFill, couponReqs, laTab, lottoStage, markCreqSeen, maybeLottoIntro, maybePraise, openScratch, openWin, paintTicket, penDone, pendingPraises, praiseState, praises, renderCouponReqs, renderCoupons, renderLottoAdmin, sweepPens, syncPenTasks, ticketsLeft, untilText, viewPic } from "./lotto.js?v=20261112c";
+import { CHANGES } from "./changes.js?v=20261112c";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS, cardPayPlan } from "./money.js?v=20261112c";
+import { mountRepeat, duePatch, repeatDate } from "./repeat.js?v=20261112c";
+import { mountAcctSet } from "./acctset.js?v=20261112c";
+import { mountReport } from "./report.js?v=20261112c";
+import { mountSummary } from "./summary.js?v=20261112c";
+import { mountPicker } from "./picker.js?v=20261112c";
+import { mountDatePick } from "./datepick.js?v=20261112c";
+import { mountRecSplit } from "./recsplit.js?v=20261112c";
 import { mountRecv } from "./recv.js?v=20261110c";
-import { mountTxFilter } from "./txfilter.js?v=20261112b";
-import { mountExtras } from "./extras.js?v=20261112b";
-import { mountBalance } from "./balance.js?v=20261112b";
-import { calSummary } from "./calsum.js?v=20261112b";
-import { firebaseConfig } from "./firebase-config.js?v=20261112b";
+import { mountTxFilter } from "./txfilter.js?v=20261112c";
+import { mountExtras } from "./extras.js?v=20261112c";
+import { mountBalance } from "./balance.js?v=20261112c";
+import { calSummary } from "./calsum.js?v=20261112c";
+import { firebaseConfig } from "./firebase-config.js?v=20261112c";
 // 🔒 로컬 확인 모드에서만: ?today=2026-11-11 로 오늘을 바꿔 보기 · ?local=test 면 자동 점검(tests/tests.js)이 날짜를 바꿔 가며 계산을 확인
 const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("local");
 // 🧪 연습판 (올라간 사이트에서도: 주소 끝에 ?demo · 가계부는 index.html?app=money&demo): 비밀번호 없이 demo/snapshot.json(지어낸 예시, tools/make_demo.py)을 메모리 보드로 — 저장 안 됨
@@ -688,71 +690,6 @@ function recordTaskTime(x, taskId, day, min, msg) {
     await backend.add("logs", { date: day, minutes: min, text: x.title, goalId: x.goalId || null, taskId, createdAt: Date.now() });
   })(), msg).catch(() => {});
 }
-// ---------- ⏱ 할 일 타이머: settings.timer = { taskId, title, start(재는 중이면 시작 ms, 멈추면 null), acc(모은 ms) } ----------
-// 한 번에 하나. 보드에 저장해서 폰에서 시작하고 PC에서 끝내도 됨. [■ 끝] → 시간 확인(고칠 수 있음) → 그 할 일을 오늘 그 시간으로 체크 (그날 이미 기록한 시간에 더함)
-const TIMER_WARN = 5 * 3600e3;
-const timerNow = () => { const tm = S.settings.timer; return tm && tm.taskId ? tm : null; };
-const timerMs = (tm) => (Number(tm.acc) || 0) + (tm.start ? Math.max(0, Date.now() - tm.start) : 0);
-const fmtClock = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
-const canTime = (x) => x && !x.noPractice && !x.penId && !x.cardPay;   // 돈·벌칙·카드값 할 일은 타이머 없음
-function saveTimer(v, msg) { return act(backend.saveSettings({ timer: v }), msg).catch(() => {}); }
-function timerStart(id) {
-  const x = S.tasks.get(id); if (!canTime(x) || !ready()) return;
-  const tm = timerNow();
-  if (tm && tm.taskId === id) { if (!tm.start) saveTimer({ ...tm, start: Date.now() }, "▶ 다시 재요."); else toast("이미 재고 있어요. 맨 위 띠를 봐요."); return; }
-  if (tm) { toast(`지금 '${tm.title}' 타이머가 돌고 있어요. 먼저 끝내 주세요.`); openTimerEnd(); return; }
-  closeDlg($("taskDlg"));
-  saveTimer({ taskId: id, title: x.title || "할 일", start: Date.now(), acc: 0, day: today() }, `⏱ '${x.title}' 시작! 맨 위 띠에서 멈추거나 끝내요.`);   // day = 시작한 날 (밤에 시작해 자정을 넘기면 끝낼 때 고름)
-}
-function renderTimerBar() {
-  const tm = timerNow(), bar = $("timerBar");
-  bar.hidden = !tm || APP === "money"; if (bar.hidden) { bar.dataset.k = ""; return; }
-  const ms = timerMs(tm), warn = ms > TIMER_WARN, k = `${tm.taskId}|${tm.start ? 1 : 0}|${warn ? 1 : 0}|${tm.title}`;
-  if (bar.dataset.k !== k) {   // 1초마다는 시계 글자만 바꿈
-    bar.dataset.k = k; bar.classList.toggle("warn", warn); bar.classList.toggle("paused", !tm.start);
-    bar.innerHTML = `<span>⏱ <b>${esc(tm.title)}</b><span class="tm-clock" id="tmClock"></span>${tm.start ? "" : ' <span class="muted small">멈춤</span>'}${warn ? ' <span class="small tm-warn">· 5시간이 넘었어요. 끄는 걸 잊었나요?</span>' : ""}</span>` +
-      `<span class="test-bar-btns">${tm.start ? '<button class="btn small ghost" type="button" data-act="tmPause">⏸ 멈춤</button>' : '<button class="btn small ghost" type="button" data-act="tmResume">▶ 다시</button>'}<button class="btn small" type="button" data-act="tmEnd">■ 끝</button></span>`;
-  }
-  $("tmClock").textContent = fmtClock(ms);
-}
-setInterval(() => { if (timerNow()) renderTimerBar(); }, 1000);
-// 🗓️ 타이머가 자정을 넘겼으면 기록할 날을 고름: 시작한 날 ~ 오늘 (기본 = 시작한 날)
-function timerDays(tm) {
-  const t = today(), from = tm.day || (tm.start && !(Number(tm.acc) > 0) ? ymd(new Date(tm.start)) : t), out = [];
-  for (let d = from < t ? from : t, n = 0; d <= t && n < 7; d = addDays(d, 1), n++) out.push(d);
-  if (out[out.length - 1] !== t) out.push(t);
-  return out;
-}
-function openTimerEnd() {
-  const tm = timerNow(); if (!tm) return;
-  const ms = timerMs(tm), min = Math.max(1, Math.round(ms / 60000)), days = timerDays(tm), t = today();
-  $("mvTitle").textContent = `⏱ '${tm.title}' 끝!`;
-  $("mvText").innerHTML = `<p><b>${fmtClock(ms)}</b> 했어요. 실제로 한 시간과 다르면 고쳐 주세요.</p>` +
-    (ms > TIMER_WARN ? '<p class="small" style="color:var(--danger);margin:0">5시간이 넘었어요. 끄는 걸 잊었으면 실제로 한 시간으로 고쳐 주세요.</p>' : "") +
-    `<div class="hm"><input type="number" id="tmH" min="0" max="99" step="1" inputmode="numeric" value="${Math.floor(min / 60)}" aria-label="시간"><span>시간</span><input type="number" id="tmM" min="0" max="59" step="1" inputmode="numeric" value="${min % 60}" aria-label="분"><span>분</span></div>` +
-    (days.length > 1 ? `<p class="small" style="margin:0">🌙 자정이 지났어요. 어느 날에 기록할까요?</p><div class="chips tm-days">${days.map((d, i) => `<label class="chip tm-day"><input type="radio" name="tmDay" value="${d}"${i === 0 ? " checked" : ""}> ${shortDate(d)}${d === t ? " 오늘" : i === 0 ? " 시작한 날" : ""}</label>`).join("")}</div>` : "") +
-    `<p class="small muted" style="margin:0">[기록하고 체크]를 누르면 '${esc(tm.title)}'이(가) ${days.length > 1 ? "고른 날" : "오늘"} 이 시간으로 체크돼요 (🔥 실천 · ⭐ 포인트).</p>`;
-  $("mvBtns").innerHTML = '<button class="btn" type="button" data-act="tmSave">기록하고 체크</button><button class="btn ghost" type="button" data-act="mvClose">더 할래요</button><button class="btn ghost danger-txt" type="button" data-act="tmDrop">버리기</button>';
-  openDlg($("moveDlg"));
-}
-function timerSave() {
-  const tm = timerNow(); if (!tm || !ready()) return;
-  const min = (parseInt($("tmH").value, 10) || 0) * 60 + (parseInt($("tmM").value, 10) || 0);
-  if (!(min > 0)) { toast("시간을 넣어 주세요."); return; }
-  closeDlg($("moveDlg"));
-  const pick = document.querySelector('#moveDlg input[name="tmDay"]:checked');
-  const x = S.tasks.get(tm.taskId), id = tm.taskId, t = pick && /^\d{4}-\d{2}-\d{2}$/.test(pick.value) ? pick.value : today();   // t = 기록할 날 (자정을 넘겼으면 고른 날)
-  if (!x) { saveTimer(null, "할 일이 지워져서 타이머만 껐어요."); return; }
-  const was = isDone(x, t), day = !isRep(x) && was && x.doneDate ? x.doneDate : t, prevMin = was ? taskMinutes(id, day) : 0;
-  act((async () => {
-    if (!was) await backend.update("tasks", id, isRep(x) ? { doneDates: { [t]: true } }
-      : x.date && x.date !== t ? { date: t, done: true, doneDate: t, [x.date < t ? "lateFrom" : "earlyFrom"]: x.date } : { done: true, doneDate: t });
-    for (const l of taskLogs(id, day)) await backend.remove("logs", l.id);
-    await backend.add("logs", { date: day, minutes: prevMin + min, text: x.title, goalId: x.goalId || null, taskId: id, createdAt: Date.now() });
-    await backend.saveSettings({ timer: null });
-  })(), `⏱ ${t === today() ? "" : shortDate(t) + "에 "}${fmtMin(min)} 기록하고 '${x.title}' 체크했어요. 🔥`).catch(() => {});
-}
-
 // 시간 입력: 숨은 칸(id)에 총 분, 보이는 칸은 [시간][분] (data-hm="id")
 // 빠른 버튼 (data-min-for="id"): ＋30분은 더하기, 나머지는 그 시간으로 (한 번 더 누르면 지움)
 const MIN_QUICK = [60, 90, 120];
@@ -832,139 +769,6 @@ function doMove(kind) {
     if (x.minutes > 0) recordTaskTime(x, id, day, x.minutes, `🔥 ${fmtMin(x.minutes)} 기록했어요. ` + msg);
     else showDoneSheet(id, day);
   }).catch(() => {});
-}
-
-// ---------- 되돌리기 ↶ / 다시 하기 ↷ ----------
-// 저장할 때마다 바뀌는 문서의 '전'과 '후'를 모아 두고(1.5초 안의 변경은 한 묶음), 모든 기기가 같이 쓰는 기록(최근 30개)에 넣음
-const HIST_COLS = ["goals", "tasks", "logs", "money", "accounts", "wins"];
-const DEV = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "폰" : "PC";
-let histGroup = null, histApplying = false, histTimer = null, histFor = null;
-function histNorm(o) {   // 비교용: 빈 칸 빼고 키 순서 맞추기 (Firebase는 null·빈 묶음을 저장 안 함)
-  if (o === null || o === undefined) return undefined;
-  if (Array.isArray(o)) return o.map(histNorm);
-  if (typeof o !== "object") return o;
-  const out = {};
-  Object.keys(o).sort().forEach((k) => { const v = histNorm(o[k]); if (v !== undefined && !(v && typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length)) out[k] = v; });
-  return Object.keys(out).length ? out : undefined;
-}
-function sameDoc(a, b) { return JSON.stringify(histNorm(a)) === JSON.stringify(histNorm(b)); }
-function histTouch(c, id, isNew) {
-  if (histApplying || !HIST_COLS.includes(c) || !id) return;
-  if (!histGroup) histGroup = { keys: [], before: {} };
-  const k = c + "|" + id;
-  if (!histGroup.keys.includes(k)) { histGroup.keys.push(k); const cur = !isNew && S[c].get(id); histGroup.before[k] = cur ? clone(cur) : null; }
-  clearTimeout(histTimer); histTimer = setTimeout(histClose, 1500);
-}
-function wrapHistory(b) {
-  const add = b.add, update = b.update, remove = b.remove;
-  b.add = async (c, obj) => { const id = await add(c, obj); histTouch(c, id, true); clearTimeout(histTimer); histTimer = setTimeout(histClose, 1500); return id; };
-  b.update = (c, id, patch) => { histTouch(c, id); return update(c, id, patch); };
-  b.remove = (c, id) => { histTouch(c, id); return remove(c, id); };
-  return b;
-}
-function histClose() {
-  const g = histGroup; histGroup = null; if (!g || !backend) return;
-  const after = {};
-  g.keys.forEach((k) => { const [c, id] = k.split("|"); const cur = S[c].get(id); after[k] = cur ? clone(cur) : null; });
-  if (g.keys.every((k) => sameDoc(g.before[k], after[k]))) return;
-  const e = { at: Date.now(), dev: DEV, keys: g.keys, before: g.before, after, undone: false };
-  Object.assign(e, histDescribe(e));
-  const list = histList().filter((x) => !x.undone).concat([e]).slice(-30);
-  S.history = list; renderHist();
-  backend.saveHistory(list).catch(() => {});
-}
-function histList() { return (S.history || []).filter((x) => x && x.keys); }
-function histDoc(map, k) { return (map && map[k]) || null; }
-// 기록 한 줄 이름: 가장 중요한 문서 하나로 ("'강의듣기' 체크", "식비 30,000원 기록" …)
-function histDescribe(e) {
-  const order = ["tasks", "goals", "money", "accounts", "logs"];
-  const k = [...e.keys].sort((a, b) => order.indexOf(a.split("|")[0]) - order.indexOf(b.split("|")[0]))[0];
-  const c = k.split("|")[0], b = histDoc(e.before, k), a = histDoc(e.after, k), d = a || b || {};
-  const verb = !b ? "추가" : !a ? "삭제" : "고치기";
-  if (c === "tasks") {
-    const name = `'${d.title || "할 일"}'`;
-    if (a && b) {
-      const ad = a.doneDates || {}, bd = b.doneDates || {};
-      const day = Object.keys({ ...ad, ...bd }).find((x) => !!ad[x] !== !!bd[x]);
-      if (day) return { label: `${name} ${ad[day] ? "체크" : "체크 풀기"}`, date: day };
-      if (!!a.done !== !!b.done) return { label: `${name} ${a.done ? "체크" : "체크 풀기"}`, date: a.done ? a.doneDate || a.date : b.doneDate || b.date };
-    }
-    return { label: `${name} ${verb}`, date: d.date || d.start || null };
-  }
-  if (c === "logs") {
-    const t = d.minutes ? fmtHM(d.minutes) : "";
-    const name = d.taskId ? `'${d.text || "할 일"}' 시간${t ? " " + t : ""}` : `실천${t ? " " + t : ""}${d.text ? " · " + d.text : ""}`;
-    return { label: `${name} ${!b ? "기록" : verb}`, date: d.date || null };
-  }
-  if (c === "money") return { label: `${d.kind === "move" ? "이체" : d.cat || KIND_LABEL[d.kind] || "돈"} ${won(d.amount)} ${!b ? "기록" : verb}`, date: d.date || null };
-  if (c === "goals") {
-    if (a && b) {
-      const as = a.subs || {}, bs = b.subs || {}, sid = Object.keys({ ...as, ...bs }).find((x) => !sameDoc(as[x], bs[x]));
-      if (sid) {
-        const sv = as[sid] || bs[sid] || {};
-        if (as[sid] && bs[sid] && !!as[sid].doneAt !== !!bs[sid].doneAt) return { label: `세부목표 '${sv.title || ""}' ${as[sid].doneAt ? "달성" : "달성 취소"}`, date: as[sid].doneAt || null };
-        return { label: `세부목표 '${sv.title || ""}' ${!bs[sid] ? "추가" : !as[sid] ? "삭제" : "고치기"}`, date: null };
-      }
-      if (!!a.achievedAt !== !!b.achievedAt) return { label: `목표 '${d.title || ""}' ${a.achievedAt ? "달성" : "달성 취소"}`, date: a.achievedAt || null };
-    }
-    return { label: `목표 '${d.title || ""}' ${verb}`, date: null };
-  }
-  if (c === "accounts") return { label: `자산 '${d.name || ""}' ${verb}`, date: null };
-  if (c === "wins") {
-    if (a && b && b.shield && !b.fillDate && a.fillDate) return { label: "🛡️ 쿠폰으로 실천 안 한 날 채우기", date: a.fillDate };
-    if (a && b && !b.usedAt && a.usedAt) return a.fillDate && !a.shield ? { label: "🛡️ 쿠폰으로 실천 안 한 날 채우기", date: a.fillDate } : { label: `쿠폰 '${d.title}' 쓰기`, date: a.usedAt };
-    if (a && b && (a.left || 0) < (b.left || 0)) return { label: `벌칙 '${d.title}' 했어요`, date: a.doneAt || null };
-    return { label: `쿠폰함 '${d.title}' ${verb}`, date: null };
-  }
-  return { label: "변경", date: null };
-}
-function histTargets() {
-  const list = histList();
-  let undo = null; for (let i = list.length - 1; i >= 0; i--) if (!list[i].undone) { undo = list[i]; break; }
-  const redo = list.find((x) => x.undone) || null;
-  return { undo, redo };
-}
-function renderHist() {
-  const { undo, redo } = histTargets();
-  $("undoBtn").classList.toggle("off", !undo); $("redoBtn").classList.toggle("off", !redo);
-  $("undoBtn").title = undo ? `되돌리기: ${undo.label}` : "되돌릴 게 없어요";
-  $("redoBtn").title = redo ? `다시 하기: ${redo.label}` : "다시 할 게 없어요";
-}
-function agoText(at) {
-  const m = Math.round((Date.now() - at) / 60000);
-  return m < 1 ? "방금" : m < 60 ? `${m}분 전` : m < 60 * 24 ? `${Math.round(m / 60)}시간 전` : fmtTime(at);
-}
-function askHist(dir) {
-  const { undo, redo } = histTargets(), e = dir === "undo" ? undo : redo;
-  if (!e) { toast(dir === "undo" ? "되돌릴 게 없어요." : "다시 할 게 없어요."); return; }
-  const now = dir === "undo" ? e.after : e.before;   // 지금 이 상태여야 그대로 되돌릴 수 있음
-  const changed = e.keys.some((k) => { const [c, id] = k.split("|"); return !sameDoc(S[c].get(id) || null, histDoc(now, k)); });
-  moveFor = null; logFor = null; histFor = { dir, at: e.at };
-  $("mvTitle").textContent = dir === "undo" ? "되돌릴까요?" : "다시 할까요?";
-  $("mvText").innerHTML = `<p><b>${e.date ? esc(shortDate(e.date)) + " " : ""}${esc(e.label)}</b></p>` +
-    `<p class="small muted">${esc(agoText(e.at))} · ${esc(e.dev || "")}에서</p>` +
-    (changed ? `<p class="hist-warn">그 뒤에 이 내용이 또 바뀌었어요 (다른 기기나 다른 작업). 그래도 ${dir === "undo" ? "되돌리면" : "다시 하면"} 그 뒤에 바뀐 것도 같이 ${dir === "undo" ? "그때로 돌아가요" : "덮어써요"}.</p>` : "");
-  $("mvBtns").innerHTML = `<button class="btn" type="button" data-act="histDo">${dir === "undo" ? "되돌리기" : "다시 하기"}</button><button class="btn ghost" type="button" data-act="mvClose">취소</button>`;
-  openDlg($("moveDlg"));
-}
-async function histApply() {
-  const f = histFor; histFor = null; closeDlg($("moveDlg"));
-  const list = histList(), e = f && list.find((x) => x.at === f.at);
-  if (!e || !ready()) return;
-  const target = f.dir === "undo" ? e.before : e.after;
-  const keys = f.dir === "undo" ? [...e.keys].reverse() : e.keys;
-  histApplying = true;
-  try {
-    await act((async () => {
-      for (const k of keys) {
-        const [c, id] = k.split("|"), doc = histDoc(target, k);
-        if (doc) await backend.set(c, id, doc); else if (S[c].has(id)) await backend.remove(c, id);
-      }
-    })(), `${f.dir === "undo" ? "되돌렸어요" : "다시 했어요"}: ${e.label}`);
-  } catch (err) { return; } finally { histApplying = false; }
-  e.undone = f.dir === "undo";
-  S.history = list; renderHist();
-  backend.saveHistory(list).catch(() => {});
 }
 
 // ---------- 검색: 할 일·반복(날마다)·실천·목표·돈을 날짜 순으로 ----------
@@ -1192,7 +996,6 @@ function renderNags() {
   box.hidden = !list.length;
   box.innerHTML = list.map(([k, txt, btns]) => `<div class="nag${k.startsWith("upd") || (k === "gack" && !txt.includes("모자라요")) ? " upd" : k.startsWith("pr") ? " praise" : ""}"><span class="nag-t">${txt}</span><span class="nag-b">${btns}<button class="icon-btn" type="button" data-act="nagLater" data-k="${k}" title="이번엔 닫기 (다시 열면 또 보여요)">나중에</button></span></div>`).join("");
 }
-async function quietly(fn) { histApplying = true; try { return await fn(); } finally { histApplying = false; } }   // 되돌리기 기록에 안 남김
 function lsGet(k) { try { return Number(localStorage.getItem(k)) || 0; } catch (e) { return 0; } }
 function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { /* 무시 */ } }
 // 관리자 기기: 새 기능 요청·쿠폰 요청이 있으면 N (그 기기에서 본 뒤로 새로 온 것만)
@@ -1799,6 +1602,8 @@ document.addEventListener("click", (ev) => {
   if (moneyAction(a, el, id, t)) return;   // 💰 돈 관리 버튼 (money.js)
   if (lottoAction(a, el, id, t)) return;   // 🎟️ 복권·쿠폰함 버튼 (lotto.js)
   if (pagesAction(a, el, id, t)) return;   // 📖 설명서·기능 요청·자격증 찾기 버튼 (pages.js)
+  if (undoAction(a, el, id, t)) return;   // ↶↷ 되돌리기 버튼 (undo.js)
+  if (timerAction(a, el, id, t)) return;   // ⏱ 타이머 버튼 (timer.js)
 
   if (a === "menu") { openMenu(); return; }
   if (a === "menuClose") { closeMenu(); return; }
@@ -1856,7 +1661,7 @@ document.addEventListener("click", (ev) => {
       mine.length ? `세부목표를 지웠어요. 그 할 일 ${mine.length}개는 '세부목표 없음'으로 옮겼어요.` : "세부목표를 지웠어요.").catch(() => {});
     return;
   }
-  if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; histFor = null; clearFill(); return; }
+  if (a === "mvClose") { closeDlg($("moveDlg")); moveFor = null; logFor = null; clearHist(); clearFill(); return; }
   if (a === "testMode") { toggleTestMode(); return; }
   if (a === "nagGo" && APP === "board" && !isAdminDevice()) { try { localStorage.setItem("ukjin-mtab", el.dataset.k === "income" ? "spend" : "budget"); } catch (e) { /* 무시 */ } location.href = "money.html"; return; }
   if (a === "nagGo") { ui.month = today().slice(0, 7); if (el.dataset.k === "income") ui.kind = "income"; try { localStorage.setItem("ukjin-mtab", el.dataset.k === "income" ? "spend" : "budget"); } catch (e) { /* 무시 */ } location.hash = "#money"; setTimeout(() => { const p = $(el.dataset.k === "income" ? "moneyPanel" : "planPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.dataset.k === "income") renderMoneyForm(); if (el.dataset.k === "give") $("planGive").focus(); }, 80); return; }
@@ -1890,9 +1695,6 @@ document.addEventListener("click", (ev) => {
     act(backend.update("goals", id, { subs: { [v.id]: { doneAt: v.doneAt ? null : t } } }), v.doneAt ? "달성 표시를 풀었어요." : `🎉 '${v.title}' 달성!`).catch(() => {});
     return;
   }
-  if (a === "histUndo") { askHist("undo"); return; }
-  if (a === "histRedo") { askHist("redo"); return; }
-  if (a === "histDo") { histApply(); return; }
   if (a === "searchClear") { $("calSearch").value = ""; renderSearch(); $("calSearch").focus(); return; }
   if (a === "searchMoney" && APP === "board" && !isAdminDevice()) { try { localStorage.setItem("ukjin-money-edit", id); } catch (e) { /* 무시 */ } location.href = "money.html"; return; }
   if (a === "searchMoney") { const m = S.money.get(id); if (!m) return; ui.month = m.date.slice(0, 7); location.hash = "#money"; if (!moneyAdminView()) setTimeout(() => editMoney(id), 60); return; }
@@ -1911,14 +1713,6 @@ document.addEventListener("click", (ev) => {
   if (a === "mvDo") { doMove(el.dataset.k); return; }
   if (a === "tmStart") { timerStart(id); return; }
   if (a === "tmStartDlg") { timerStart(tk.id); return; }
-  if (a === "tmPause") { const tm = timerNow(); if (tm && tm.start && ready()) saveTimer({ ...tm, acc: timerMs(tm), start: null }, "⏸ 멈췄어요. [▶ 다시]로 이어서 재요."); return; }
-  if (a === "tmResume") { const tm = timerNow(); if (tm && !tm.start && ready()) saveTimer({ ...tm, start: Date.now() }, "▶ 다시 재요."); return; }
-  if (a === "tmEnd") { openTimerEnd(); return; }
-  if (a === "tmSave") { timerSave(); return; }
-  if (a === "tmDrop") {
-    if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.textContent = "정말 버릴까요?"; return; }
-    closeDlg($("moveDlg")); saveTimer(null, "타이머를 기록 없이 껐어요."); return;
-  }
   if (a === "addMin") { const k = el.dataset.for; setMinInput(k, (parseInt($(k).value, 10) || 0) + 30); return; }
   if (a === "setMin") { const k = el.dataset.for, m = +el.dataset.m; setMinInput(k, (parseInt($(k).value, 10) || 0) === m ? "" : m); return; }
   if (a === "gtClose") { gt.open = null; renderGoalDlg(); return; }
@@ -2304,6 +2098,14 @@ const rv = mountRecv({ $, S, esc, moneyCats, won, act, rid, toast, render, today
 // 🔎 내역 표 정렬·거르기 (냐냐 가계부 txfilter.js 복사: 머리줄 클릭·오른쪽 클릭, 폰은 표 위 버튼)
 const tf = mountTxFilter({ $, esc, won, toast, render, shortDate, acctName, ccOf, cntAmt, recvName: (id) => rv.nameOf(id) });
 // 💰 돈 관리(money.js)에 공통 함수·상태 넘기기 (backend·testMode 등 바뀌는 값은 getter)
+// ⏱ 할 일 타이머 (timer.js)에 보드 쪽 공통 함수·상태 넘기기
+bindTimer({ $, APP, S, act, addDays, closeDlg, esc, fmtMin, isDone, isRep, openDlg, pad, ready, shortDate, taskLogs, taskMinutes, toast, today, ymd,
+  get backend() { return backend; }, get testMode() { return testMode; }, get realBackend() { return realBackend; } });
+initTimer();
+// ↶↷ 되돌리기 (undo.js)에 보드 쪽 공통 함수·상태 넘기기
+bindUndo({ $, KIND_LABEL, S, act, clearAsk: () => { moveFor = null; logFor = null; }, clone, closeDlg, esc, fmtHM, fmtTime, openDlg, ready, shortDate, toast, won,
+  get backend() { return backend; }, get testMode() { return testMode; }, get realBackend() { return realBackend; } });
+initUndo();
 // 📖 설명서 · 🛠️ 기능 요청 · 🔎 자격증 찾기 (pages.js)에 보드 쪽 공통 함수·상태 넘기기
 bindPages({ $, CHANGES, S, act, closeDlg, esc, fmtTime, lottoVisible, notifyNyanya, openDlg, ready, rows, shrinkPic, toast, today, ui,
   get backend() { return backend; }, get testMode() { return testMode; }, get realBackend() { return realBackend; } });
