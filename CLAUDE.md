@@ -51,7 +51,7 @@ docs/changes.js        업데이트 내역 CHANGES (설명서 탭 + 새 버전 �
 docs/lotto-presets.js  복권 추천 목록 (쿠폰 200 · 벌칙 50, 관리 창에서 한 번에 넣기)
 docs/google-sync.html  구글 캘린더 동기화 설정 안내 페이지
 docs/apps-script/Code.gs       욱진이 Apps Script에 넣는 짧은 로더 (한 번만 붙여넣음)
-docs/apps-script/sync-core.js  실제 구글 동기화 코드. 로더가 5분마다 받아서 실행 → 여기만 고치면 자동 적용
+docs/apps-script/sync-core.js  실제 구글 동기화 코드. 로더가 5분마다 받아서 실행 → 여기만 고치면 자동 적용 · 🔔 폰 알림(2026-11-23, `alarmItems_`): 🔥 욱진 실천 캘린더에 시각 있는 10분 일정 + 그 시각 팝업(`whenOf_`, ref `al:…`) → 구글 캘린더 앱이 알림. 아침 7시 ☀️ 오늘·내일 할 일 · 마감 전날 밤 8시 😈 벌칙·🎟️ 쿠폰·🛡️ · 받을 👏 칭찬·😥 감점(3일) 온 지 10분 뒤 (복권 공개 때만). 시각은 `ALARM`. 저녁 실천 알림은 주인이 안 하기로 함. 브라우저 시험: docs/_local/alarm_test.html(올리지 않음)
 docs/manifest.webmanifest, uk-*.png  실천 보드 아이콘 (욱진이 캐릭터 얼굴: PC 설치 앱·안드로이드 = 동그라미 uk-round-192/512(any) + 네모 uk-icon-512(maskable), 아이폰 홈 = 네모 uk-apple-touch-icon, 탭·제목 로고 = 동그라미 uk-favicon-64)
 docs/money.webmanifest, icon-*.png, apple-touch-icon.png  가계부 아이콘 (욱진이 얼굴 + 금색 배경 + ₩ 동전, `python tools/make_coin_icon.py`로 만듦, index.html 머리 스크립트가 가계부 모드면 바꿔 끼움, 제목 로고 `.logo-coin`)
 ```

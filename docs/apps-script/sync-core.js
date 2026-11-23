@@ -10,8 +10,10 @@
  *   · 캘린더 두 개로 나눔: 기본 캘린더 = 욱진 일정(한 번 하는 할 일·D-DAY) · 따로 만든 🔥 욱진 실천 = 루틴(반복하는 할 일)·실천 기록
  *     → 기본 캘린더를 공유받은 사람에게 루틴·실천 기록은 안 보임 (예전에 기본 캘린더에 넣은 루틴·실천은 옮김)
  *   · 💗 욱진이가 공유받은 냐냐 캘린더 → 보드 달력에 같이 보내기 (읽기만, 냐냐 캘린더는 절대 안 고침)
+ *   · 🔔 폰 알림 (2026-11-23): 🔥 욱진 실천 캘린더에 시각 있는 짧은 일정 + 그 시각 팝업 알림 → 구글 캘린더 앱이 폰에 알려 줌
+ *     아침 7시 ☀️ 오늘 할 일 · 전날 밤 8시 😈 벌칙·🎟️ 쿠폰 마감 · 👏 칭찬·😥 감점은 온 지 10분 뒤 (alarmItems_)
  */
-const CORE_VERSION = "2026-11-05b";
+const CORE_VERSION = "2026-11-23a";
 const DB_URL = "https://ukjin-207a3-default-rtdb.firebaseio.com";
 const TZ = "Asia/Seoul";
 const DESC = "욱진 실천 보드에서 넣은 일정";
@@ -22,6 +24,7 @@ const COLOR = { plan: "9", done: "5", check: "2", dday: "11", log: "5", miss: "8
 const DOW = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 // 💗 냐냐 캘린더: 공개 저장소라 메일 주소 대신 SHA-256("nyanya-cal:"+캘린더 ID)로 찾음
 const NYA_CAL_HASH = "99b84421709c703512b9deb552a70049003b38116f04ac78f5e04906178573cb";
+const ALARM = { morning: "07:00", eve: "20:00", praiseAfter: 10, color: "6" };   // 🔔 알림 시각 · 칭찬 알림은 온 지 몇 분 뒤 · 색(주황)
 const MARK = { plan: "📌 ", done: "🔥 ", check: "✅ ", dday: "🎯 D-DAY ", log: "🔥 ", miss: "❌ " };   // 제목 앞 이모지. 시간과 같이 끝낸 할 일은 실천 🔥, 시간 없이 체크만 한 일은 ✅, 지난 날 못 한 일은 ❌
 
 function ukjinSync(BOARD_PASSWORD) {
@@ -32,7 +35,9 @@ function ukjinSync(BOARD_PASSWORD) {
   const tasks = getJson_(base + "/tasks.json") || {};
   const goals = getJson_(base + "/goals.json") || {};
   const logs = getJson_(base + "/logs.json") || {};
-  const res = pushToGoogle_(tasks, goals, logs);
+  const settings = getJson_(base + "/settings.json") || {};
+  const wins = getJson_(base + "/wins.json") || {};
+  const res = pushToGoogle_(tasks, goals, logs, alarmItems_(tasks, wins, settings, Date.now()));
   const gev = pullFromGoogle_();
   const nya = pullNyanya_(gev);
   putJson_(base + "/gevents.json", gev);
@@ -45,8 +50,9 @@ function ukjinSync(BOARD_PASSWORD) {
 }
 
 // ---------- 보드 → 구글 ----------
-function pushToGoogle_(tasks, goals, logs) {
+function pushToGoogle_(tasks, goals, logs, alarms) {
   const items = {};
+  Object.keys(alarms || {}).forEach(function (ref) { items[ref] = alarms[ref]; });   // 🔔 알림 일정
   const today = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd");
   // 할 일을 체크하면서 기록한 시간: "✅ 제목 · 1시간"으로 할 일에 붙이고 🔥 일정은 따로 안 만듦
   const timed = {};
@@ -132,8 +138,9 @@ function pushToGoogle_(tasks, goals, logs) {
       if (!it || ids[ref] || (it.cal || "plan") !== key) { remove_(cal, ev.id); res.deleted++; return; }   // 보드에서 지웠거나 중복이거나 다른 캘린더 것
       ids[ref] = ev.id;
       const sameRule = String((ev.recurrence || []).join("|")) === String((it.recurrence || []).join("|"));
-      if (ev.summary !== it.summary || (ev.colorId || "") !== it.colorId || !ev.start || ev.start.date !== it.date || !sameRule) {
-        const body = { summary: it.summary, colorId: it.colorId, start: { date: it.date }, end: { date: nextDay_(it.date) } };
+      if (ev.summary !== it.summary || (ev.colorId || "") !== it.colorId || !sameStart_(ev, it) || !sameRule) {
+        const body = { summary: it.summary, colorId: it.colorId };
+        whenOf_(it, body);
         if (it.recurrence) body.recurrence = it.recurrence;
         Calendar.Events.patch(body, cal, ev.id);
         res.updated++;
@@ -144,10 +151,10 @@ function pushToGoogle_(tasks, goals, logs) {
     if (ids[ref]) return;
     const it = items[ref];
     const body = {
-      summary: it.summary, colorId: it.colorId, description: DESC,
-      start: { date: it.date }, end: { date: nextDay_(it.date) },
+      summary: it.summary, colorId: it.colorId, description: it.time ? DESC + " · 🔔 알림" : DESC,
       extendedProperties: { private: { ukjinApp: "1", ukjinRef: ref } }
     };
+    whenOf_(it, body);
     if (it.recurrence) body.recurrence = it.recurrence;
     ids[ref] = Calendar.Events.insert(body, calOf(ref)).id;
     res.added++;
@@ -187,6 +194,82 @@ function pushToGoogle_(tasks, goals, logs) {
     if (/실천 보드$/.test(String(ev.description || "").trim())) { remove_(CAL, ev.id); res.cleaned++; }
   });
   return res;
+}
+
+// 일정 날짜·시각: 종일(date) 또는 🔔 알림(time "HH:mm" → 10분짜리, 그 시각 팝업, 바쁨 표시 안 함)
+function whenOf_(it, body) {
+  if (!it.time) { body.start = { date: it.date }; body.end = { date: nextDay_(it.date) }; return body; }
+  const s = it.date + "T" + it.time + ":00+09:00";
+  body.start = { dateTime: s, timeZone: TZ };
+  body.end = { dateTime: Utilities.formatDate(new Date(new Date(s).getTime() + 10 * 60000), TZ, "yyyy-MM-dd'T'HH:mm:ssXXX"), timeZone: TZ };
+  body.reminders = { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] };
+  body.transparency = "transparent";
+  return body;
+}
+function sameStart_(ev, it) {
+  if (!ev.start) return false;
+  if (!it.time) return ev.start.date === it.date;
+  return !!ev.start.dateTime && new Date(ev.start.dateTime).getTime() === new Date(it.date + "T" + it.time + ":00+09:00").getTime();
+}
+
+// ---------- 🔔 폰 알림 일정 (보드 기록에서 만듦, 지난 알림은 지워짐) ----------
+// ☀️ 오늘·내일 아침 7시: 그 날 할 일 (아직 안 한 것, 구글로 안 보내는 할 일 noGoogle 빼고) — 할 일이 없으면 알림 없음
+// 😈 벌칙 마감 · 🎟️ 쿠폰(·🛡️) 만료 전날 밤 8시 (복권을 욱진이에게 공개했을 때만)
+// 👏 받을 칭찬 · 😥 감점: 온 지 10분 뒤 (칭찬은 받거나 사라지면, 감점은 3일 지나면 알림 일정도 지움)
+function alarmItems_(tasks, wins, settings, now) {
+  const out = {}, today = Utilities.formatDate(new Date(now), TZ, "yyyy-MM-dd"), tomorrow = nextDay_(today);
+  const dow = function (d) { const p = d.split("-"); return new Date(+p[0], +p[1] - 1, +p[2], 12).getDay(); };
+  const todoOn = function (d) {
+    const list = [];
+    Object.keys(tasks || {}).forEach(function (id) {
+      const t = tasks[id];
+      if (!t || !t.title || t.noGoogle) return;
+      const dd = t.doneDates || {};
+      let on = false;
+      if (t.repeat === "daily" || t.repeat === "weekly" || t.repeat === "nweek") {
+        if ((t.start && d < t.start) || (t.end && d > t.end) || dd[d]) return;
+        if (t.repeat === "daily") on = true;
+        else if (t.repeat === "weekly") on = (t.days || []).indexOf(dow(d)) >= 0;
+        else { const ws = sundayOf_(d); let n = 0; for (let i = 0; i < 7; i++) if (dd[addDays_(ws, i)]) n++; on = n < Math.max(1, Number(t.times) || 1); }
+      } else on = t.date === d && !t.done;
+      if (on) list.push(t.title);
+    });
+    return list;
+  };
+  [today, tomorrow].forEach(function (d) {
+    const list = todoOn(d);
+    if (!list.length) return;
+    const shown = list.slice(0, 3).join(" · ") + (list.length > 3 ? " 외 " + (list.length - 3) + "개" : "");
+    out["al:am:" + d] = { summary: "☀️ 오늘 할 일 " + list.length + "개: " + shown, colorId: ALARM.color, date: d, time: ALARM.morning, cal: "log" };
+  });
+  const lotto = (settings && settings.lotto) || {};
+  if (lotto.on) {
+    Object.keys(wins || {}).forEach(function (id) {
+      const w = wins[id];
+      if (!w || !w.title) return;
+      let due = null, text = "";
+      if (w.kind === "pen" && w.left > 0 && w.deadline) { due = w.deadline; text = "😈 내일 마감 벌칙: " + w.title + (w.left > 1 ? " ×" + w.left : "") + " (못 하면 ×" + w.left * 2 + ")"; }
+      else if (w.kind === "coupon" && w.expires && !w.usedAt) { due = w.expires; text = "🎟️ 내일까지 쓸 쿠폰: " + w.title; }
+      else if (w.kind === "coupon" && w.expires && w.shield && !w.fillDate) { due = w.expires; text = "🛡️ 내일까지 연속 채우기 쿠폰을 쓸 수 있어요"; }
+      if (!due) return;
+      const eve = addDays_(due, -1);
+      if (eve >= today) out["al:due:" + id] = { summary: text, colorId: ALARM.color, date: eve, time: ALARM.eve, cal: "log" };
+    });
+    const ps = lotto.praises || {}, PRAISE_DAYS = 3;
+    Object.keys(ps).forEach(function (id) {
+      const p = ps[id];
+      if (!p || !p.date || !p.at) return;
+      const pts = Number(p.pts) || 30;
+      if (pts > 0 && !(p.claim && !p.got && today <= addDays_(p.date, PRAISE_DAYS - 1))) return;   // 받을 칭찬만
+      if (pts < 0 && today > addDays_(p.date, PRAISE_DAYS - 1)) return;
+      const at = new Date(Math.ceil((Number(p.at) + ALARM.praiseAfter * 60000) / 60000) * 60000);
+      out["al:pr:" + id] = {
+        summary: pts > 0 ? "👏 냐냐가 칭찬했어요! ⭐ +" + pts + "점 · 보드에서 [받기]" + (p.text ? " · " + p.text : "") : "😥 냐냐가 감점했어요 ⭐ " + pts + "점" + (p.text ? " · " + p.text : ""),
+        colorId: ALARM.color, date: Utilities.formatDate(at, TZ, "yyyy-MM-dd"), time: Utilities.formatDate(at, TZ, "HH:mm"), cal: "log"
+      };
+    });
+  }
+  return out;
 }
 
 // 보드 화면과 같은 짧은 시간: 1h 30m

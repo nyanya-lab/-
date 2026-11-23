@@ -15,7 +15,7 @@ TODAY = "2026-11-11"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "demo", "snapshot.json")
 R = random.Random(7)
 T0 = datetime.date.fromisoformat(TODAY)
-AT = 1762830000000   # TODAY 즈음의 시각(ms)
+AT = 1794366000000   # TODAY 즈음의 시각(ms) = 2026-11-11 12:00 KST
 
 
 def day(n):   # 오늘에서 n일 뒤 (음수 = 전)
