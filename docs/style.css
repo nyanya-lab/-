@@ -1589,3 +1589,5 @@ table.bulk { min-width: 1200px; table-layout: fixed; }
 .dp-pop .dp-months button { border: 0; border-radius: 12px; padding: 12px 0; background: var(--sunk); color: inherit; font: inherit; cursor: pointer; }
 .dp-pop .dp-months button:hover { background: var(--coral-soft); }
 .dp-pop .dp-months button.on { background: var(--coral); color: #fff; font-weight: 700; }
+/* 💾 전부 내려받기 (⚙ 설정 → 백업) */
+.bak-dl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }

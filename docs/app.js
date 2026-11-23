@@ -1,22 +1,22 @@
-import { bindTimer, initTimer, timerAction, canTime, renderTimerBar, timerNow, timerStart } from "./timer.js?v=20261123c";
-import { bindUndo, initUndo, undoAction, clearHist, quietly, renderHist, wrapHistory } from "./undo.js?v=20261123c";
-import { bindPages, initPages, pagesAction, CERTS, maybeShowNews, renderCerts, renderHelp, renderRequests } from "./pages.js?v=20261123c";
-import { bindLotto, initLotto, lottoAction, PT_TICKET, LOTTO_STAGES, PRAISE_DAYS, clearFill, couponReqs, laTab, lottoStage, markCreqSeen, maybeLottoIntro, maybePraise, openScratch, openWin, paintTicket, penDone, pendingPraises, praiseState, praises, renderCouponReqs, renderCoupons, renderLottoAdmin, sweepPens, syncPenTasks, ticketsLeft, untilText, viewPic } from "./lotto.js?v=20261123c";
-import { CHANGES } from "./changes.js?v=20261123c";
-import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS, cardPayPlan } from "./money.js?v=20261123c";
-import { mountRepeat, duePatch, repeatDate } from "./repeat.js?v=20261123c";
-import { mountAcctSet } from "./acctset.js?v=20261123c";
-import { mountReport } from "./report.js?v=20261123c";
-import { mountSummary } from "./summary.js?v=20261123c";
-import { mountPicker } from "./picker.js?v=20261123c";
-import { mountDatePick } from "./datepick.js?v=20261123c";
-import { mountRecSplit } from "./recsplit.js?v=20261123c";
+import { bindTimer, initTimer, timerAction, canTime, renderTimerBar, timerNow, timerStart } from "./timer.js?v=20261123d";
+import { bindUndo, initUndo, undoAction, clearHist, quietly, renderHist, wrapHistory } from "./undo.js?v=20261123d";
+import { bindPages, initPages, pagesAction, CERTS, maybeShowNews, renderCerts, renderHelp, renderRequests } from "./pages.js?v=20261123d";
+import { bindLotto, initLotto, lottoAction, PT_TICKET, LOTTO_STAGES, PRAISE_DAYS, clearFill, couponReqs, laTab, lottoStage, markCreqSeen, maybeLottoIntro, maybePraise, openScratch, openWin, paintTicket, penDone, pendingPraises, praiseState, praises, renderCouponReqs, renderCoupons, renderLottoAdmin, sweepPens, syncPenTasks, ticketsLeft, untilText, viewPic } from "./lotto.js?v=20261123d";
+import { CHANGES } from "./changes.js?v=20261123d";
+import { bindMoney, initMoney, moneyAction, moneyTaskKind, KIND_LABEL, amtText, isWon, editMoney, giveOf, moneyAdminView, moneyShown, monthTotals, openCardPay, planOf, planSource, renderMoney, renderMoneyForm, savePlan, syncCardPays, syncGive, syncMoneyTasks, balances, renderCatEditor, pieHtml, stRange, setChart, acctName, txRow, sortedAccts, subsOf as moneySubsOf, mineOn, cntAmt, isSettleIn, setMTab, ccOf, lastAcct, rememberAcct, acctOptsHtml, moneyCats, subOptions, commonCatName, MONEY_CATS, cardPayPlan } from "./money.js?v=20261123d";
+import { mountRepeat, duePatch, repeatDate } from "./repeat.js?v=20261123d";
+import { mountAcctSet } from "./acctset.js?v=20261123d";
+import { mountReport } from "./report.js?v=20261123d";
+import { mountSummary } from "./summary.js?v=20261123d";
+import { mountPicker } from "./picker.js?v=20261123d";
+import { mountDatePick } from "./datepick.js?v=20261123d";
+import { mountRecSplit } from "./recsplit.js?v=20261123d";
 import { mountRecv } from "./recv.js?v=20261110c";
-import { mountTxFilter } from "./txfilter.js?v=20261123c";
-import { mountExtras } from "./extras.js?v=20261123c";
-import { mountBalance } from "./balance.js?v=20261123c";
-import { calSummary } from "./calsum.js?v=20261123c";
-import { firebaseConfig } from "./firebase-config.js?v=20261123c";
+import { mountTxFilter } from "./txfilter.js?v=20261123d";
+import { mountExtras } from "./extras.js?v=20261123d";
+import { mountBalance } from "./balance.js?v=20261123d";
+import { calSummary } from "./calsum.js?v=20261123d";
+import { firebaseConfig } from "./firebase-config.js?v=20261123d";
 // 🔒 로컬 확인 모드에서만: ?today=2026-11-11 로 오늘을 바꿔 보기 · ?local=test 면 자동 점검(tests/tests.js)이 날짜를 바꿔 가며 계산을 확인
 const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("local");
 // 🧪 연습판 (올라간 사이트에서도: 주소 끝에 ?demo · 가계부는 index.html?app=money&demo): 비밀번호 없이 demo/snapshot.json(지어낸 예시, tools/make_demo.py)을 메모리 보드로 — 저장 안 됨
@@ -247,6 +247,31 @@ async function firebaseStart() {
     await Promise.all(BAK_KEYS.map(async (k) => { const v = (await rt.get(path(room, k))).val(); if (v != null) out[k] = v; }));
     return out;
   }
+  // 📸 사진 백업 (2026-11-23): 기록(wins·money)에 붙은 사진을 _bakpics/pics/{id}에 복사해 둠 (목록 _bakpics/ids/{id}: true).
+  //   사진은 한 번 올리면 안 바뀌어서 새로 생긴 것만 복사. 백업마다 그때 붙어 있던 사진 id(picIds)를 같이 적고,
+  //   지금 기록·백업 어디에도 안 붙은 사진은 하루 백업 때 지움. 되돌릴 땐 되돌린 기록에 붙은 사진 중 없어진 것만 다시 넣음 (지금 사진은 안 지움)
+  const picRefs = (all) => {
+    const out = new Set();
+    ["wins", "money"].forEach((c) => Object.values(all[c] || {}).forEach((x) => { if (x && x.pics && typeof x.pics === "object") Object.keys(x.pics).forEach((id) => out.add(id)); }));
+    return out;
+  };
+  const idObj = (set) => Object.fromEntries([...set].map((id) => [id, true]));
+  async function poolAdd(room, ids) {
+    const have = (await rt.get(path(room, "_bakpics", "ids"))).val() || {};
+    for (const id of ids) {
+      if (have[id]) continue;
+      const v = (await rt.get(path(room, "pics", id))).val(); if (!v) continue;
+      await rt.set(path(room, "_bakpics", "pics", id), v);
+      await rt.set(path(room, "_bakpics", "ids", id), true);
+    }
+    return have;
+  }
+  async function backupPics(room, all) {
+    const cur = picRefs(all), keep = new Set(cur);
+    for (const k of ["prev", "undo"]) Object.keys((await rt.get(path(room, "_backup", k, "picIds"))).val() || {}).forEach((id) => keep.add(id));
+    const have = await poolAdd(room, cur);
+    for (const id of Object.keys(have)) if (!keep.has(id)) { await rt.remove(path(room, "_bakpics", "pics", id)); await rt.remove(path(room, "_bakpics", "ids", id)); }
+  }
   let bakTimer = null;
   async function rotateBackups(room) {
     try {
@@ -256,7 +281,8 @@ async function firebaseStart() {
       const now = Date.now();
       for (const [kind, ms] of Object.entries(BAK_KINDS)) {
         if (bak[kind] && now - (bak[kind].savedAt || 0) < ms) continue;    // 아직 주기가 안 됨
-        await rt.set(path(room, "_backup", kind), { ...all, savedAt: now });
+        await rt.set(path(room, "_backup", kind), { ...all, savedAt: now, picIds: idObj(picRefs(all)) });
+        if (kind === "daily") await backupPics(room, all);
       }
     } catch (e) { /* 백업 실패가 사용을 막지는 않음 */ }
   }
@@ -276,13 +302,21 @@ async function firebaseStart() {
       async backups() { return (await rt.get(path(room, "_backup"))).val() || {}; },
       restore: tracked(async (kind) => {
         const bak = (await rt.get(path(room, "_backup", kind))).val(); if (!bak) throw new Error("no backup");
-        const all = await roomSnap(room);
-        await rt.set(path(room, "_backup", "undo"), { ...all, savedAt: Date.now() }); // 되돌리기 직전 상태도 남겨 둠
+        const all = await roomSnap(room), nowPics = picRefs(all);
+        await rt.set(path(room, "_backup", "undo"), { ...all, savedAt: Date.now(), picIds: idObj(nowPics) }); // 되돌리기 직전 상태도 남겨 둠
+        await poolAdd(room, nowPics);   // 그 상태의 사진도 사진 백업에
         const patch = {};
         COLS.forEach((c) => { patch[c] = bak[c] || null; });
         patch.settings = bak.settings || null;
         await rt.update(path(room), patch);
+        // 📸 되돌린 기록에 붙은 사진 중 지금 없는 것 → 사진 백업에서 다시 넣기
+        for (const id of picRefs(bak)) {
+          if ((await rt.get(path(room, "pics", id, "at"))).exists()) continue;
+          const v = (await rt.get(path(room, "_bakpics", "pics", id))).val(); if (v) await rt.set(path(room, "pics", id), v);
+        }
       }),
+      // 💾 전부 내려받기: 기록 + 사진 전부 (⚙ 설정 → 백업)
+      async exportAll() { const all = await roomSnap(room); all.pics = (await rt.get(path(room, "pics"))).val() || {}; return all; },
       // 📸 인증샷: pics/{id} = {full, thumb, win, kind, title, date, at}. 보드 열 때는 안 받고 필요할 때 한 장씩
       putPic: tracked((id, obj) => rt.set(path(room, "pics", id), obj)),
       async getPic(id, part) { return (await rt.get(path(room, "pics", id, part))).val(); }
@@ -1481,7 +1515,7 @@ async function loadBackups() {
     box.innerHTML = kinds.length ? kinds.map((k) => {
       const x = b[k], n = (c) => Object.keys(x[c] || {}).length;
       return `<div class="item"><span class="mono small muted" style="padding-top:2px">${fmtTime(x.savedAt)}</span>` +
-        `<div class="body"><div class="title">${BAK_LABEL[k]}</div><div class="meta">목표 ${n("goals")} · 할 일 ${n("tasks")} · 기록 ${n("logs")} · 돈 ${n("money")}</div></div>` +
+        `<div class="body"><div class="title">${BAK_LABEL[k]}</div><div class="meta">목표 ${n("goals")} · 할 일 ${n("tasks")} · 기록 ${n("logs")} · 돈 ${n("money")}${n("picIds") ? ` · 사진 ${n("picIds")}장` : ""}</div></div>` +
         `<div class="actions"><button class="icon-btn" type="button" data-act="restore" data-k="${k}">이걸로 되돌리기</button></div></div>`;
     }).join("") : '<div class="empty">아직 백업이 없어요. 기록이 생기면 1시간·하루마다 자동으로 만들어져요.</div>';
   } catch (e) { box.innerHTML = '<div class="empty">백업을 불러오지 못했어요.</div>'; }
@@ -1823,6 +1857,19 @@ document.addEventListener("click", (ev) => {
     return;
   }
   if (a === "loadBak") { loadBackups(); return; }
+  if (a === "dlAll") {   // 💾 기록 + 사진을 파일 하나(.json)로 이 기기에 저장
+    if (!backend || !backend.exportAll || el.disabled) return;
+    el.disabled = true; el.textContent = "모으는 중…";
+    backend.exportAll().then((all) => {
+      const n = Object.keys(all.pics || {}).length;
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([JSON.stringify({ board: "ukjin-board", savedAt: Date.now(), ...all })], { type: "application/json" }));
+      link.download = `욱진보드-백업-${today()}.json`; document.body.append(link); link.click();
+      setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 2000);
+      toast(`내려받았어요 (사진 ${n}장 포함)`);
+    }).catch(() => toast("내려받지 못했어요. 인터넷 연결을 확인해 주세요.")).finally(() => { el.disabled = false; el.textContent = "💾 전부 내려받기"; });
+    return;
+  }
   if (a === "restore") {
     if (!ready() || !backend.restore) return;
     if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.classList.add("armed"); el.textContent = "정말 되돌릴까요?"; return; }
