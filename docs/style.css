@@ -1274,7 +1274,8 @@ table.bulk { min-width: 1200px; table-layout: fixed; }
 .bulk-dlg .bulk [data-c] { width: 100%; }
 .bulk th:nth-child(1) { width: 34px; } .bulk th:nth-child(2) { width: 80px; } .bulk th:nth-child(3) { width: 140px; }
 .bulk th:nth-child(4), .bulk th:nth-child(5) { width: 180px; } .bulk th:nth-child(6) { width: 130px; }
-.bulk th:nth-child(7) { width: 120px; } .bulk th:nth-child(8) { width: 64px; } .bulk th:nth-child(11) { width: 40px; }
+.bulk th:nth-child(7) { width: 120px; } .bulk th:nth-child(8) { width: 64px; } .bulk th:nth-child(11) { width: 64px; }
+.bulk td.bk-btns { white-space: nowrap; } .bulk td.bk-btns .bk-del { padding: 6px 4px; }   /* 줄 끝 ⧉ 복사 + ✕ 지우기 */
 .bk-fill { position: absolute; width: 9px; height: 9px; background: var(--coral); border: 2px solid var(--surface); border-radius: 2px; cursor: ns-resize; z-index: 3; touch-action: none; }
 .bulk td.bk-fill-on { background: color-mix(in srgb, var(--coral) 14%, transparent); outline: 1px dashed var(--coral); outline-offset: -2px; }
 .bk-fill::after { content: ""; position: absolute; inset: -9px; }   /* 손가락으로도 잡기 쉽게 */

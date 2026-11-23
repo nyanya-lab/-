@@ -223,6 +223,13 @@ export const cardValue = (n) => /카드$/.test(n || "") ? n + "값" : (n || "카
 export function dayInMonth(m, d) { const last = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate(); return `${m}-${pad(Math.min(d, last))}`; }
 export function cardPayPlan(p, m) { return { date: dayInMonth(m, p.day), from: dayInMonth(shiftMonth(m, p.fm ?? -1), p.fd || 1), to: dayInMonth(shiftMonth(m, p.tm ?? -1), p.td || 31) }; }
 export function cardSpent(id, from, to) { let s = 0; S.money.forEach((x) => { if ((x.kind === "expense" || !x.kind) && isWon(x) && x.account === id && x.date >= from && x.date <= to) s += Number(x.amount) || 0; }); return s; }
+// 카드값 이체 금액 = 결제예정(자산 탭과 같은 셈): 지금 카드값(갚을 돈) − 그 이용기간 끝(to) 뒤에 쓴 돈(미결제)
+//   → 지난 결제 때 덜 내거나 더 낸 것·이용기간 지난 기록을 고친 것(환불 등)도 저절로 들어감 (2026-11-18 냐냐: 전엔 이용기간 기록 합만이라 9월분 환불이 안 빠짐)
+export function cardPayAmt(id, to) {
+  const owed = Math.max(0, -(balances()[id] || 0)); let open = 0;
+  S.money.forEach((x) => { if ((x.kind === "expense" || !x.kind) && isWon(x) && x.account === id && x.date > to) open += Number(x.amount) || 0; });
+  return Math.max(0, owed - Math.min(open, owed));
+}
 export function syncCardPays() {
   if (cardPaySyncing || !E.backend || !S.loaded || E.testMode) return;
   const t = today(), m = t.slice(0, 7), made = S.settings.autoTasks || {}, jobs = [], flags = {};
@@ -230,9 +237,9 @@ export function syncCardPays() {
     const p = a && a.type === "card" && a.pay; if (!p || !p.day || !p.from || !S.accounts.has(p.from)) return;
     const pl = cardPayPlan(p, m), key = `cp-${id}-${m}`;
     if (pl.date > t || pl.date < (p.since || t) || made[key] || S.money.has(key) || S.tasks.has(key)) return;
-    const amt = cardSpent(id, pl.from, pl.to);
+    const amt = cardPayAmt(id, pl.to);
     flags[key] = true;
-    jobs.push(() => E.backend.set("tasks", key, { title: `💳 ${cardValue(a.name)} 이체하기 (${amt > 0 ? "예상 " + won(amt) : "이 기간 사용 없음"})`, repeat: "none", date: pl.date, done: false, doneDate: null, noPractice: true,
+    jobs.push(() => E.backend.set("tasks", key, { title: `💳 ${cardValue(a.name)} 이체하기 (${amt > 0 ? "예상 " + won(amt) : "결제할 돈 없음"})`, repeat: "none", date: pl.date, done: false, doneDate: null, noPractice: true,
       cardPay: { card: id, from: p.from, start: pl.from, end: pl.to }, createdAt: Date.now() }));
   });
   if (!jobs.length) return;
@@ -260,14 +267,14 @@ export function syncGive() {
 export let cardPayFor = null;
 export function openCardPay(taskId) {
   const x = S.tasks.get(taskId), c = x && x.cardPay; if (!c) return;
-  showCardPay({ taskId, card: c.card, from: c.from, start: c.start, end: c.end, date: x.date || today(), amt: cardSpent(c.card, c.start, c.end) });
+  showCardPay({ taskId, card: c.card, from: c.from, start: c.start, end: c.end, date: x.date || today(), amt: cardPayAmt(c.card, c.end) });
 }
 function showCardPay(o) {
   const card = S.accounts.get(o.card); if (!card) return;
   cardPayFor = o;
   const banks = sortedAccts().filter((a) => a.type !== "card");
   $("mvTitle").textContent = `💳 ${cardValue(card.name)} 결제`;
-  $("mvText").innerHTML = `<p class="small muted">${o.start ? `이용기간 ${shortDate(o.start)} ~ ${shortDate(o.end)} 사용분이에요. ` : ""}카드 앱의 실제 청구 금액과 다르면 고쳐 주세요 (할부·연회비 등). [이체 기록하기]를 눌러야 기록돼요.</p>` +
+  $("mvText").innerHTML = `<p class="small muted">${o.start ? `이용기간 ${shortDate(o.start)} ~ ${shortDate(o.end)} 결제예정 금액이에요 (지금 카드값에서 ${shortDate(o.end)} 뒤에 쓴 돈을 뺀 것). ` : ""}카드 앱의 실제 청구 금액과 다르면 고쳐 주세요 (할부·연회비 등). [이체 기록하기]를 눌러야 기록돼요.</p>` +
     `<div class="form"><label class="f">금액 (원)<input type="text" class="amt-in" id="cpAmt" inputmode="numeric" autocomplete="off" value="${o.amt ? commaNum(o.amt) : ""}"></label>` +
     `<div class="row"><label class="f">날짜<input type="date" id="cpDate" value="${esc(o.date || today())}"></label>` +
     `<label class="f">빠지는 통장<select id="cpFrom">${acctOptsHtml(banks, o.from) || '<option value="">통장을 먼저 추가해 주세요</option>'}</select></label></div>` +
@@ -307,7 +314,7 @@ function payCardNow(id) {
   // 아직 안 한 '카드값 이체하기' 할 일이 있으면 그걸로 (이번 달 → 다음 결제 달)
   const taskId = [m0, d ? d.m : m0].map((mm) => `cp-${id}-${mm}`).find((k) => S.tasks.has(k) && !S.tasks.get(k).done && !S.money.has(k)) || null;
   const tc = taskId && S.tasks.get(taskId).cardPay;
-  showCardPay({ taskId, card: id, from, start: tc ? tc.start : d ? d.from : null, end: tc ? tc.end : d ? d.to : null, date: t, amt: tc ? cardSpent(id, tc.start, tc.end) : d ? d.due : owed });
+  showCardPay({ taskId, card: id, from, start: tc ? tc.start : d ? d.from : null, end: tc ? tc.end : d ? d.to : null, date: t, amt: tc ? cardPayAmt(id, tc.end) : d ? d.due : owed });
 }
 
 // ---------- 한 달 예산: settings.budgets[월] = { income, items: {id: {cat, memo, amount, createdAt}} } ----------
@@ -845,7 +852,7 @@ function bulkRowHtml(v) {
     `<td><select data-c="cur" aria-label="화폐">${currencies().map((c) => `<option${c === (v.cur || "원") ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></td>` +
     `<td><input type="text" data-c="memo" maxlength="80" value="${esc(v.memo || "")}" aria-label="내용"></td>` +
     `<td><input type="text" data-c="note" maxlength="500" value="${esc(v.note || "")}" aria-label="메모"></td>` +
-    `<td><button class="bk-del" type="button" data-act="bulkDel" aria-label="이 줄 비우기" title="이 줄 비우기">✕</button></td></tr>`;
+    `<td class="bk-btns"><button class="bk-del" type="button" data-act="bulkDup" aria-label="이 줄을 아래에 복사" title="이 줄을 아래에 복사">⧉</button><button class="bk-del" type="button" data-act="bulkDel" aria-label="이 줄 비우기" title="이 줄 비우기">✕</button></td></tr>`;
 }
 const bulkRead = (tr) => { const v = {}; tr.querySelectorAll("[data-c]").forEach((el) => { v[el.dataset.c] = el.value; }); return v; };
 function bulkNumber() { [...$("bulkBody").rows].forEach((tr, i) => { tr.cells[0].textContent = i + 1; }); bulkCount(); }
@@ -1102,7 +1109,7 @@ export function editMoney(id) {
   const x0 = S.money.get(id); if (x0 && x0.recvOf && S.money.has(x0.recvOf)) id = x0.recvOf;   // 🤲 받을 돈 짝을 누르면 실제 지출을 고침
   const x = S.money.get(id); if (!x) return;
   ui.mEdit = id; ui.kind = x.kind || "expense";
-  $("mAmount").value = commaNum(x.amount || ""); $("mDate").value = x.date || today(); $("mMemo").value = x.memo || "";
+  $("mAmount").value = commaNum(x.amount || "", true); $("mDate").value = x.date || today(); $("mMemo").value = x.memo || "";
   setMPics(Object.keys(x.pics && typeof x.pics === "object" ? x.pics : {}).map((pid) => ({ id: pid, old: true, thumb: null })));
   renderMoneyForm(x); renderMoney();
   openDrawer();   // 어느 탭에서든 서랍 창에서 고침
@@ -1288,6 +1295,11 @@ function renameSub(k, cat, old) {
 // 돈 관리 화면의 입력 칸 연결 (bindMoney 다음에 한 번)
 export function initMoney() {
   document.addEventListener("mousemove", pieTip); document.addEventListener("click", pieTip);
+  // 창 안에서 누른 채(글자 고르기 등) 창 바깥에서 떼면 브라우저가 창(dialog) 자체를 누른 걸로 쳐서 '바깥 누르면 닫기'에 걸려 꺼지던 것 막기:
+  //   창 바깥(어두운 곳)에서 누르고 뗀 것만 바깥 누름으로 (가계부의 모든 창, 2026-11-23 냐냐)
+  let downOn = null;
+  document.addEventListener("pointerdown", (ev) => { downOn = ev.target; }, true);
+  document.addEventListener("click", (ev) => { if (ev.target instanceof HTMLDialogElement && downOn && downOn !== ev.target) ev.stopImmediatePropagation(); }, true);
   $("mCat").addEventListener("change", () => { $("mSub").innerHTML = ccOn() ? ccSubOptions($("mCat").value, "") : subOptions(ui.kind, $("mCat").value, ""); salaryHint(); });
   if ($("mCommon")) $("mCommon").addEventListener("change", () => renderMoneyForm());   // 🏷 ❤️ 체크하면 분류 칸이 공통 분류로 (냐냐)
   $("mSub").addEventListener("change", () => { if ($("mSub").value === "__add") askNewSub(ui.kind, $("mCat").value, $("mSub")); });
@@ -1338,7 +1350,10 @@ export function initMoney() {
     ev.preventDefault();
     if (!ready()) return;
     const amount = amtVal($("mAmount"));
-    if (!(amount > 0)) { toast("금액을 적어 주세요."); return; }
+    if (!amount) { toast("금액을 적어 주세요."); return; }
+    // 지출·수입은 마이너스도 (환불·할인·캐시백, 냐냐 방식, 2026-11-23) — 이체·✂️ 나눠 적기·🤲 받을 돈은 플러스만
+    if (amount < 0 && ui.kind === "move") { toast("이체 금액은 마이너스로 적을 수 없어요."); return; }
+    if (amount < 0 && ((E.recSplit && E.recSplit.collect(1)) || (E.recv && E.recv.collect()))) { toast("마이너스 금액은 나눠 적기·받을 돈과 같이 쓸 수 없어요."); return; }
     if (ui.kind !== "move" && !$("mCat").value) { toast("분류를 골라 주세요."); $("mCat").focus(); return; }
     const sp = E.recSplit ? E.recSplit.collect(amount) : null;   // ✂️ 나눠 적기 → 이 기록은 나머지 금액, 나눈 줄은 새 기록으로
     if (sp && sp.error) { toast(sp.error); return; }
@@ -1500,6 +1515,8 @@ export function moneyAction(a, el, id, t) {
   if (a === "bulkClose") { closeDlg($("bulkDlg")); return true; }
   if (a === "bulkMore") { bulkAdd(5); return true; }
   if (a === "bulkSave") { bulkSave(); return true; }
+  // ⧉ 이 줄을 바로 아래에 한 줄 더 (구분·날짜·자산·분류·금액·내용 다 같게 → 다른 칸만 고치면 됨, 2026-11-23 냐냐)
+  if (a === "bulkDup") { const tr = el.closest("tr"), nt = Object.assign(document.createElement("tbody"), { innerHTML: bulkRowHtml(bulkRead(tr)) }).firstElementChild; tr.after(nt); bulkNumber(); const f = nt.querySelector('[data-c="amt"]'); if (f) f.focus(); return true; }
   if (a === "bulkDel") { const tr = el.closest("tr"); tr.replaceWith(Object.assign(document.createElement("tbody"), { innerHTML: bulkRowHtml({}) }).firstElementChild); bulkNumber(); return true; }
   if (a === "monthNow") { ui.month = today().slice(0, 7); renderMoney(); return true; }
   if (a === "mineToggle") { if (!ready()) return true; const on = !mineOn(); act(E.backend.saveSettings({ moneyMine: on || null }), on ? "💑 내 몫으로 보기: 공통비용은 절반, 정산 받은 돈은 수입에서 빼고 봐요." : "실제로 오간 돈 그대로 봐요.").catch(() => {}); return true; }
